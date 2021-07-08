@@ -15,7 +15,7 @@ const (
 )
 
 type CLICommand interface {
-	Execute(ctx context.Context, ee ExecutionEnvironment) (ExecutionResult, error)
+	Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error)
 }
 
 type ExecutionResult struct {
@@ -29,12 +29,58 @@ type ExecutionEnvironment struct {
 	KoinBalanceOfEntry types.UInt32
 }
 
+// CommandDeclaration is a struct that declares a command
+type CommandDeclaration struct {
+	Name          string
+	Instantiation func(CommandDeclaration) CLICommand
+	Args          []CommandArg
+}
+
+func NewCommandDeclaration(name string, instantiation func(CommandDeclaration) CLICommand, args ...CommandArg) *CommandDeclaration {
+	return &CommandDeclaration{
+		Name:          name,
+		Instantiation: instantiation,
+		Args:          args,
+	}
+}
+
+// CommandArg is a struct that holds an argument for a command
+type CommandArg struct {
+	Name    string
+	ArgType CommandArgType
+}
+
+func NewCommandArg(name string, argType CommandArgType) *CommandArg {
+	return &CommandArg{
+		Name:    name,
+		ArgType: argType,
+	}
+}
+
+// CommandArgType is an enum that defines the types of arguments a command can take
+type CommandArgType int
+
+const (
+	Address = iota
+)
+
+func BuildCommands() []*CommandDeclaration {
+	var decls []*CommandDeclaration
+	decls = append(decls, NewCommandDeclaration("balance", NewBalanceCommand, *NewCommandArg("address", Address)))
+
+	return decls
+}
+
 // ----------------------------------------------------------------------------
 // Balance
 // ----------------------------------------------------------------------------
 
 type BalanceCommand struct {
 	Address *types.AccountType
+}
+
+func NewBalanceCommand(decl CommandDeclaration) CLICommand {
+	return &BalanceCommand{}
 }
 
 func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {

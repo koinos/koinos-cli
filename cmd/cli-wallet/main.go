@@ -10,6 +10,7 @@ import (
 	types "github.com/koinos/koinos-types-golang"
 	flag "github.com/spf13/pflag"
 	"github.com/ybbus/jsonrpc/v2"
+	//"github.com/c-bata/go-prompt"
 )
 
 // Commpand line parameter names
