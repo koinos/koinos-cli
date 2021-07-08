@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	types "github.com/koinos/koinos-types-golang"
-	"github.com/shopspring/decimal"
 	"github.com/ybbus/jsonrpc/v2"
 )
 
@@ -115,12 +114,7 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	// Build the result
-	er := ExecutionResult{Message: fmt.Sprintf("%v %s", koinToDecimal(balance), KoinSymbol)}
+	er := ExecutionResult{Message: fmt.Sprintf("%v %s", KoinToDecimal(balance), KoinSymbol)}
 
 	return &er, nil
-}
-
-func koinToDecimal(balance *types.UInt64) *decimal.Decimal {
-	v := decimal.NewFromInt(int64(*balance)).Div(decimal.NewFromInt(100000000))
-	return &v
 }

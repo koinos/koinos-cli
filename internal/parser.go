@@ -1,5 +1,10 @@
 package internal
 
+type CommandInvocation struct {
+	Args map[string]string
+	Decl *CommandDeclaration
+}
+
 type CommandParser struct {
 	commands     []*CommandDeclaration
 	name2command map[string]*CommandDeclaration
@@ -16,4 +21,8 @@ func NewCommandParser(commands []*CommandDeclaration) *CommandParser {
 	}
 
 	return parser
+}
+
+func Parse(command string) {
+
 }

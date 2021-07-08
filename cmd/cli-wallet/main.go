@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-	"encoding/base64"
 	"fmt"
 
 	"github.com/joho/godotenv"
@@ -42,31 +40,26 @@ func main() {
 
 	// Setup command execution environment
 	client := jsonrpc.NewClient(*rpcAddress)
-	contractID, err := contractStringToID(KoinContractID)
+	contractID, err := internal.ContractStringToID(KoinContractID)
 	if err != nil {
 		panic("Invalid contract ID")
 	}
 
 	cmdEnv := internal.ExecutionEnvironment{RPCClient: client, KoinContractID: contractID, KoinBalanceOfEntry: BalanceOfEntryPoint}
+	fmt.Println(cmdEnv)
+
+	// Construct the command parser
+	commands := internal.BuildCommands()
+	parser := internal.NewCommandParser(commands)
+	fmt.Println(parser)
 
 	// Execute command
-	address := types.AccountType("1Krs7v1rtpgRyfwEZncuKMQQnY5JhqXVSx")
+	/*address := types.AccountType("1Krs7v1rtpgRyfwEZncuKMQQnY5JhqXVSx")
 	bcmd := internal.BalanceCommand{Address: &address}
 	res, err := bcmd.Execute(context.Background(), &cmdEnv)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(res.Message)
-}
-
-func contractStringToID(s string) (*types.ContractIDType, error) {
-	b, err := base64.StdEncoding.DecodeString(s)
-	cid := types.NewContractIDType()
-	if err != nil {
-		return cid, err
-	}
-
-	copy(cid[:], b)
-	return cid, nil
+	fmt.Println(res.Message)*/
 }
