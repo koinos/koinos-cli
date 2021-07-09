@@ -65,12 +65,4 @@ func main() {
 			fmt.Println(result.Message)
 		}
 	}
-	/*address := types.AccountType("1Krs7v1rtpgRyfwEZncuKMQQnY5JhqXVSx")
-	bcmd := internal.BalanceCommand{Address: &address}
-	res, err := bcmd.Execute(context.Background(), &cmdEnv)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(res.Message)*/
 }

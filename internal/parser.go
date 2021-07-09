@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strings"
 )
 
 // CommandInvocation is the result of parsing a command string
@@ -12,12 +11,14 @@ type CommandInvocation struct {
 	CommandName string
 	Args        map[string]string // This could be a slice of strings potentially
 	Decl        *CommandDeclaration
+	CurrentArg  int
 }
 
 func NewCommandInvocation(name string) *CommandInvocation {
 	inv := &CommandInvocation{
 		CommandName: name,
 		Args:        make(map[string]string),
+		CurrentArg:  -1,
 	}
 
 	return inv
@@ -59,7 +60,7 @@ func NewCommandParser(commands []*CommandDeclaration) *CommandParser {
 
 func (p *CommandParser) Parse(commands string) ([]*CommandInvocation, error) {
 	// Sanitize input string and make byte buffer
-	input := []byte(strings.TrimSpace(commands))
+	input := []byte(commands)
 	var invs []*CommandInvocation = make([]*CommandInvocation, 0)
 
 	// Loop until we've consumed all input
@@ -67,7 +68,7 @@ func (p *CommandParser) Parse(commands string) ([]*CommandInvocation, error) {
 		var err error
 		var inv *CommandInvocation
 
-		input, _ = p.parseSkip(input)
+		input, _ = p.parseSkip(input, inv, false)
 		inv, input, err = p.parseNextCommand(input)
 		if inv != nil {
 			invs = append(invs, inv)
@@ -97,6 +98,9 @@ func (p *CommandParser) parseNextCommand(input []byte) (*CommandInvocation, []by
 		return inv, nil, fmt.Errorf("%w", ErrUnknownCommand)
 	}
 
+	// Skip whitespace
+	input, _ = p.parseSkip(input, inv, true)
+
 	input, err = p.parseArgs(input, inv)
 	if err != nil {
 		return inv, input, err
@@ -121,7 +125,7 @@ func (p *CommandParser) parseArgs(input []byte, inv *CommandInvocation) ([]byte,
 	for _, arg := range inv.Decl.Args {
 		// Skip whitespace
 		var t bool
-		input, t = p.parseSkip(input)
+		input, t = p.parseSkip(input, inv, true)
 		if t {
 			return input, nil
 		}
@@ -160,11 +164,15 @@ func (p *CommandParser) parseAddress(input []byte) ([]byte, error) {
 }
 
 // Returns the rest of the string, and a bool that is true if it encountered a terminator
-func (p *CommandParser) parseSkip(input []byte) ([]byte, bool) {
+func (p *CommandParser) parseSkip(input []byte, inv *CommandInvocation, incArgs bool) ([]byte, bool) {
 	term := false
+	skipped := false
 
 	m := p.skipRE.Find(input)
-	input = input[len(m):]
+	if len(m) > 0 {
+		skipped = true
+		input = input[len(m):]
+	}
 
 	if p.terminatorRE.Match(input) {
 		input = input[len(p.terminatorRE.Find(input)):]
@@ -172,7 +180,14 @@ func (p *CommandParser) parseSkip(input []byte) ([]byte, bool) {
 	}
 
 	m = p.skipRE.Find(input)
-	input = input[len(m):]
+	if len(m) > 0 {
+		skipped = true
+		input = input[len(m):]
+	}
+
+	if skipped && incArgs {
+		inv.CurrentArg++
+	}
 
 	return input, term
 }
