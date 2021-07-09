@@ -51,7 +51,9 @@ func main() {
 	// Construct the command parser
 	commands := internal.BuildCommands()
 	parser := internal.NewCommandParser(commands)
-	fmt.Println(parser)
+
+	invs, _ := parser.Parse("balance;")
+	fmt.Println(invs)
 
 	// Execute command
 	/*address := types.AccountType("1Krs7v1rtpgRyfwEZncuKMQQnY5JhqXVSx")
