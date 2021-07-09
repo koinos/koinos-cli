@@ -1,13 +1,15 @@
 package internal
 
 import (
+	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 )
 
 type CommandInvocation struct {
 	CommandName string
-	Args        map[string]string
+	Args        map[string]string // This could be a slice of strings potentially
 	Decl        *CommandDeclaration
 }
 
@@ -24,9 +26,11 @@ type CommandParser struct {
 	commands     []*CommandDeclaration
 	name2command map[string]*CommandDeclaration
 
+	// Parser token recognizer regexps
 	commandNameRE *regexp.Regexp
 	skipRE        *regexp.Regexp
 	terminatorRE  *regexp.Regexp
+	addressRE     *regexp.Regexp
 }
 
 func NewCommandParser(commands []*CommandDeclaration) *CommandParser {
@@ -40,8 +44,9 @@ func NewCommandParser(commands []*CommandDeclaration) *CommandParser {
 	}
 
 	parser.commandNameRE = regexp.MustCompile(`^[a-zA-Z0-9_]+`)
-	parser.skipRE = regexp.MustCompile(`^\\s*`)
+	parser.skipRE = regexp.MustCompile(`^\s*`)
 	parser.terminatorRE = regexp.MustCompile(`^(;|$)`)
+	parser.addressRE = regexp.MustCompile(`^[1-9A-HJ-NP-Za-km-z]+`)
 
 	return parser
 }
@@ -58,10 +63,10 @@ func (p *CommandParser) Parse(commands string) ([]*CommandInvocation, error) {
 
 		input, _ = p.parseSkip(input)
 		inv, input, err = p.parseNextCommand(input)
-		if invs != nil {
+		if inv != nil {
 			invs = append(invs, inv)
 		}
-		if err != nil {
+		if err != nil && !errors.Is(err, ErrEmptyCommandName) {
 			return invs, err
 		}
 	}
@@ -83,13 +88,12 @@ func (p *CommandParser) parseNextCommand(input []byte) (*CommandInvocation, []by
 	if decl, ok := p.name2command[string(name)]; ok {
 		inv.Decl = decl
 	} else {
-		return inv, nil, ErrUnknownCommand
+		return inv, nil, fmt.Errorf("%w", ErrUnknownCommand)
 	}
 
-	// Skip to next argument
-	input, t := p.parseSkip(input)
-	if t {
-		return inv, input, nil
+	input, err = p.parseArgs(input, inv)
+	if err != nil {
+		return inv, input, err
 	}
 
 	return inv, input, nil
@@ -99,7 +103,51 @@ func (p *CommandParser) parseNextCommand(input []byte) (*CommandInvocation, []by
 func (p *CommandParser) parseCommandName(input []byte) ([]byte, error) {
 	m := p.commandNameRE.Find(input)
 	if m == nil {
-		return nil, ErrEmptyCommandName
+		return nil, fmt.Errorf("%w", ErrEmptyCommandName)
+	}
+
+	return m, nil
+}
+
+// Parse a command's arguments. Returns unconsumed input
+func (p *CommandParser) parseArgs(input []byte, inv *CommandInvocation) ([]byte, error) {
+	// Loop through expected arguments
+	for _, arg := range inv.Decl.Args {
+		// Skip whitespace
+		var t bool
+		input, t = p.parseSkip(input)
+		if t {
+			return input, nil
+		}
+
+		var match []byte
+		var err error
+
+		// Match the argument based on type
+		switch arg.ArgType {
+		case Address:
+			match, err = p.parseAddress(input)
+		}
+		input = input[len(match):] // Consume the match
+
+		// Check for error during match
+		if err != nil {
+			return input, err
+		}
+
+		// Store the argument value in the invocation
+		inv.Args[arg.Name] = string(match)
+	}
+
+	return input, nil
+}
+
+// Parse an address. Returns Matched address and error
+func (p *CommandParser) parseAddress(input []byte) ([]byte, error) {
+	// Parse address
+	m := p.addressRE.Find(input)
+	if m == nil {
+		return nil, fmt.Errorf("%w", ErrEmptyParam)
 	}
 
 	return m, nil
@@ -107,11 +155,18 @@ func (p *CommandParser) parseCommandName(input []byte) ([]byte, error) {
 
 // Returns the rest of the string, and a bool that is true if it encountered a terminator
 func (p *CommandParser) parseSkip(input []byte) ([]byte, bool) {
+	term := false
+
 	m := p.skipRE.Find(input)
 	input = input[len(m):]
+
 	if p.terminatorRE.Match(input) {
-		return input[len(p.terminatorRE.Find(input)):], true
+		input = input[len(p.terminatorRE.Find(input)):]
+		term = true
 	}
 
-	return input, false
+	m = p.skipRE.Find(input)
+	input = input[len(m):]
+
+	return input, term
 }

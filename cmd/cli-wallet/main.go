@@ -52,7 +52,7 @@ func main() {
 	commands := internal.BuildCommands()
 	parser := internal.NewCommandParser(commands)
 
-	invs, _ := parser.Parse("balance;")
+	invs, err := parser.Parse("balance 1Krs7v1rtpgRyfwEZncuKMQQnY5JhqXVSx; balance 1Krs7v1rtpgRyfwEZncuKMQQnY5JhqXVSx")
 	fmt.Println(invs)
 
 	// Execute command
