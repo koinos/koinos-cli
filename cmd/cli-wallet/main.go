@@ -65,4 +65,8 @@ func main() {
 			fmt.Println(result.Message)
 		}
 	}
+
+	// Enter interactive mode
+	p := internal.NewInteractivePrompt(parser, &cmdEnv)
+	p.Run()
 }

@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"fmt"
+	"os"
 
 	types "github.com/koinos/koinos-types-golang"
 	"github.com/ybbus/jsonrpc/v2"
@@ -73,6 +74,8 @@ const (
 func BuildCommands() []*CommandDeclaration {
 	var decls []*CommandDeclaration
 	decls = append(decls, NewCommandDeclaration("balance", NewBalanceCommand, *NewCommandArg("address", Address)))
+	decls = append(decls, NewCommandDeclaration("exit", NewExitCommand))
+	decls = append(decls, NewCommandDeclaration("quit", NewExitCommand))
 
 	return decls
 }
@@ -132,4 +135,20 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	er := ExecutionResult{Message: fmt.Sprintf("%v %s", KoinToDecimal(balance), KoinSymbol)}
 
 	return &er, nil
+}
+
+// ----------------------------------------------------------------------------
+// Exit Command
+// ----------------------------------------------------------------------------
+
+type ExitCommand struct {
+}
+
+func NewExitCommand(inv *CommandInvocation) CLICommand {
+	return &ExitCommand{}
+}
+
+func (c *ExitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	os.Exit(0)
+	return nil, nil
 }
