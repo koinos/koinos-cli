@@ -31,11 +31,11 @@ type ExecutionEnvironment struct {
 // CommandDeclaration is a struct that declares a command
 type CommandDeclaration struct {
 	Name          string
-	Instantiation func(CommandDeclaration) CLICommand
+	Instantiation func(*CommandInvocation) CLICommand
 	Args          []CommandArg
 }
 
-func NewCommandDeclaration(name string, instantiation func(CommandDeclaration) CLICommand, args ...CommandArg) *CommandDeclaration {
+func NewCommandDeclaration(name string, instantiation func(*CommandInvocation) CLICommand, args ...CommandArg) *CommandDeclaration {
 	return &CommandDeclaration{
 		Name:          name,
 		Instantiation: instantiation,
@@ -63,6 +63,13 @@ const (
 	Address = iota
 )
 
+// ----------------------------------------------------------------------------
+// Command Declarations
+// ----------------------------------------------------------------------------
+
+// All commands should be declared here
+
+// BuildCommands constructs the declarations needed by the parser
 func BuildCommands() []*CommandDeclaration {
 	var decls []*CommandDeclaration
 	decls = append(decls, NewCommandDeclaration("balance", NewBalanceCommand, *NewCommandArg("address", Address)))
@@ -71,15 +78,23 @@ func BuildCommands() []*CommandDeclaration {
 }
 
 // ----------------------------------------------------------------------------
-// Balance
+// Command Implementations
+// ----------------------------------------------------------------------------
+
+// All commands should be implemented here
+
+// ----------------------------------------------------------------------------
+// Balance Command
 // ----------------------------------------------------------------------------
 
 type BalanceCommand struct {
 	Address *types.AccountType
 }
 
-func NewBalanceCommand(decl CommandDeclaration) CLICommand {
-	return &BalanceCommand{}
+func NewBalanceCommand(inv *CommandInvocation) CLICommand {
+	address_string := inv.Args["address"]
+	address := types.AccountType(address_string)
+	return &BalanceCommand{Address: &address}
 }
 
 func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {

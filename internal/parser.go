@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// CommandInvocation is the result of parsing a command string
 type CommandInvocation struct {
 	CommandName string
 	Args        map[string]string // This could be a slice of strings potentially
@@ -20,6 +21,11 @@ func NewCommandInvocation(name string) *CommandInvocation {
 	}
 
 	return inv
+}
+
+// Instantiate creates a new command object from the invocation object
+func (inv *CommandInvocation) Instantiate() CLICommand {
+	return inv.Decl.Instantiation(inv)
 }
 
 type CommandParser struct {

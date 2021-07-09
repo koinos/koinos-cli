@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/joho/godotenv"
@@ -13,12 +14,14 @@ import (
 
 // Commpand line parameter names
 const (
-	rpcOption = "rpc"
+	rpcOption     = "rpc"
+	executeOption = "execute"
 )
 
 // Default options
 const (
-	rpcDefault = "http://localhost:8080"
+	rpcDefault     = "http://localhost:8080"
+	executeDefault = ""
 )
 
 const (
@@ -35,6 +38,7 @@ func main() {
 
 	// Setup command line options
 	rpcAddress := flag.StringP(rpcOption, "r", rpcDefault, "RPC server URL")
+	executeCmd := flag.StringP(executeOption, "x", executeDefault, "Command to execute")
 
 	flag.Parse()
 
@@ -46,16 +50,21 @@ func main() {
 	}
 
 	cmdEnv := internal.ExecutionEnvironment{RPCClient: client, KoinContractID: contractID, KoinBalanceOfEntry: BalanceOfEntryPoint}
-	fmt.Println(cmdEnv)
 
 	// Construct the command parser
 	commands := internal.BuildCommands()
 	parser := internal.NewCommandParser(commands)
 
-	invs, err := parser.Parse("balance 1Krs7v1rtpgRyfwEZncuKMQQnY5JhqXVSx; balance 1Krs7v1rtpgRyfwEZncuKMQQnY5JhqXVSx")
-	fmt.Println(invs)
+	if *executeCmd != "" {
+		invs, _ := parser.Parse(*executeCmd)
 
-	// Execute command
+		// Execute commands
+		for _, inv := range invs {
+			cmd := inv.Instantiate()
+			result, _ := cmd.Execute(context.Background(), &cmdEnv)
+			fmt.Println(result.Message)
+		}
+	}
 	/*address := types.AccountType("1Krs7v1rtpgRyfwEZncuKMQQnY5JhqXVSx")
 	bcmd := internal.BalanceCommand{Address: &address}
 	res, err := bcmd.Execute(context.Background(), &cmdEnv)
