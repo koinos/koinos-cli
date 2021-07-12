@@ -1,4 +1,4 @@
-package internal
+package wallet
 
 import (
 	"errors"
@@ -6,16 +6,16 @@ import (
 	"regexp"
 )
 
-// CommandInvocation is the result of parsing a command string
-type CommandInvocation struct {
+// ParseResult is the result of parsing a command string
+type ParseResult struct {
 	CommandName string
 	Args        map[string]string // This could be a slice of strings potentially
 	Decl        *CommandDeclaration
 	CurrentArg  int
 }
 
-func NewCommandInvocation(name string) *CommandInvocation {
-	inv := &CommandInvocation{
+func NewParseResult(name string) *ParseResult {
+	inv := &ParseResult{
 		CommandName: name,
 		Args:        make(map[string]string),
 		CurrentArg:  -1,
@@ -25,12 +25,12 @@ func NewCommandInvocation(name string) *CommandInvocation {
 }
 
 // Instantiate creates a new command object from the invocation object
-func (inv *CommandInvocation) Instantiate() CLICommand {
+func (inv *ParseResult) Instantiate() CLICommand {
 	return inv.Decl.Instantiation(inv)
 }
 
 type CommandParser struct {
-	commands     []*CommandDeclaration
+	Commands     []*CommandDeclaration
 	name2command map[string]*CommandDeclaration
 
 	// Parser token recognizer regexps
@@ -42,7 +42,7 @@ type CommandParser struct {
 
 func NewCommandParser(commands []*CommandDeclaration) *CommandParser {
 	parser := &CommandParser{
-		commands:     commands,
+		Commands:     commands,
 		name2command: make(map[string]*CommandDeclaration),
 	}
 
@@ -58,15 +58,15 @@ func NewCommandParser(commands []*CommandDeclaration) *CommandParser {
 	return parser
 }
 
-func (p *CommandParser) Parse(commands string) ([]*CommandInvocation, error) {
+func (p *CommandParser) Parse(commands string) ([]*ParseResult, error) {
 	// Sanitize input string and make byte buffer
 	input := []byte(commands)
-	var invs []*CommandInvocation = make([]*CommandInvocation, 0)
+	var invs []*ParseResult = make([]*ParseResult, 0)
 
 	// Loop until we've consumed all input
 	for len(input) > 0 {
 		var err error
-		var inv *CommandInvocation
+		var inv *ParseResult
 
 		input, _ = p.parseSkip(input, inv, false)
 		inv, input, err = p.parseNextCommand(input)
@@ -81,7 +81,7 @@ func (p *CommandParser) Parse(commands string) ([]*CommandInvocation, error) {
 	return invs, nil
 }
 
-func (p *CommandParser) parseNextCommand(input []byte) (*CommandInvocation, []byte, error) {
+func (p *CommandParser) parseNextCommand(input []byte) (*ParseResult, []byte, error) {
 	// Parse the command name
 	name, err := p.parseCommandName(input)
 	if err != nil {
@@ -91,7 +91,7 @@ func (p *CommandParser) parseNextCommand(input []byte) (*CommandInvocation, []by
 	input = input[len(name):]
 
 	// Create the invocation object
-	inv := NewCommandInvocation(string(name))
+	inv := NewParseResult(string(name))
 	if decl, ok := p.name2command[string(name)]; ok {
 		inv.Decl = decl
 	} else {
@@ -120,7 +120,7 @@ func (p *CommandParser) parseCommandName(input []byte) ([]byte, error) {
 }
 
 // Parse a command's arguments. Returns unconsumed input
-func (p *CommandParser) parseArgs(input []byte, inv *CommandInvocation) ([]byte, error) {
+func (p *CommandParser) parseArgs(input []byte, inv *ParseResult) ([]byte, error) {
 	// Loop through expected arguments
 	for _, arg := range inv.Decl.Args {
 		// Skip whitespace
@@ -164,7 +164,7 @@ func (p *CommandParser) parseAddress(input []byte) ([]byte, error) {
 }
 
 // Returns the rest of the string, and a bool that is true if it encountered a terminator
-func (p *CommandParser) parseSkip(input []byte, inv *CommandInvocation, incArgs bool) ([]byte, bool) {
+func (p *CommandParser) parseSkip(input []byte, inv *ParseResult, incArgs bool) ([]byte, bool) {
 	term := false
 	skipped := false
 

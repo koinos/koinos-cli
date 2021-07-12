@@ -1,4 +1,4 @@
-package internal
+package wallet
 
 import (
 	"context"
@@ -32,13 +32,18 @@ type ExecutionEnvironment struct {
 // CommandDeclaration is a struct that declares a command
 type CommandDeclaration struct {
 	Name          string
-	Instantiation func(*CommandInvocation) CLICommand
+	Description   string
+	Instantiation func(*ParseResult) CLICommand
 	Args          []CommandArg
+	Hidden        bool // If true, the command is not shown in the help
 }
 
-func NewCommandDeclaration(name string, instantiation func(*CommandInvocation) CLICommand, args ...CommandArg) *CommandDeclaration {
+func NewCommandDeclaration(name string, description string, hidden bool,
+	instantiation func(*ParseResult) CLICommand, args ...CommandArg) *CommandDeclaration {
 	return &CommandDeclaration{
 		Name:          name,
+		Description:   description,
+		Hidden:        hidden,
 		Instantiation: instantiation,
 		Args:          args,
 	}
@@ -73,9 +78,9 @@ const (
 // BuildCommands constructs the declarations needed by the parser
 func BuildCommands() []*CommandDeclaration {
 	var decls []*CommandDeclaration
-	decls = append(decls, NewCommandDeclaration("balance", NewBalanceCommand, *NewCommandArg("address", Address)))
-	decls = append(decls, NewCommandDeclaration("exit", NewExitCommand))
-	decls = append(decls, NewCommandDeclaration("quit", NewExitCommand))
+	decls = append(decls, NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewCommandArg("address", Address)))
+	decls = append(decls, NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
+	decls = append(decls, NewCommandDeclaration("quit", "", true, NewExitCommand))
 
 	return decls
 }
@@ -94,7 +99,7 @@ type BalanceCommand struct {
 	Address *types.AccountType
 }
 
-func NewBalanceCommand(inv *CommandInvocation) CLICommand {
+func NewBalanceCommand(inv *ParseResult) CLICommand {
 	address_string := inv.Args["address"]
 	address := types.AccountType(address_string)
 	return &BalanceCommand{Address: &address}
@@ -144,7 +149,7 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 type ExitCommand struct {
 }
 
-func NewExitCommand(inv *CommandInvocation) CLICommand {
+func NewExitCommand(inv *ParseResult) CLICommand {
 	return &ExitCommand{}
 }
 

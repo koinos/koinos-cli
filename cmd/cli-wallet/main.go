@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"github.com/joho/godotenv"
-	"github.com/koinos/koinos-cli-wallet/internal"
+	"github.com/koinos/koinos-cli-wallet/cmd/cli-wallet/interactive"
+	"github.com/koinos/koinos-cli-wallet/internal/wallet"
 	types "github.com/koinos/koinos-types-golang"
 	flag "github.com/spf13/pflag"
 	"github.com/ybbus/jsonrpc/v2"
-	//"github.com/c-bata/go-prompt"
 )
 
 // Commpand line parameter names
@@ -44,16 +44,16 @@ func main() {
 
 	// Setup command execution environment
 	client := jsonrpc.NewClient(*rpcAddress)
-	contractID, err := internal.ContractStringToID(KoinContractID)
+	contractID, err := wallet.ContractStringToID(KoinContractID)
 	if err != nil {
 		panic("Invalid contract ID")
 	}
 
-	cmdEnv := internal.ExecutionEnvironment{RPCClient: client, KoinContractID: contractID, KoinBalanceOfEntry: BalanceOfEntryPoint}
+	cmdEnv := wallet.ExecutionEnvironment{RPCClient: client, KoinContractID: contractID, KoinBalanceOfEntry: BalanceOfEntryPoint}
 
 	// Construct the command parser
-	commands := internal.BuildCommands()
-	parser := internal.NewCommandParser(commands)
+	commands := wallet.BuildCommands()
+	parser := wallet.NewCommandParser(commands)
 
 	if *executeCmd != "" {
 		invs, _ := parser.Parse(*executeCmd)
@@ -67,6 +67,6 @@ func main() {
 	}
 
 	// Enter interactive mode
-	p := internal.NewInteractivePrompt(parser, &cmdEnv)
+	p := interactive.NewInteractivePrompt(parser, &cmdEnv)
 	p.Run()
 }

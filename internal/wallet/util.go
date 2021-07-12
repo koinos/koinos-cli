@@ -1,4 +1,4 @@
-package internal
+package wallet
 
 import (
 	"encoding/base64"
