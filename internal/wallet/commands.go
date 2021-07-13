@@ -6,25 +6,28 @@ import (
 	"os"
 
 	types "github.com/koinos/koinos-types-golang"
-	"github.com/ybbus/jsonrpc/v2"
 )
 
+// Hardcoded Koin contract constants
 const (
 	ReadContractCall = "chain.read_contract"
 	KoinSymbol       = "tKOIN"
+	KoinPrecision    = 8
 )
 
+// CLICommand is the interface that all commands must implement
 type CLICommand interface {
 	Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error)
 }
 
+// ExecutionResult is the result of a command execution
 type ExecutionResult struct {
 	Message string
 }
 
 // ExecutionEnvironment is a struct that holds the environment for command execution.
 type ExecutionEnvironment struct {
-	RPCClient          jsonrpc.RPCClient
+	RPCClient          *KoinosRPCClient
 	KoinContractID     *types.ContractIDType
 	KoinBalanceOfEntry types.UInt32
 }
@@ -38,6 +41,7 @@ type CommandDeclaration struct {
 	Hidden        bool // If true, the command is not shown in the help
 }
 
+// NewCommandDeclaration create a new command declaration
 func NewCommandDeclaration(name string, description string, hidden bool,
 	instantiation func(*ParseResult) CLICommand, args ...CommandArg) *CommandDeclaration {
 	return &CommandDeclaration{
@@ -55,6 +59,7 @@ type CommandArg struct {
 	ArgType CommandArgType
 }
 
+// NewCommandArg creates a new command argument
 func NewCommandArg(name string, argType CommandArgType) *CommandArg {
 	return &CommandArg{
 		Name:    name,
@@ -65,6 +70,7 @@ func NewCommandArg(name string, argType CommandArgType) *CommandArg {
 // CommandArgType is an enum that defines the types of arguments a command can take
 type CommandArgType int
 
+// Types of arguments
 const (
 	Address = iota
 )
@@ -95,16 +101,19 @@ func BuildCommands() []*CommandDeclaration {
 // Balance Command
 // ----------------------------------------------------------------------------
 
+// BalanceCommand is a command that checks the balance of an address
 type BalanceCommand struct {
 	Address *types.AccountType
 }
 
+// NewBalanceCommand creates a new balance object
 func NewBalanceCommand(inv *ParseResult) CLICommand {
-	address_string := inv.Args["address"]
-	address := types.AccountType(address_string)
+	addressString := inv.Args["address"]
+	address := types.AccountType(addressString)
 	return &BalanceCommand{Address: &address}
 }
 
+// Execute fetches the balance
 func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	// Build the contract request
 	params := types.NewReadContractRequest()
@@ -116,28 +125,23 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	params.Args = *vb
 
 	// Make the rpc call
-	resp, err := ee.RPCClient.Call(ReadContractCall, params)
-	if err != nil {
-		return nil, err
-	}
-	if resp.Error != nil {
-		return nil, resp.Error
-	}
-
-	// Fetch the contract response
-	var c_resp types.ReadContractResponse
-	err = resp.GetObject(&c_resp)
+	var cResp types.ReadContractResponse
+	err := ee.RPCClient.Call(ReadContractCall, params, &cResp)
 	if err != nil {
 		return nil, err
 	}
 
-	_, balance, err := types.DeserializeUInt64(&c_resp.Result)
+	_, balance, err := types.DeserializeUInt64(&cResp.Result)
 	if err != nil {
 		return nil, err
 	}
 
 	// Build the result
-	er := ExecutionResult{Message: fmt.Sprintf("%v %s", KoinToDecimal(balance), KoinSymbol)}
+	dec, err := SatoshiToDecimal(int64(*balance), KoinPrecision)
+	if err != nil {
+		return nil, err
+	}
+	er := ExecutionResult{Message: fmt.Sprintf("%v %s", dec, KoinSymbol)}
 
 	return &er, nil
 }
@@ -146,13 +150,16 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 // Exit Command
 // ----------------------------------------------------------------------------
 
+// ExitCommand is a command that exits the wallet
 type ExitCommand struct {
 }
 
+// NewExitCommand creates a new exit object
 func NewExitCommand(inv *ParseResult) CLICommand {
 	return &ExitCommand{}
 }
 
+// Execute exits the wallet
 func (c *ExitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	os.Exit(0)
 	return nil, nil

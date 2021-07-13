@@ -14,6 +14,7 @@ type ParseResult struct {
 	CurrentArg  int
 }
 
+// NewParseResult creates a new parse result object
 func NewParseResult(name string) *ParseResult {
 	inv := &ParseResult{
 		CommandName: name,
@@ -29,6 +30,7 @@ func (inv *ParseResult) Instantiate() CLICommand {
 	return inv.Decl.Instantiation(inv)
 }
 
+// CommandParser is a parser for commands
 type CommandParser struct {
 	Commands     []*CommandDeclaration
 	name2command map[string]*CommandDeclaration
@@ -40,6 +42,7 @@ type CommandParser struct {
 	addressRE     *regexp.Regexp
 }
 
+// NewCommandParser creates a new command parser
 func NewCommandParser(commands []*CommandDeclaration) *CommandParser {
 	parser := &CommandParser{
 		Commands:     commands,
@@ -58,6 +61,7 @@ func NewCommandParser(commands []*CommandDeclaration) *CommandParser {
 	return parser
 }
 
+// Parse parses a string of command(s)
 func (p *CommandParser) Parse(commands string) ([]*ParseResult, error) {
 	// Sanitize input string and make byte buffer
 	input := []byte(commands)
@@ -95,6 +99,7 @@ func (p *CommandParser) parseNextCommand(input []byte) (*ParseResult, []byte, er
 	if decl, ok := p.name2command[string(name)]; ok {
 		inv.Decl = decl
 	} else {
+		p.parseSkip(input, inv, true)
 		return inv, nil, fmt.Errorf("%w", ErrUnknownCommand)
 	}
 

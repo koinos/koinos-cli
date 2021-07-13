@@ -9,7 +9,6 @@ import (
 	"github.com/koinos/koinos-cli-wallet/internal/wallet"
 	types "github.com/koinos/koinos-types-golang"
 	flag "github.com/spf13/pflag"
-	"github.com/ybbus/jsonrpc/v2"
 )
 
 // Commpand line parameter names
@@ -24,6 +23,7 @@ const (
 	executeDefault = ""
 )
 
+// Koin contract constants
 const (
 	KoinContractID      = "kw96mR+Hh71IWwJoT/2lJXBDl5Q="
 	BalanceOfEntryPoint = types.UInt32(0x15619248)
@@ -43,12 +43,12 @@ func main() {
 	flag.Parse()
 
 	// Setup command execution environment
-	client := jsonrpc.NewClient(*rpcAddress)
 	contractID, err := wallet.ContractStringToID(KoinContractID)
 	if err != nil {
 		panic("Invalid contract ID")
 	}
 
+	client := wallet.NewKoinosRPCClient(*rpcAddress)
 	cmdEnv := wallet.ExecutionEnvironment{RPCClient: client, KoinContractID: contractID, KoinBalanceOfEntry: BalanceOfEntryPoint}
 
 	// Construct the command parser
@@ -67,6 +67,6 @@ func main() {
 	}
 
 	// Enter interactive mode
-	p := interactive.NewInteractivePrompt(parser, &cmdEnv)
+	p := interactive.NewKoinosPrompt(parser, &cmdEnv)
 	p.Run()
 }
