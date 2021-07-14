@@ -4,10 +4,33 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	types "github.com/koinos/koinos-types-golang"
 	"github.com/shopspring/decimal"
 	"github.com/ybbus/jsonrpc/v2"
 )
+
+// SignTransaction signs the transaction with the given key
+func SignTransaction(key []byte, tx *types.Transaction) error {
+	privateKey, err := crypto.ToECDSA(key)
+
+	if err != nil {
+		return err
+	}
+
+	// Sign the transaction ID
+	blobID := tx.ID.Serialize(types.NewVariableBlob())
+	signatureBytes, err := crypto.Sign([]byte(*blobID), privateKey)
+
+	// Attach the signature data to the transaction
+	tx.SignatureData = types.VariableBlob(signatureBytes)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // ContractStringToID converts a base64 contract id string to a contract id object
 func ContractStringToID(s string) (*types.ContractIDType, error) {
