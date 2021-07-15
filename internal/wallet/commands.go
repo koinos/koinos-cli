@@ -25,6 +25,11 @@ type ExecutionResult struct {
 	Message string
 }
 
+// NewExecutionResult creates a new execution result object
+func NewExecutionResult(message string) *ExecutionResult {
+	return &ExecutionResult{Message: message}
+}
+
 // ExecutionEnvironment is a struct that holds the environment for command execution.
 type ExecutionEnvironment struct {
 	RPCClient          *KoinosRPCClient
@@ -86,8 +91,8 @@ const (
 func BuildCommands() []*CommandDeclaration {
 	var decls []*CommandDeclaration
 	decls = append(decls, NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewCommandArg("address", Address)))
-	decls = append(decls, NewCommandDeclaration("create", "Create a new wallet", false, NewBalanceCommand,
-		*NewCommandArg("file", String), *NewCommandArg("password", String)))
+	decls = append(decls, NewCommandDeclaration("create", "Create a new wallet", false, NewCreateCommand,
+		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	decls = append(decls, NewCommandDeclaration("quit", "", true, NewExitCommand))
 
@@ -180,11 +185,11 @@ type CreateCommand struct {
 
 // NewCreateCommand creates a new create object
 func NewCreateCommand(inv *ParseResult) CLICommand {
-	return &CreateCommand{}
+	return &CreateCommand{Filename: inv.Args["filename"], Password: inv.Args["password"]}
 }
 
 // Execute creates a new wallet
 func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	// TODO: Implement
-	return nil, nil
+	result := NewExecutionResult(fmt.Sprintf("Created wallet %s with password %s", c.Filename, c.Password))
+	return result, nil
 }

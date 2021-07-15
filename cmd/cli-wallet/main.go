@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/koinos/koinos-cli-wallet/cmd/cli-wallet/interactive"
@@ -57,7 +58,11 @@ func main() {
 
 	// If the user submitted commands, execute them
 	if *executeCmd != "" {
-		invs, _ := parser.Parse(*executeCmd)
+		invs, err := parser.Parse(*executeCmd)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 
 		// Execute commands
 		for _, inv := range invs {

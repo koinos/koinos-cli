@@ -36,10 +36,11 @@ type CommandParser struct {
 	name2command map[string]*CommandDeclaration
 
 	// Parser token recognizer regexps
-	commandNameRE *regexp.Regexp
-	skipRE        *regexp.Regexp
-	terminatorRE  *regexp.Regexp
-	addressRE     *regexp.Regexp
+	commandNameRE  *regexp.Regexp
+	skipRE         *regexp.Regexp
+	terminatorRE   *regexp.Regexp
+	addressRE      *regexp.Regexp
+	simpleStringRE *regexp.Regexp
 }
 
 // NewCommandParser creates a new command parser
@@ -57,6 +58,7 @@ func NewCommandParser(commands []*CommandDeclaration) *CommandParser {
 	parser.skipRE = regexp.MustCompile(`^\s*`)
 	parser.terminatorRE = regexp.MustCompile(`^(;|$)`)
 	parser.addressRE = regexp.MustCompile(`^[1-9A-HJ-NP-Za-km-z]+`)
+	parser.simpleStringRE = regexp.MustCompile(`^[^\s"\';]+`)
 
 	return parser
 }
@@ -132,18 +134,21 @@ func (p *CommandParser) parseArgs(input []byte, inv *ParseResult) ([]byte, error
 		var t bool
 		input, t = p.parseSkip(input, inv, true)
 		if t {
-			return input, nil
+			return input, fmt.Errorf("%w: %s", ErrEmptyParam, arg.Name)
 		}
 
 		var match []byte
 		var err error
+		var l int
 
 		// Match the argument based on type
 		switch arg.ArgType {
 		case Address:
-			match, err = p.parseAddress(input)
+			match, l, err = p.parseAddress(input)
+		case String:
+			match, l, err = p.parseString(input)
 		}
-		input = input[len(match):] // Consume the match
+		input = input[l:] // Consume the match
 
 		// Check for error during match
 		if err != nil {
@@ -157,21 +162,42 @@ func (p *CommandParser) parseArgs(input []byte, inv *ParseResult) ([]byte, error
 	return input, nil
 }
 
-// Parse an address. Returns matched address and error
-func (p *CommandParser) parseAddress(input []byte) ([]byte, error) {
+// Parse an address. Returns matched address consumed length, and error
+func (p *CommandParser) parseAddress(input []byte) ([]byte, int, error) {
 	// Parse address
 	m := p.addressRE.Find(input)
 	if m == nil {
-		return nil, fmt.Errorf("%w", ErrEmptyParam)
+		return nil, 0, fmt.Errorf("%w", ErrEmptyParam)
 	}
 
-	return m, nil
+	return m, len(m), nil
 }
 
 // Parse a string, return matched string and error
-func (p *CommandParser) parseString(input []byte) ([]byte, error) {
+func (p *CommandParser) parseString(input []byte) ([]byte, int, error) {
 	// Parse string
-	return nil, nil
+	if len(input) == 0 {
+		return nil, 0, fmt.Errorf("%w", ErrEmptyParam)
+	}
+
+	if input[0] == '"' || input[0] == '\'' {
+		return p.parseQuotedString(input)
+	}
+
+	return p.parseSimpleString(input)
+}
+
+func (p *CommandParser) parseQuotedString(input []byte) ([]byte, int, error) {
+	return nil, 0, nil
+}
+
+func (p *CommandParser) parseSimpleString(input []byte) ([]byte, int, error) {
+	m := p.simpleStringRE.Find(input)
+	if m == nil {
+		return nil, 0, fmt.Errorf("%w", ErrEmptyParam)
+	}
+
+	return m, len(m), nil
 }
 
 // Returns the rest of the string, and a bool that is true if it encountered a terminator
