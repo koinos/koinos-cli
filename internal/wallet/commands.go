@@ -73,6 +73,7 @@ type CommandArgType int
 // Types of arguments
 const (
 	Address = iota
+	String
 )
 
 // ----------------------------------------------------------------------------
@@ -85,6 +86,8 @@ const (
 func BuildCommands() []*CommandDeclaration {
 	var decls []*CommandDeclaration
 	decls = append(decls, NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewCommandArg("address", Address)))
+	decls = append(decls, NewCommandDeclaration("create", "Create a new wallet", false, NewBalanceCommand,
+		*NewCommandArg("file", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	decls = append(decls, NewCommandDeclaration("quit", "", true, NewExitCommand))
 
@@ -162,5 +165,26 @@ func NewExitCommand(inv *ParseResult) CLICommand {
 // Execute exits the wallet
 func (c *ExitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	os.Exit(0)
+	return nil, nil
+}
+
+// ----------------------------------------------------------------------------
+// Create
+// ----------------------------------------------------------------------------
+
+// CreateCommand is a command that creates a new wallet
+type CreateCommand struct {
+	Filename string
+	Password string
+}
+
+// NewCreateCommand creates a new create object
+func NewCreateCommand(inv *ParseResult) CLICommand {
+	return &CreateCommand{}
+}
+
+// Execute creates a new wallet
+func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	// TODO: Implement
 	return nil, nil
 }

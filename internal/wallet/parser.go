@@ -157,7 +157,7 @@ func (p *CommandParser) parseArgs(input []byte, inv *ParseResult) ([]byte, error
 	return input, nil
 }
 
-// Parse an address. Returns Matched address and error
+// Parse an address. Returns matched address and error
 func (p *CommandParser) parseAddress(input []byte) ([]byte, error) {
 	// Parse address
 	m := p.addressRE.Find(input)
@@ -166,6 +166,12 @@ func (p *CommandParser) parseAddress(input []byte) ([]byte, error) {
 	}
 
 	return m, nil
+}
+
+// Parse a string, return matched string and error
+func (p *CommandParser) parseString(input []byte) ([]byte, error) {
+	// Parse string
+	return nil, nil
 }
 
 // Returns the rest of the string, and a bool that is true if it encountered a terminator
