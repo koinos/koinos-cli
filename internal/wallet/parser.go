@@ -134,7 +134,7 @@ func (p *CommandParser) parseArgs(input []byte, inv *ParseResult) ([]byte, error
 		var t bool
 		input, t = p.parseSkip(input, inv, true)
 		if t {
-			return input, fmt.Errorf("%w: %s", ErrEmptyParam, arg.Name)
+			return input, fmt.Errorf("%w: %s", ErrMissingParam, arg.Name)
 		}
 
 		var match []byte
@@ -167,7 +167,7 @@ func (p *CommandParser) parseAddress(input []byte) ([]byte, int, error) {
 	// Parse address
 	m := p.addressRE.Find(input)
 	if m == nil {
-		return nil, 0, fmt.Errorf("%w", ErrEmptyParam)
+		return nil, 0, fmt.Errorf("%w", ErrMissingParam)
 	}
 
 	return m, len(m), nil
@@ -177,7 +177,7 @@ func (p *CommandParser) parseAddress(input []byte) ([]byte, int, error) {
 func (p *CommandParser) parseString(input []byte) ([]byte, int, error) {
 	// Parse string
 	if len(input) == 0 {
-		return nil, 0, fmt.Errorf("%w", ErrEmptyParam)
+		return nil, 0, fmt.Errorf("%w", ErrMissingParam)
 	}
 
 	if input[0] == '"' || input[0] == '\'' {
@@ -188,13 +188,49 @@ func (p *CommandParser) parseString(input []byte) ([]byte, int, error) {
 }
 
 func (p *CommandParser) parseQuotedString(input []byte) ([]byte, int, error) {
-	return nil, 0, nil
+	// Record the quote type
+	quote := input[0]
+
+	output := make([]byte, 0)
+	escape := false // True if we're inside an escape sequence
+
+	// Interate through the input until we find the closing quote
+	for i, c := range input[1:] {
+		if escape {
+			escape = false
+
+			// If we're in an escape sequence, append the character and continue to the next character
+			if c == '\\' || c == '"' || c == '\'' {
+				output = append(output, c)
+				continue
+			}
+
+			// Otherwise just append the slash and carry on parsing this character
+			output = append(output, '\\')
+		}
+
+		// If we're in an escape sequence, continue to the next character
+		if c == '\\' {
+			escape = true
+			continue
+		}
+
+		// If end quote, return the string
+		if c == quote {
+			// Return the matched string
+			return output, i + 2, nil
+		}
+
+		output = append(output, c)
+	}
+
+	return nil, 0, fmt.Errorf("%w: missing closing quote", ErrInvalidString)
 }
 
 func (p *CommandParser) parseSimpleString(input []byte) ([]byte, int, error) {
 	m := p.simpleStringRE.Find(input)
 	if m == nil {
-		return nil, 0, fmt.Errorf("%w", ErrEmptyParam)
+		return nil, 0, fmt.Errorf("%w", ErrMissingParam)
 	}
 
 	return m, len(m), nil

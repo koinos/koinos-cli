@@ -14,6 +14,9 @@ var (
 	// ErrNotEnoughArguments is returned when a command was not passed enough arguments.
 	ErrNotEnoughArguments = errors.New("not enough arguments")
 
-	// ErrEmptyParam is returned when a parameter is empty.
-	ErrEmptyParam = errors.New("empty parameter")
+	// ErrMissingParam is returned when a parameter is missing.
+	ErrMissingParam = errors.New("missing parameter")
+
+	// ErrInvalidString is returned when a string is invalid.
+	ErrInvalidString = errors.New("invalid string")
 )
