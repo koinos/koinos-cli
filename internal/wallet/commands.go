@@ -2,9 +2,12 @@ package wallet
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"os"
 
+	"github.com/btcsuite/btcutil/base58"
+	"github.com/ethereum/go-ethereum/crypto"
 	types "github.com/koinos/koinos-types-golang"
 )
 
@@ -95,6 +98,7 @@ func BuildCommands() []*CommandDeclaration {
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	decls = append(decls, NewCommandDeclaration("quit", "", true, NewExitCommand))
+	decls = append(decls, NewCommandDeclaration("generate_key", "Generate a new key pair", false, NewGenerateKeyCommand))
 
 	return decls
 }
@@ -171,6 +175,27 @@ func NewExitCommand(inv *ParseResult) CLICommand {
 func (c *ExitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	os.Exit(0)
 	return nil, nil
+}
+
+// ----------------------------------------------------------------------------
+// Generate Key Command
+// ----------------------------------------------------------------------------
+
+// ExitCommand is a command that exits the wallet
+type GenerateKeyCommand struct {
+}
+
+// NewExitCommand creates a new exit object
+func NewGenerateKeyCommand(inv *ParseResult) CLICommand {
+	return &GenerateKeyCommand{}
+}
+
+// Execute exits the wallet
+func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	key, _ := crypto.GenerateKey()
+	er := ExecutionResult{Message: fmt.Sprintf("Public: %s\nPrivate: %s", base58.Encode(key.X.Bytes()), hex.EncodeToString(key.D.Bytes()))}
+
+	return &er, nil
 }
 
 // ----------------------------------------------------------------------------
