@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -38,13 +39,25 @@ func TestSatoshiToDecimal(t *testing.T) {
 	}
 }
 
-func TestBasicParser(t *testing.T) {
+func makeTestParser() *CommandParser {
 	// Construct the command parser
-	commands := BuildCommands()
-	parser := NewCommandParser(commands)
+	var decls []*CommandDeclaration
+	decls = append(decls, NewCommandDeclaration("test_address", "Test command which takes an address", false, nil, *NewCommandArg("address", Address)))
+	decls = append(decls, NewCommandDeclaration("test_string", "Test command which takes a string", false, nil, *NewCommandArg("string", String)))
+	decls = append(decls, NewCommandDeclaration("test_none", "Test command which takes no arguments", false, nil))
+	decls = append(decls, NewCommandDeclaration("test_none2", "Another test command which takes no arguments", false, nil))
+	decls = append(decls, NewCommandDeclaration("test_multi", "Test command which takes multiple arguments, and of different types", false, NewGenerateKeyCommand))
+
+	parser := NewCommandParser(decls)
+
+	return parser
+}
+
+func TestBasicParser(t *testing.T) {
+	parser := makeTestParser()
 
 	// Test parsing several commands
-	results, err := parser.Parse("balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk; exit; quit")
+	results, err := parser.Parse("test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk; test_none; test_none2")
 	if err != nil {
 		t.Error(err)
 	}
@@ -58,6 +71,10 @@ func TestBasicParser(t *testing.T) {
 		t.Error("Expected error, got none")
 	}
 
+	if !errors.Is(err, ErrUnknownCommand) {
+		t.Error("Expected error", ErrUnknownCommand, ", got", err)
+	}
+
 	if results[0].CurrentArg != -1 {
 		t.Error("Expected current arg to be -1, got", results[0].CurrentArg)
 	}
@@ -67,24 +84,69 @@ func TestBasicParser(t *testing.T) {
 		t.Error("Expected error, got none")
 	}
 
+	if !errors.Is(err, ErrUnknownCommand) {
+		t.Error("Expected error", ErrUnknownCommand, ", got", err)
+	}
+
 	if results[0].CurrentArg != 0 {
 		t.Error("Expected current arg to be 0, got", results[0].CurrentArg)
+	}
+
+	// Test parsing empty inputs
+	results, err = parser.Parse("")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(results) != 0 {
+		t.Error("Expected 0 results, got", len(results))
+	}
+
+	results, err = parser.Parse("    ")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(results) != 0 {
+		t.Error("Expected 0 results, got", len(results))
+	}
+
+	// Test nonsensical string of empty commands
+	results, err = parser.Parse(" ; ;; ;; ;;;;    ;     ;  ;    ")
+	if err == nil {
+		t.Error("Expected error, got none")
+	}
+
+	if len(results) != 0 {
+		t.Error("Expected 0 results, got", len(results))
+	}
+
+	// Test valid command followed by empty commands
+	results, err = parser.Parse("test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk;  ;;  ; ;; test_none")
+	if err == nil {
+		t.Error("Expected error, got none")
+	}
+
+	if !errors.Is(err, ErrEmptyCommandName) {
+		t.Error("Expected error", ErrEmptyCommandName, ", got", err)
+	}
+
+	if len(results) != 1 {
+		t.Error("Expected 1 result, got", len(results))
 	}
 }
 
 // Test that parser correctly parses terminators
 func TestParserTermination(t *testing.T) {
-	// Construct the command parser
-	commands := BuildCommands()
-	parser := NewCommandParser(commands)
+	parser := makeTestParser()
 
-	checkTerminators(t, parser, "balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", []TerminationStatus{Input})
-	checkTerminators(t, parser, "balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk;", []TerminationStatus{Command})
-	checkTerminators(t, parser, "  balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk   ", []TerminationStatus{Input})
-	checkTerminators(t, parser, "      balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk  ;   ", []TerminationStatus{Command})
-	checkTerminators(t, parser, "balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", []TerminationStatus{None})
-	checkTerminators(t, parser, "balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk; balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", []TerminationStatus{Command, Input})
-	checkTerminators(t, parser, "balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk; balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk;", []TerminationStatus{Command, Command})
+	checkTerminators(t, parser, "test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", []TerminationStatus{Input})
+	checkTerminators(t, parser, "test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk;", []TerminationStatus{Command})
+	checkTerminators(t, parser, "  test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk   ", []TerminationStatus{Input})
+	checkTerminators(t, parser, "      test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk  ;   ", []TerminationStatus{Command})
+	checkTerminators(t, parser, "test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", []TerminationStatus{None})
+	checkTerminators(t, parser, "test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk; test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", []TerminationStatus{Command, Input})
+	checkTerminators(t, parser, "test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk; test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk;", []TerminationStatus{Command, Command})
 }
 
 func checkTerminators(t *testing.T, parser *CommandParser, input string, terminators []TerminationStatus) {
@@ -125,7 +187,7 @@ func TestBalance(t *testing.T) {
 	}
 
 	if results[0].Args["address"] != address0 {
-		t.Error(fmt.Sprintf("Expected %s, got %s", address0, results[0].Args["address"]))
+		t.Errorf("Expected %s, got %s", address0, results[0].Args["address"])
 	}
 
 	// Test the command object instantiation

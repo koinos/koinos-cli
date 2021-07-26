@@ -1,7 +1,6 @@
 package wallet
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 )
@@ -96,7 +95,7 @@ func (p *CommandParser) Parse(commands string) ([]*ParseResult, error) {
 		if inv != nil {
 			invs = append(invs, inv)
 		}
-		if err != nil && !errors.Is(err, ErrEmptyCommandName) {
+		if err != nil {
 			return invs, err
 		}
 
