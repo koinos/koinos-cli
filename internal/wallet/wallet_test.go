@@ -166,7 +166,7 @@ func TestWalletFile(t *testing.T) {
 	}
 
 	if !bytes.Equal(testKey, result) {
-		t.Error("Retrieved private key from wallet file mismatch")
+		t.Error("retrieved private key from wallet file mismatch")
 	}
 
 	file.Close()
@@ -181,8 +181,24 @@ func TestWalletFile(t *testing.T) {
 	_, err = ReadWalletFile(file, "not_my_password")
 
 	if err == nil {
-		t.Error("Retrieved private key without correct passphrase")
+		t.Error("retrieved private key without correct passphrase")
 	}
 
 	file.Close()
+
+	// Prevent an empty passphrase
+	errfile, err := ioutil.TempFile("", "wallet_test_*")
+	defer os.Remove(errfile.Name())
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	err = CreateWalletFile(errfile, "", testKey)
+
+	if err != ErrEmptyPassphrase {
+		t.Error("an empty passphrase is not allowed")
+	}
+
+	errfile.Close()
 }

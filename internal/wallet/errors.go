@@ -16,4 +16,10 @@ var (
 
 	// ErrEmptyParam is returned when a parameter is empty.
 	ErrEmptyParam = errors.New("empty parameter")
+
+	// ErrUnexpectedHashLength is returned when the passphrase hash length is incorrect
+	ErrUnexpectedHashLength = errors.New("unexpected hash length")
+
+	// ErrEmptyPassphrase is returned when the user supplies an empty passphrase
+	ErrEmptyPassphrase = errors.New("passphrase cannot be empty")
 )

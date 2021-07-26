@@ -103,13 +103,21 @@ func walletConfig(password []byte) sio.Config {
 // CreateWalletFile creates a new wallet file on disk
 func CreateWalletFile(file *os.File, passphrase string, privateKey []byte) error {
 	hasher := sha256.New()
-	_, err := hasher.Write([]byte(passphrase))
+	bytesWritten, err := hasher.Write([]byte(passphrase))
 
 	if err != nil {
 		return err
 	}
 
+	if bytesWritten <= 0 {
+		return ErrEmptyPassphrase
+	}
+
 	passwordHash := hasher.Sum(nil)
+
+	if len(passwordHash) != 32 {
+		return ErrUnexpectedHashLength
+	}
 
 	source := bytes.NewReader(privateKey)
 	_, err = sio.Encrypt(file, source, walletConfig(passwordHash))
@@ -120,13 +128,21 @@ func CreateWalletFile(file *os.File, passphrase string, privateKey []byte) error
 // ReadWalletFile extracts the private key from the provided wallet file
 func ReadWalletFile(file *os.File, passphrase string) ([]byte, error) {
 	hasher := sha256.New()
-	_, err := hasher.Write([]byte(passphrase))
+	bytesWritten, err := hasher.Write([]byte(passphrase))
 
 	if err != nil {
 		return nil, err
 	}
 
+	if bytesWritten <= 0 {
+		return nil, ErrEmptyPassphrase
+	}
+
 	passwordHash := hasher.Sum(nil)
+
+	if len(passwordHash) != 32 {
+		return nil, ErrUnexpectedHashLength
+	}
 
 	var destination bytes.Buffer
 	_, err = sio.Decrypt(&destination, file, walletConfig(passwordHash))
