@@ -36,9 +36,14 @@ func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvi
 
 func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {
 	var currentInv *wallet.ParseResult
-	invs, _ := kp.parser.Parse(d.Text)
+	invs, err := kp.parser.Parse(d.Text)
 	if len(invs) != 0 {
 		currentInv = invs[len(invs)-1]
+	}
+
+	// If on a new command, yet the last has not been properly terminated, then suggest a semicolon
+	if err == nil && currentInv != nil && currentInv.Termination != wallet.Command {
+		return []prompt.Suggest{}
 	}
 
 	if len(d.Text) == 0 || currentInv != nil && currentInv.CurrentArg == -1 {
