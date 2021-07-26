@@ -3,6 +3,8 @@ package wallet
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"testing"
 
 	types "github.com/koinos/koinos-types-golang"
@@ -129,4 +131,74 @@ func TestExit(t *testing.T) {
 	if len(results[0].Args) != 0 || len(results[1].Args) != 0 {
 		t.Error("Invalid exit args")
 	}
+}
+
+func TestWalletFile(t *testing.T) {
+	testKey := []byte{0x03, 0x02, 0x01, 0x0A, 0x0B, 0x0C}
+
+	// Storage of test bytes
+	file, err := ioutil.TempFile("", "wallet_test_*")
+	defer os.Remove(file.Name())
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	err = CreateWalletFile(file, "my_password", testKey)
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	file.Close()
+
+	// A successful retrieval of stored bytes
+	file, err = os.OpenFile(file.Name(), os.O_RDONLY, 0600)
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	result, err := ReadWalletFile(file, "my_password")
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	if !bytes.Equal(testKey, result) {
+		t.Error("retrieved private key from wallet file mismatch")
+	}
+
+	file.Close()
+
+	// An usuccessful retrieval of stored bytes using wrong password
+	file, err = os.OpenFile(file.Name(), os.O_RDONLY, 0600)
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	_, err = ReadWalletFile(file, "not_my_password")
+
+	if err == nil {
+		t.Error("retrieved private key without correct passphrase")
+	}
+
+	file.Close()
+
+	// Prevent an empty passphrase
+	errfile, err := ioutil.TempFile("", "wallet_test_*")
+	defer os.Remove(errfile.Name())
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	err = CreateWalletFile(errfile, "", testKey)
+
+	if err != ErrEmptyPassphrase {
+		t.Error("an empty passphrase is not allowed")
+	}
+
+	errfile.Close()
 }

@@ -1,11 +1,15 @@
 package wallet
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"os"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	types "github.com/koinos/koinos-types-golang"
+	"github.com/minio/sio"
 	"github.com/shopspring/decimal"
 	"github.com/ybbus/jsonrpc/v2"
 )
@@ -84,4 +88,64 @@ func (c *KoinosRPCClient) Call(method string, params interface{}, returnType int
 	}
 
 	return nil
+}
+
+func walletConfig(password []byte) sio.Config {
+	return sio.Config{
+		MinVersion:     sio.Version20,
+		MaxVersion:     sio.Version20,
+		CipherSuites:   []byte{sio.AES_256_GCM, sio.CHACHA20_POLY1305},
+		Key:            password,
+		SequenceNumber: uint32(0),
+	}
+}
+
+// CreateWalletFile creates a new wallet file on disk
+func CreateWalletFile(file *os.File, passphrase string, privateKey []byte) error {
+	hasher := sha256.New()
+	bytesWritten, err := hasher.Write([]byte(passphrase))
+
+	if err != nil {
+		return err
+	}
+
+	if bytesWritten <= 0 {
+		return ErrEmptyPassphrase
+	}
+
+	passwordHash := hasher.Sum(nil)
+
+	if len(passwordHash) != 32 {
+		return ErrUnexpectedHashLength
+	}
+
+	source := bytes.NewReader(privateKey)
+	_, err = sio.Encrypt(file, source, walletConfig(passwordHash))
+
+	return err
+}
+
+// ReadWalletFile extracts the private key from the provided wallet file
+func ReadWalletFile(file *os.File, passphrase string) ([]byte, error) {
+	hasher := sha256.New()
+	bytesWritten, err := hasher.Write([]byte(passphrase))
+
+	if err != nil {
+		return nil, err
+	}
+
+	if bytesWritten <= 0 {
+		return nil, ErrEmptyPassphrase
+	}
+
+	passwordHash := hasher.Sum(nil)
+
+	if len(passwordHash) != 32 {
+		return nil, ErrUnexpectedHashLength
+	}
+
+	var destination bytes.Buffer
+	_, err = sio.Decrypt(&destination, file, walletConfig(passwordHash))
+
+	return destination.Bytes(), err
 }
