@@ -38,7 +38,7 @@ func TestSatoshiToDecimal(t *testing.T) {
 	}
 }
 
-func TestParser(t *testing.T) {
+func TestBasicParser(t *testing.T) {
 	// Construct the command parser
 	commands := BuildCommands()
 	parser := NewCommandParser(commands)
@@ -69,6 +69,38 @@ func TestParser(t *testing.T) {
 
 	if results[0].CurrentArg != 0 {
 		t.Error("Expected current arg to be 0, got", results[0].CurrentArg)
+	}
+}
+
+// Test that parser correctly parses terminators
+func TestParserTermination(t *testing.T) {
+	// Construct the command parser
+	commands := BuildCommands()
+	parser := NewCommandParser(commands)
+
+	checkTerminators(t, parser, "balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", []TerminationStatus{Input})
+	checkTerminators(t, parser, "balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk;", []TerminationStatus{Command})
+	checkTerminators(t, parser, "  balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk   ", []TerminationStatus{Input})
+	checkTerminators(t, parser, "      balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk  ;   ", []TerminationStatus{Command})
+	checkTerminators(t, parser, "balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", []TerminationStatus{None})
+	checkTerminators(t, parser, "balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk; balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", []TerminationStatus{Command, Input})
+	checkTerminators(t, parser, "balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk; balance 1iwBq2QAax2URVqU2h878hTs8DFFKADMk;", []TerminationStatus{Command, Command})
+}
+
+func checkTerminators(t *testing.T, parser *CommandParser, input string, terminators []TerminationStatus) {
+	results, err := parser.Parse(input)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(results) != len(terminators) {
+		t.Error("Expected", len(terminators), "results, got", len(results))
+	}
+
+	for i, result := range results {
+		if result.Termination != terminators[i] {
+			t.Error("Expected terminator", terminators[i], "got", result.Termination)
+		}
 	}
 }
 

@@ -6,12 +6,28 @@ import (
 	"regexp"
 )
 
+// TerminationStatus is an enum
+type TerminationStatus int
+
+// Types of termination
+const (
+	None TerminationStatus = iota
+	Input
+	Command
+)
+
+// Characters used in parsing
+const (
+	CommandTerminator = ';'
+)
+
 // ParseResult is the result of parsing a command string
 type ParseResult struct {
 	CommandName string
 	Args        map[string]string // This could be a slice of strings potentially
 	Decl        *CommandDeclaration
 	CurrentArg  int
+	Termination TerminationStatus
 }
 
 // NewParseResult creates a new parse result object
@@ -69,18 +85,24 @@ func (p *CommandParser) Parse(commands string) ([]*ParseResult, error) {
 	input := []byte(commands)
 	var invs []*ParseResult = make([]*ParseResult, 0)
 
+	input, _ = p.parseSkip(input, nil, false)
+
 	// Loop until we've consumed all input
 	for len(input) > 0 {
 		var err error
 		var inv *ParseResult
 
-		input, _ = p.parseSkip(input, inv, false)
 		inv, input, err = p.parseNextCommand(input)
 		if inv != nil {
 			invs = append(invs, inv)
 		}
 		if err != nil && !errors.Is(err, ErrEmptyCommandName) {
 			return invs, err
+		}
+
+		// If latest command has no terminator or is the last command, halt parsing
+		if inv.Termination == None || inv.Termination == Input {
+			break
 		}
 	}
 
@@ -105,13 +127,15 @@ func (p *CommandParser) parseNextCommand(input []byte) (*ParseResult, []byte, er
 		return inv, nil, fmt.Errorf("%w", ErrUnknownCommand)
 	}
 
-	// Skip whitespace
-	input, _ = p.parseSkip(input, inv, true)
-
 	input, err = p.parseArgs(input, inv)
 	if err != nil {
 		return inv, input, err
 	}
+
+	// Skip space and check termination
+	var t TerminationStatus
+	input, t = p.parseSkip(input, inv, false)
+	inv.Termination = t
 
 	return inv, input, nil
 }
@@ -131,9 +155,9 @@ func (p *CommandParser) parseArgs(input []byte, inv *ParseResult) ([]byte, error
 	// Loop through expected arguments
 	for _, arg := range inv.Decl.Args {
 		// Skip whitespace
-		var t bool
+		var t TerminationStatus
 		input, t = p.parseSkip(input, inv, true)
-		if t {
+		if t != None {
 			return input, fmt.Errorf("%w: %s", ErrMissingParam, arg.Name)
 		}
 
@@ -236,9 +260,9 @@ func (p *CommandParser) parseSimpleString(input []byte) ([]byte, int, error) {
 	return m, len(m), nil
 }
 
-// Returns the rest of the string, and a bool that is true if it encountered a terminator
-func (p *CommandParser) parseSkip(input []byte, inv *ParseResult, incArgs bool) ([]byte, bool) {
-	term := false
+// Returns the rest of the string, a bool that is true if it encountered a terminator, and a bool that is true if that terminator was a command terminator
+func (p *CommandParser) parseSkip(input []byte, inv *ParseResult, incArgs bool) ([]byte, TerminationStatus) {
+	term := None
 	skipped := false
 
 	m := p.skipRE.Find(input)
@@ -248,8 +272,13 @@ func (p *CommandParser) parseSkip(input []byte, inv *ParseResult, incArgs bool) 
 	}
 
 	if p.terminatorRE.Match(input) {
-		input = input[len(p.terminatorRE.Find(input)):]
-		term = true
+		t := p.terminatorRE.Find(input)
+		input = input[len(t):]
+		if len(t) > 0 && t[0] == CommandTerminator {
+			term = Command
+		} else {
+			term = Input
+		}
 	}
 
 	m = p.skipRE.Find(input)

@@ -80,7 +80,7 @@ type CommandArgType int
 
 // Types of arguments
 const (
-	Address = iota
+	Address CommandArgType = iota
 	String
 )
 
@@ -181,11 +181,11 @@ func (c *ExitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 // Generate Key Command
 // ----------------------------------------------------------------------------
 
-// ExitCommand is a command that exits the wallet
+// GenerateKeyCommand is a command that exits the wallet
 type GenerateKeyCommand struct {
 }
 
-// NewExitCommand creates a new exit object
+// NewGenerateKeyCommand creates a new exit object
 func NewGenerateKeyCommand(inv *ParseResult) CLICommand {
 	return &GenerateKeyCommand{}
 }
