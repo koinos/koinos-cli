@@ -86,15 +86,6 @@ func NewCommandArg(name string, argType CommandArgType) *CommandArg {
 	}
 }
 
-// CommandArgType is an enum that defines the types of arguments a command can take
-type CommandArgType int
-
-// Types of arguments
-const (
-	Address CommandArgType = iota
-	String
-)
-
 // InterpretResults is a struct that holds the results of a multi-command interpretation
 type InterpretResults struct {
 	Results []string
@@ -117,6 +108,7 @@ func (ir *InterpretResults) Print() {
 	for _, result := range ir.Results {
 		fmt.Println(result)
 	}
+	fmt.Println("")
 }
 
 // InterpretParseResults interprets and executes the results of a command parse

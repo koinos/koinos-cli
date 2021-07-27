@@ -15,6 +15,16 @@ const (
 	Command
 )
 
+// CommandArgType is an enum that defines the types of arguments a command can take
+type CommandArgType int
+
+// Types of arguments
+const (
+	Address CommandArgType = iota
+	String
+	Amount
+)
+
 // Characters used in parsing
 const (
 	CommandTerminator = ';'
@@ -56,6 +66,7 @@ type CommandParser struct {
 	terminatorRE   *regexp.Regexp
 	addressRE      *regexp.Regexp
 	simpleStringRE *regexp.Regexp
+	amountRE       *regexp.Regexp
 }
 
 // NewCommandParser creates a new command parser
@@ -74,6 +85,7 @@ func NewCommandParser(commands []*CommandDeclaration) *CommandParser {
 	parser.terminatorRE = regexp.MustCompile(`^(;|$)`)
 	parser.addressRE = regexp.MustCompile(`^[1-9A-HJ-NP-Za-km-z]+`)
 	parser.simpleStringRE = regexp.MustCompile(`^[^\s"\';]+`)
+	parser.amountRE = regexp.MustCompile(`^((\d+(\.\d*)?)|(\.\d+))`)
 
 	return parser
 }
@@ -170,6 +182,8 @@ func (p *CommandParser) parseArgs(input []byte, inv *ParseResult) ([]byte, error
 			match, l, err = p.parseAddress(input)
 		case String:
 			match, l, err = p.parseString(input)
+		case Amount:
+			match, l, err = p.parseAmount(input)
 		}
 		input = input[l:] // Consume the match
 
@@ -189,6 +203,16 @@ func (p *CommandParser) parseArgs(input []byte, inv *ParseResult) ([]byte, error
 func (p *CommandParser) parseAddress(input []byte) ([]byte, int, error) {
 	// Parse address
 	m := p.addressRE.Find(input)
+	if m == nil {
+		return nil, 0, fmt.Errorf("%w", ErrMissingParam)
+	}
+
+	return m, len(m), nil
+}
+
+func (p *CommandParser) parseAmount(input []byte) ([]byte, int, error) {
+	// Parse amount
+	m := p.amountRE.Find(input)
 	if m == nil {
 		return nil, 0, fmt.Errorf("%w", ErrMissingParam)
 	}
