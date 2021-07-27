@@ -7,43 +7,48 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-// KoinosKeys represents a set of keys
-type KoinosKeys struct {
+// KoinosKey represents a set of keys
+type KoinosKey struct {
 	PrivateKey *ecdsa.PrivateKey
 }
 
-// GenerateKoinosKeys generates a new set of keys
-func GenerateKoinosKeys() (*KoinosKeys, error) {
+// GenerateKoinosKey generates a new set of keys
+func GenerateKoinosKey() (*KoinosKey, error) {
 	k, err := crypto.GenerateKey()
 	if err != nil {
 		return nil, err
 	}
 
-	keys := &KoinosKeys{PrivateKey: k}
+	keys := &KoinosKey{PrivateKey: k}
 	return keys, nil
 }
 
 // NewKoinosKeysFromBytes creates a new key set from a private key byte slice
-func NewKoinosKeysFromBytes(private []byte) (*KoinosKeys, error) {
+func NewKoinosKeysFromBytes(private []byte) (*KoinosKey, error) {
 	pk, err := crypto.ToECDSA(private)
 	if err != nil {
 		return nil, err
 	}
 
-	return &KoinosKeys{PrivateKey: pk}, nil
+	return &KoinosKey{PrivateKey: pk}, nil
 }
 
 // Address displays the base58 address associated with this key set
-func (keys *KoinosKeys) Address() string {
+func (keys *KoinosKey) Address() string {
 	return base58.Encode(crypto.PubkeyToAddress(keys.PrivateKey.PublicKey).Bytes())
 }
 
 // Private gets the private key in base58
-func (keys *KoinosKeys) Private() string {
+func (keys *KoinosKey) Private() string {
 	return base58.Encode(crypto.FromECDSA(keys.PrivateKey))
 }
 
 // Public gets the public key in base58
-func (keys *KoinosKeys) Public() string {
+func (keys *KoinosKey) Public() string {
 	return base58.Encode(crypto.FromECDSAPub(&keys.PrivateKey.PublicKey))
+}
+
+// PrivateBytes gets the private key bytes
+func (keys *KoinosKey) PrivateBytes() []byte {
+	return crypto.FromECDSA(keys.PrivateKey)
 }

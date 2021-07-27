@@ -48,12 +48,12 @@ type ExecutionEnvironment struct {
 	RPCClient          *KoinosRPCClient
 	KoinContractID     *types.ContractIDType
 	KoinBalanceOfEntry types.UInt32
-	Keys               *KoinosKeys
+	Key                *KoinosKey
 }
 
 // IsWalletOpen returns a bool representing whether or not there is an open wallet
 func (ee *ExecutionEnvironment) IsWalletOpen() bool {
-	return ee.Keys != nil
+	return ee.Key != nil
 }
 
 // CommandDeclaration is a struct that declares a command
@@ -110,7 +110,7 @@ const (
 func BuildCommands() []*CommandDeclaration {
 	var decls []*CommandDeclaration
 	decls = append(decls, NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewCommandArg("address", Address)))
-	decls = append(decls, NewCommandDeclaration("create", "Create a new wallet", false, NewCreateCommand,
+	decls = append(decls, NewCommandDeclaration("create", "Create and open a new wallet", false, NewCreateCommand,
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("generate_key", "Generate and display a new private key", false, NewGenerateKeyCommand))
 	decls = append(decls, NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
@@ -210,7 +210,7 @@ func NewGenerateKeyCommand(inv *ParseResult) CLICommand {
 
 // Execute exits the wallet
 func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	k, err := GenerateKoinosKeys()
+	k, err := GenerateKoinosKey()
 	if err != nil {
 		return nil, err
 	}
@@ -240,8 +240,33 @@ func NewCreateCommand(inv *ParseResult) CLICommand {
 
 // Execute creates a new wallet
 func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+
+	// Check if the wallet already exists
+	if _, err := os.Stat(c.Filename); !os.IsNotExist(err) {
+		return nil, fmt.Errorf("%w: %s", ErrWalletExists, c.Filename)
+	}
+
+	// Create the wallet file
+	file, err := os.Create(c.Filename)
+
+	// Generate new key
+	key, err := GenerateKoinosKey()
+	if err != nil {
+		return nil, err
+	}
+
+	// Write the key to the wallet file
+	err = CreateWalletFile(file, c.Password, key.PrivateBytes())
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the wallet keys
+	ee.Key = key
+
 	result := NewExecutionResult()
-	result.AddMessage(fmt.Sprintf("Created wallet %s with password %s", c.Filename, c.Password))
+	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
+	result.AddMessage("Use the info command to see details")
 
 	return result, nil
 }

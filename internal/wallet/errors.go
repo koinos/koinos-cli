@@ -27,4 +27,7 @@ var (
 
 	// ErrEmptyPassphrase is returned when the user supplies an empty passphrase
 	ErrEmptyPassphrase = errors.New("passphrase cannot be empty")
+
+	// ErrWalletExists is returned when trying to create a new wallet and it already exists
+	ErrWalletExists = errors.New("wallet already exists")
 )
