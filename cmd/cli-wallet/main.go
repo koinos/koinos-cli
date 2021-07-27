@@ -56,7 +56,7 @@ func main() {
 
 	// If the user submitted commands, execute them
 	if *executeCmd != "" {
-		results := wallet.InterpretCommands(parser, &cmdEnv, *executeCmd)
+		results := wallet.ParseAndInterpret(parser, &cmdEnv, *executeCmd)
 		results.Print()
 		// Otherwise run the interactive shell
 	} else {

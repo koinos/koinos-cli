@@ -149,3 +149,15 @@ func ReadWalletFile(file *os.File, passphrase string) ([]byte, error) {
 
 	return destination.Bytes(), err
 }
+
+// ParseAndInterpret is a helper function to parse and interpret the given command string
+func ParseAndInterpret(parser *CommandParser, ee *ExecutionEnvironment, input string) *InterpretResults {
+	result, err := parser.Parse(input)
+	if err != nil {
+		o := NewInterpretResults()
+		o.AddResult(err.Error())
+		return o
+	}
+
+	return InterpretParseResults(result, ee)
+}

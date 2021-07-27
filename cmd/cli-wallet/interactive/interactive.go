@@ -55,7 +55,7 @@ func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {
 }
 
 func (kp *KoinosPrompt) executor(input string) {
-	results := wallet.InterpretCommands(kp.parser, kp.execEnv, input)
+	results := wallet.ParseAndInterpret(kp.parser, kp.execEnv, input)
 	results.Print()
 }
 

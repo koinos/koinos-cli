@@ -119,22 +119,17 @@ func (ir *InterpretResults) Print() {
 	}
 }
 
-// InterpretCommands fully parses and executes a string of commands
-func InterpretCommands(parser *CommandParser, ee *ExecutionEnvironment, input string) *InterpretResults {
+// InterpretParseResults interprets and executes the results of a command parse
+func InterpretParseResults(invs []*ParseResult, ee *ExecutionEnvironment) *InterpretResults {
 	output := NewInterpretResults()
 
-	invs, err := parser.Parse(input)
-	if err != nil {
-		output.AddResult(err.Error())
-	} else {
-		for _, inv := range invs {
-			cmd := inv.Instantiate()
-			result, err := cmd.Execute(context.Background(), ee)
-			if err != nil {
-				output.AddResult(err.Error())
-			} else {
-				output.AddResult(result.Message...)
-			}
+	for _, inv := range invs {
+		cmd := inv.Instantiate()
+		result, err := cmd.Execute(context.Background(), ee)
+		if err != nil {
+			output.AddResult(err.Error())
+		} else {
+			output.AddResult(result.Message...)
 		}
 	}
 
