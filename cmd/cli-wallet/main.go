@@ -68,7 +68,7 @@ func main() {
 		for _, inv := range invs {
 			cmd := inv.Instantiate()
 			result, _ := cmd.Execute(context.Background(), &cmdEnv)
-			fmt.Println(result.Message)
+			result.Print()
 		}
 		// Otherwise run the interactive shell
 	} else {

@@ -19,7 +19,7 @@ type KoinosPrompt struct {
 // NewKoinosPrompt creates a new interactive prompt object
 func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvironment) *KoinosPrompt {
 	kp := &KoinosPrompt{parser: parser, execEnv: execEnv}
-	kp.gPrompt = prompt.New(kp.executor, kp.completer)
+	kp.gPrompt = prompt.New(kp.executor, kp.completer, prompt.OptionPrefix("🔐 > "), prompt.OptionLivePrefix(kp.changeLivePrefix))
 
 	// Generate command suggestions
 	kp.commandSuggestions = make([]prompt.Suggest, 0)
@@ -32,6 +32,10 @@ func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvi
 	}
 
 	return kp
+}
+
+func (kp *KoinosPrompt) changeLivePrefix() (string, bool) {
+	return "🔓 > ", kp.execEnv.IsWalletOpen()
 }
 
 func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {
@@ -66,7 +70,7 @@ func (kp *KoinosPrompt) executor(input string) {
 		if err != nil {
 			fmt.Println(err)
 		} else {
-			fmt.Println(result.Message)
+			result.Print()
 		}
 	}
 }

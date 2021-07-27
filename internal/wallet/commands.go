@@ -2,12 +2,9 @@ package wallet
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"os"
 
-	"github.com/btcsuite/btcutil/base58"
-	"github.com/ethereum/go-ethereum/crypto"
 	types "github.com/koinos/koinos-types-golang"
 )
 
@@ -25,12 +22,25 @@ type CLICommand interface {
 
 // ExecutionResult is the result of a command execution
 type ExecutionResult struct {
-	Message string
+	Message []string
 }
 
 // NewExecutionResult creates a new execution result object
-func NewExecutionResult(message string) *ExecutionResult {
-	return &ExecutionResult{Message: message}
+func NewExecutionResult() *ExecutionResult {
+	m := make([]string, 0)
+	return &ExecutionResult{Message: m}
+}
+
+// AddMessage adds a message to the execution result
+func (er *ExecutionResult) AddMessage(m string) {
+	er.Message = append(er.Message, m)
+}
+
+// Print prints each message in the execution result
+func (er *ExecutionResult) Print() {
+	for _, m := range er.Message {
+		fmt.Println(m)
+	}
 }
 
 // ExecutionEnvironment is a struct that holds the environment for command execution.
@@ -38,6 +48,12 @@ type ExecutionEnvironment struct {
 	RPCClient          *KoinosRPCClient
 	KoinContractID     *types.ContractIDType
 	KoinBalanceOfEntry types.UInt32
+	Keys               *KoinosKeys
+}
+
+// IsWalletOpen returns a bool representing whether or not there is an open wallet
+func (ee *ExecutionEnvironment) IsWalletOpen() bool {
+	return ee.Keys != nil
 }
 
 // CommandDeclaration is a struct that declares a command
@@ -96,9 +112,9 @@ func BuildCommands() []*CommandDeclaration {
 	decls = append(decls, NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewCommandArg("address", Address)))
 	decls = append(decls, NewCommandDeclaration("create", "Create a new wallet", false, NewCreateCommand,
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
+	decls = append(decls, NewCommandDeclaration("generate_key", "Generate and display a new private key", false, NewGenerateKeyCommand))
 	decls = append(decls, NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	decls = append(decls, NewCommandDeclaration("quit", "", true, NewExitCommand))
-	decls = append(decls, NewCommandDeclaration("generate_key", "Generate a new key pair", false, NewGenerateKeyCommand))
 
 	return decls
 }
@@ -153,9 +169,11 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	if err != nil {
 		return nil, err
 	}
-	er := ExecutionResult{Message: fmt.Sprintf("%v %s", dec, KoinSymbol)}
 
-	return &er, nil
+	er := NewExecutionResult()
+	er.AddMessage(fmt.Sprintf("%v %s", dec, KoinSymbol))
+
+	return er, nil
 }
 
 // ----------------------------------------------------------------------------
@@ -192,10 +210,17 @@ func NewGenerateKeyCommand(inv *ParseResult) CLICommand {
 
 // Execute exits the wallet
 func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	key, _ := crypto.GenerateKey()
-	er := ExecutionResult{Message: fmt.Sprintf("Public: %s\nPrivate: %s", base58.Encode(key.X.Bytes()), hex.EncodeToString(key.D.Bytes()))}
+	k, err := GenerateKoinosKeys()
+	if err != nil {
+		return nil, err
+	}
 
-	return &er, nil
+	result := NewExecutionResult()
+	result.AddMessage("New key generated. This is only shown once, make sure to record this information.")
+	result.AddMessage(fmt.Sprintf("Address: %s", k.Address()))
+	result.AddMessage(fmt.Sprintf("Private: %s", k.Private()))
+
+	return result, nil
 }
 
 // ----------------------------------------------------------------------------
@@ -215,6 +240,8 @@ func NewCreateCommand(inv *ParseResult) CLICommand {
 
 // Execute creates a new wallet
 func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	result := NewExecutionResult(fmt.Sprintf("Created wallet %s with password %s", c.Filename, c.Password))
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Created wallet %s with password %s", c.Filename, c.Password))
+
 	return result, nil
 }
