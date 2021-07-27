@@ -252,12 +252,6 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 		return nil, err
 	}
 
-	//keyBytes := base58.Decode(c.PrivateKey)
-
-	//if len(keyBytes) != 32 {
-	//	return nil, fmt.Errorf("%w: %s", ErrInvalidPrivateKey, c.PrivateKey)
-	//}
-
 	// Create the key
 	key, err := NewKoinosKeysFromBytes(keyBytes)
 	if err != nil {
