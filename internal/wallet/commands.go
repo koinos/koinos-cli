@@ -400,6 +400,12 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	// Create the transaction
 	transaction := types.NewTransaction()
 	transaction.ActiveData.Native.Operations = append(transaction.ActiveData.Native.Operations, *op)
+	transaction.ActiveData.Native.Nonce = nonce
+	rLimit, err := types.NewUInt128FromString("1000000")
+	if err != nil {
+		return nil, err
+	}
+	transaction.ActiveData.Native.ResourceLimit = *rLimit
 
 	// Calculate the transaction ID
 	activeDataBytes := transaction.ActiveData.Serialize(types.NewVariableBlob())

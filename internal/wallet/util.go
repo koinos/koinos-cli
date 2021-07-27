@@ -27,8 +27,12 @@ func SignTransaction(key []byte, tx *types.Transaction) error {
 	}
 
 	// Sign the transaction ID
-	blobID := tx.ID.Serialize(types.NewVariableBlob())
-	signatureBytes, err := crypto.Sign([]byte(*blobID), privateKey)
+	//blobID := tx.ID.Serialize(types.NewVariableBlob())
+	//signatureBytes, err := crypto.Sign([]byte(*blobID), privateKey)
+	signatureBytes, err := crypto.Sign(tx.ID.Digest, privateKey)
+	if err != nil {
+		return err
+	}
 
 	// Attach the signature data to the transaction
 	tx.SignatureData = types.VariableBlob(signatureBytes)
