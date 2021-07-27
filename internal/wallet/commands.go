@@ -2,17 +2,22 @@ package wallet
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"io/ioutil"
 	"os"
+
+	"golang.org/x/crypto/ripemd160"
 
 	types "github.com/koinos/koinos-types-golang"
 )
 
 // Hardcoded Koin contract constants
 const (
-	ReadContractCall = "chain.read_contract"
-	KoinSymbol       = "tKOIN"
-	KoinPrecision    = 8
+	ReadContractCall      = "chain.read_contract"
+	SubmitTransactionCall = "chain.submit_transaction"
+	KoinSymbol            = "tKOIN"
+	KoinPrecision         = 8
 )
 
 // ----------------------------------------------------------------------------
@@ -32,6 +37,7 @@ func BuildCommands() []*CommandDeclaration {
 	decls = append(decls, NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", String),
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
+	decls = append(decls, NewCommandDeclaration("upload_contract", "Upload a smart contract", false, NewUploadContractCommand))
 	decls = append(decls, NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand,
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
@@ -170,6 +176,80 @@ func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironme
 	result.AddMessage(fmt.Sprintf("Private: %s", k.Private()))
 
 	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Upload Contract Command
+// ----------------------------------------------------------------------------
+
+// UploadContractCommand is a command that uploads a smart contract
+type UploadContractCommand struct {
+	Filename string
+}
+
+// NewUploadContractCommand creates an upload contract object
+func NewUploadContractCommand(inv *ParseResult) CLICommand {
+	return &UploadContractCommand{Filename: inv.Args["filename"]}
+}
+
+// Execute calls a contract
+func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot upload contract without an open wallet", ErrWalletClosed)
+	}
+
+	wasmFile, err := os.Open(c.Filename)
+
+	if err != nil {
+		return nil, err
+	}
+
+	wasmBytes, err := ioutil.ReadAll(wasmFile)
+
+	if err != nil {
+		return nil, err
+	}
+
+	uploadContractOperation := types.NewUploadContractOperation()
+
+	ripemd160Hasher := ripemd160.New()
+	ripemd160Hasher.Write(ee.Key.PublicBytes())
+
+	copy(uploadContractOperation.ContractID[:], ripemd160Hasher.Sum(nil))
+	copy(uploadContractOperation.Bytecode, wasmBytes)
+
+	op := types.NewOperation()
+	op.Value = uploadContractOperation
+
+	transaction := types.NewTransaction()
+	transaction.ActiveData.Native.Operations = append(transaction.ActiveData.Native.Operations, *op)
+
+	activeDataBytes := transaction.ActiveData.Serialize(types.NewVariableBlob())
+
+	sha256Hasher := sha256.New()
+	sha256Hasher.Write(*activeDataBytes)
+	transactionID := sha256Hasher.Sum(nil)
+
+	transaction.ID.ID = 0x12 // SHA2_256_ID
+	transaction.ID.Digest = transactionID
+
+	SignTransaction(ee.Key.PrivateBytes(), transaction)
+
+	params := types.NewSubmitTransactionRequest()
+	params.Transaction = *transaction
+
+	// Make the rpc call
+	var cResp types.SubmitTransactionResponse
+	err = ee.RPCClient.Call(SubmitTransactionCall, params, &cResp)
+	if err != nil {
+		return nil, err
+	}
+
+	er := NewExecutionResult()
+	mh, err := transaction.ID.MarshalJSON()
+	er.AddMessage(fmt.Sprintf("Transaction submitted with ID: %s", string(mh)))
+
+	return er, nil
 }
 
 // ----------------------------------------------------------------------------
