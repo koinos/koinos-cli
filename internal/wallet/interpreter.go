@@ -43,6 +43,7 @@ type ExecutionEnvironment struct {
 	RPCClient          *KoinosRPCClient
 	KoinContractID     *types.ContractIDType
 	KoinBalanceOfEntry types.UInt32
+	KoinTransferEntry  types.UInt32
 	Key                *KoinosKey
 }
 

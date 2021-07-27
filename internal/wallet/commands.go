@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"os"
 
@@ -11,10 +12,11 @@ import (
 
 // Hardcoded Koin contract constants
 const (
-	ReadContractCall    = "chain.read_contract"
-	GetAccountNonceCall = "chain.get_account_nonce"
-	KoinSymbol          = "tKOIN"
-	KoinPrecision       = 8
+	ReadContractCall      = "chain.read_contract"
+	GetAccountNonceCall   = "chain.get_account_nonce"
+	SubmitTransactionCall = "chain.submit_transaction"
+	KoinSymbol            = "tKOIN"
+	KoinPrecision         = 8
 )
 
 // ----------------------------------------------------------------------------
@@ -371,8 +373,52 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, fmt.Errorf("%w: %s", ErrInvalidAmount, err.Error())
 	}
 
+	// Fetch the account's nonce
 	myAddress := types.AccountType(ee.Key.Address())
 	nonce, err := ee.RPCClient.GetAccountNonce(&myAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the operation
+	callContractOp := types.NewCallContractOperation()
+	callContractOp.ContractID = *ee.KoinContractID
+	callContractOp.EntryPoint = ee.KoinTransferEntry
+
+	// Serialize and assign the args
+	vb := types.NewVariableBlob()
+	vb = myAddress.Serialize(vb)
+	vb = c.Address.Serialize(vb)
+	tAmount := types.UInt64(sAmount)
+	vb = tAmount.Serialize(vb)
+	callContractOp.Args = *vb
+
+	// Create a variant operation and assign the call contract operation
+	op := types.NewOperation()
+	op.Value = callContractOp
+
+	// Create the transaction
+	transaction := types.NewTransaction()
+	transaction.ActiveData.Native.Operations = append(transaction.ActiveData.Native.Operations, *op)
+
+	// Calculate the transaction ID
+	activeDataBytes := transaction.ActiveData.Serialize(types.NewVariableBlob())
+	sha256Hasher := sha256.New()
+	sha256Hasher.Write(*activeDataBytes)
+	transactionID := sha256Hasher.Sum(nil)
+	transaction.ID.ID = 0x12 // SHA2_256_ID
+	transaction.ID.Digest = transactionID
+
+	// Sign the transaction
+	SignTransaction(ee.Key.PrivateBytes(), transaction)
+
+	// Submit the transaction
+	params := types.NewSubmitTransactionRequest()
+	params.Transaction = *transaction
+
+	// Make the rpc call
+	var cResp types.SubmitTransactionResponse
+	err = ee.RPCClient.Call(SubmitTransactionCall, params, &cResp)
 	if err != nil {
 		return nil, err
 	}
@@ -380,7 +426,6 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("%v", sAmount))
 	result.AddMessage(fmt.Sprintf("%v", nonce))
-	fmt.Println(nonce)
 
 	return result, nil
 }
