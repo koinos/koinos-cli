@@ -113,6 +113,7 @@ func BuildCommands() []*CommandDeclaration {
 	decls = append(decls, NewCommandDeclaration("create", "Create and open a new wallet", false, NewCreateCommand,
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("generate_key", "Generate and display a new private key", false, NewGenerateKeyCommand))
+	decls = append(decls, NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
 	decls = append(decls, NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	decls = append(decls, NewCommandDeclaration("quit", "", true, NewExitCommand))
 
@@ -267,6 +268,33 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
 	result.AddMessage("Use the info command to see details")
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Info Command
+// ----------------------------------------------------------------------------
+
+// InfoCommand is a command that shows the currently opened wallet's address and private key
+type InfoCommand struct {
+}
+
+// NewInfoCommand creates a new info command object
+func NewInfoCommand(inv *ParseResult) CLICommand {
+	return &InfoCommand{}
+}
+
+// Execute shows wallet info
+func (c *InfoCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot show info", ErrWalletClosed)
+	}
+
+	result := NewExecutionResult()
+	result.AddMessage("Open wallet information:")
+	result.AddMessage(fmt.Sprintf("Address: %s", ee.Key.Address()))
+	result.AddMessage(fmt.Sprintf("Private: %s", ee.Key.Private()))
 
 	return result, nil
 }
