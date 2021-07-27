@@ -110,10 +110,12 @@ const (
 func BuildCommands() []*CommandDeclaration {
 	var decls []*CommandDeclaration
 	decls = append(decls, NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewCommandArg("address", Address)))
-	decls = append(decls, NewCommandDeclaration("create", "Create and open a new wallet", false, NewCreateCommand,
+	decls = append(decls, NewCommandDeclaration("create", "Create and open a new wallet file", false, NewCreateCommand,
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("generate", "Generate and display a new private key", false, NewGenerateKeyCommand))
 	decls = append(decls, NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
+	decls = append(decls, NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand,
+		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	decls = append(decls, NewCommandDeclaration("quit", "", true, NewExitCommand))
 
@@ -249,6 +251,9 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 
 	// Create the wallet file
 	file, err := os.Create(c.Filename)
+	if err != nil {
+		return nil, err
+	}
 
 	// Generate new key
 	key, err := GenerateKoinosKey()
@@ -292,9 +297,53 @@ func (c *InfoCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	}
 
 	result := NewExecutionResult()
-	result.AddMessage("Open wallet information:")
+	result.AddMessage("Wallet information:")
 	result.AddMessage(fmt.Sprintf("Address: %s", ee.Key.Address()))
 	result.AddMessage(fmt.Sprintf("Private: %s", ee.Key.Private()))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Open
+// ----------------------------------------------------------------------------
+
+// OpenCommand is a command that opens a wallet file
+type OpenCommand struct {
+	Filename string
+	Password string
+}
+
+// NewOpenCommand creates a new open command object
+func NewOpenCommand(inv *ParseResult) CLICommand {
+	return &OpenCommand{Filename: inv.Args["filename"], Password: inv.Args["password"]}
+}
+
+// Execute opens a wallet
+func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	// Open the wallet file
+	file, err := os.Open(c.Filename)
+	if err != nil {
+		return nil, err
+	}
+
+	// Read the wallet file
+	keyBytes, err := ReadWalletFile(file, c.Password)
+	if err != nil {
+		return nil, fmt.Errorf("%w: check your password", ErrWalletDecrypt)
+	}
+
+	// Create the key object
+	key, err := NewKoinosKeysFromBytes(keyBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the wallet keys
+	ee.Key = key
+
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Opened wallet: %s", c.Filename))
 
 	return result, nil
 }

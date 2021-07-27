@@ -34,4 +34,7 @@ var (
 
 	// ErrWalletClosed is returned when an open wallet is needed, but no wallet is open
 	ErrWalletClosed = errors.New("no open wallet")
+
+	// ErrWalletDecrypt is returned when a wallet file does not decrypt properly
+	ErrWalletDecrypt = errors.New("wallet decryption failed")
 )
