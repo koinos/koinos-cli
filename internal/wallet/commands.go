@@ -112,7 +112,7 @@ func BuildCommands() []*CommandDeclaration {
 	decls = append(decls, NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewCommandArg("address", Address)))
 	decls = append(decls, NewCommandDeclaration("create", "Create and open a new wallet", false, NewCreateCommand,
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
-	decls = append(decls, NewCommandDeclaration("generate_key", "Generate and display a new private key", false, NewGenerateKeyCommand))
+	decls = append(decls, NewCommandDeclaration("generate", "Generate and display a new private key", false, NewGenerateKeyCommand))
 	decls = append(decls, NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
 	decls = append(decls, NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	decls = append(decls, NewCommandDeclaration("quit", "", true, NewExitCommand))
