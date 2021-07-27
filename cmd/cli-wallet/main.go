@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/joho/godotenv"
@@ -55,18 +54,14 @@ func main() {
 	commands := wallet.BuildCommands()
 	parser := wallet.NewCommandParser(commands)
 
+	// If the user submitted commands, execute them
 	if *executeCmd != "" {
-		invs, _ := parser.Parse(*executeCmd)
-
-		// Execute commands
-		for _, inv := range invs {
-			cmd := inv.Instantiate()
-			result, _ := cmd.Execute(context.Background(), &cmdEnv)
-			fmt.Println(result.Message)
-		}
+		results := wallet.ParseAndInterpret(parser, &cmdEnv, *executeCmd)
+		results.Print()
+		// Otherwise run the interactive shell
+	} else {
+		// Enter interactive mode
+		p := interactive.NewKoinosPrompt(parser, &cmdEnv)
+		p.Run()
 	}
-
-	// Enter interactive mode
-	p := interactive.NewKoinosPrompt(parser, &cmdEnv)
-	p.Run()
 }

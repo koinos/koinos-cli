@@ -1,9 +1,6 @@
 package interactive
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/c-bata/go-prompt"
 	"github.com/koinos/koinos-cli-wallet/internal/wallet"
 )
@@ -19,7 +16,7 @@ type KoinosPrompt struct {
 // NewKoinosPrompt creates a new interactive prompt object
 func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvironment) *KoinosPrompt {
 	kp := &KoinosPrompt{parser: parser, execEnv: execEnv}
-	kp.gPrompt = prompt.New(kp.executor, kp.completer)
+	kp.gPrompt = prompt.New(kp.executor, kp.completer, prompt.OptionPrefix("🔐 > "), prompt.OptionLivePrefix(kp.changeLivePrefix))
 
 	// Generate command suggestions
 	kp.commandSuggestions = make([]prompt.Suggest, 0)
@@ -34,11 +31,20 @@ func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvi
 	return kp
 }
 
+func (kp *KoinosPrompt) changeLivePrefix() (string, bool) {
+	return "🔓 > ", kp.execEnv.IsWalletOpen()
+}
+
 func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {
 	var currentInv *wallet.ParseResult
-	invs, _ := kp.parser.Parse(d.Text)
+	invs, err := kp.parser.Parse(d.Text)
 	if len(invs) != 0 {
 		currentInv = invs[len(invs)-1]
+	}
+
+	// If on a new command, yet the last has not been properly terminated, then suggest a semicolon
+	if err == nil && currentInv != nil && currentInv.Termination != wallet.Command {
+		return []prompt.Suggest{}
 	}
 
 	if len(d.Text) == 0 || currentInv != nil && currentInv.CurrentArg == -1 {
@@ -49,21 +55,8 @@ func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {
 }
 
 func (kp *KoinosPrompt) executor(input string) {
-	invs, err := kp.parser.Parse(input)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	for _, inv := range invs {
-		cmd := inv.Instantiate()
-		result, err := cmd.Execute(context.Background(), kp.execEnv)
-		if err != nil {
-			fmt.Println(err)
-		} else {
-			fmt.Println(result.Message)
-		}
-	}
+	results := wallet.ParseAndInterpret(kp.parser, kp.execEnv, input)
+	results.Print()
 }
 
 // Run runs interactive mode

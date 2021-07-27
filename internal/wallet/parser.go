@@ -1,9 +1,23 @@
 package wallet
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
+)
+
+// TerminationStatus is an enum
+type TerminationStatus int
+
+// Types of termination
+const (
+	None TerminationStatus = iota
+	Input
+	Command
+)
+
+// Characters used in parsing
+const (
+	CommandTerminator = ';'
 )
 
 // ParseResult is the result of parsing a command string
@@ -12,6 +26,7 @@ type ParseResult struct {
 	Args        map[string]string // This could be a slice of strings potentially
 	Decl        *CommandDeclaration
 	CurrentArg  int
+	Termination TerminationStatus
 }
 
 // NewParseResult creates a new parse result object
@@ -36,10 +51,11 @@ type CommandParser struct {
 	name2command map[string]*CommandDeclaration
 
 	// Parser token recognizer regexps
-	commandNameRE *regexp.Regexp
-	skipRE        *regexp.Regexp
-	terminatorRE  *regexp.Regexp
-	addressRE     *regexp.Regexp
+	commandNameRE  *regexp.Regexp
+	skipRE         *regexp.Regexp
+	terminatorRE   *regexp.Regexp
+	addressRE      *regexp.Regexp
+	simpleStringRE *regexp.Regexp
 }
 
 // NewCommandParser creates a new command parser
@@ -57,6 +73,7 @@ func NewCommandParser(commands []*CommandDeclaration) *CommandParser {
 	parser.skipRE = regexp.MustCompile(`^\s*`)
 	parser.terminatorRE = regexp.MustCompile(`^(;|$)`)
 	parser.addressRE = regexp.MustCompile(`^[1-9A-HJ-NP-Za-km-z]+`)
+	parser.simpleStringRE = regexp.MustCompile(`^[^\s"\';]+`)
 
 	return parser
 }
@@ -67,18 +84,24 @@ func (p *CommandParser) Parse(commands string) ([]*ParseResult, error) {
 	input := []byte(commands)
 	var invs []*ParseResult = make([]*ParseResult, 0)
 
+	input, _ = p.parseSkip(input, nil, false)
+
 	// Loop until we've consumed all input
 	for len(input) > 0 {
 		var err error
 		var inv *ParseResult
 
-		input, _ = p.parseSkip(input, inv, false)
 		inv, input, err = p.parseNextCommand(input)
 		if inv != nil {
 			invs = append(invs, inv)
 		}
-		if err != nil && !errors.Is(err, ErrEmptyCommandName) {
+		if err != nil {
 			return invs, err
+		}
+
+		// If latest command has no terminator or is the last command, halt parsing
+		if inv.Termination == None || inv.Termination == Input {
+			break
 		}
 	}
 
@@ -103,13 +126,15 @@ func (p *CommandParser) parseNextCommand(input []byte) (*ParseResult, []byte, er
 		return inv, nil, fmt.Errorf("%w", ErrUnknownCommand)
 	}
 
-	// Skip whitespace
-	input, _ = p.parseSkip(input, inv, true)
-
 	input, err = p.parseArgs(input, inv)
 	if err != nil {
 		return inv, input, err
 	}
+
+	// Skip space and check termination
+	var t TerminationStatus
+	input, t = p.parseSkip(input, inv, false)
+	inv.Termination = t
 
 	return inv, input, nil
 }
@@ -129,21 +154,24 @@ func (p *CommandParser) parseArgs(input []byte, inv *ParseResult) ([]byte, error
 	// Loop through expected arguments
 	for _, arg := range inv.Decl.Args {
 		// Skip whitespace
-		var t bool
+		var t TerminationStatus
 		input, t = p.parseSkip(input, inv, true)
-		if t {
-			return input, nil
+		if t != None {
+			return input, fmt.Errorf("%w: %s", ErrMissingParam, arg.Name)
 		}
 
 		var match []byte
 		var err error
+		var l int
 
 		// Match the argument based on type
 		switch arg.ArgType {
 		case Address:
-			match, err = p.parseAddress(input)
+			match, l, err = p.parseAddress(input)
+		case String:
+			match, l, err = p.parseString(input)
 		}
-		input = input[len(match):] // Consume the match
+		input = input[l:] // Consume the match
 
 		// Check for error during match
 		if err != nil {
@@ -157,20 +185,83 @@ func (p *CommandParser) parseArgs(input []byte, inv *ParseResult) ([]byte, error
 	return input, nil
 }
 
-// Parse an address. Returns Matched address and error
-func (p *CommandParser) parseAddress(input []byte) ([]byte, error) {
+// Parse an address. Returns matched address consumed length, and error
+func (p *CommandParser) parseAddress(input []byte) ([]byte, int, error) {
 	// Parse address
 	m := p.addressRE.Find(input)
 	if m == nil {
-		return nil, fmt.Errorf("%w", ErrEmptyParam)
+		return nil, 0, fmt.Errorf("%w", ErrMissingParam)
 	}
 
-	return m, nil
+	return m, len(m), nil
 }
 
-// Returns the rest of the string, and a bool that is true if it encountered a terminator
-func (p *CommandParser) parseSkip(input []byte, inv *ParseResult, incArgs bool) ([]byte, bool) {
-	term := false
+// Parse a string, return matched string and error
+func (p *CommandParser) parseString(input []byte) ([]byte, int, error) {
+	// Parse string
+	if len(input) == 0 {
+		return nil, 0, fmt.Errorf("%w", ErrMissingParam)
+	}
+
+	if input[0] == '"' || input[0] == '\'' {
+		return p.parseQuotedString(input)
+	}
+
+	return p.parseSimpleString(input)
+}
+
+func (p *CommandParser) parseQuotedString(input []byte) ([]byte, int, error) {
+	// Record the quote type
+	quote := input[0]
+
+	output := make([]byte, 0)
+	escape := false // True if we're inside an escape sequence
+
+	// Interate through the input until we find the closing quote
+	for i, c := range input[1:] {
+		if escape {
+			escape = false
+
+			// If we're in an escape sequence, append the character and continue to the next character
+			if c == '\\' || c == '"' || c == '\'' {
+				output = append(output, c)
+				continue
+			}
+
+			// Otherwise just append the slash and carry on parsing this character
+			output = append(output, '\\')
+		}
+
+		// If we're in an escape sequence, continue to the next character
+		if c == '\\' {
+			escape = true
+			continue
+		}
+
+		// If end quote, return the string
+		if c == quote {
+			// Return the matched string
+			return output, i + 2, nil
+		}
+
+		output = append(output, c)
+	}
+
+	return nil, 0, fmt.Errorf("%w: missing closing quote", ErrInvalidString)
+}
+
+func (p *CommandParser) parseSimpleString(input []byte) ([]byte, int, error) {
+	m := p.simpleStringRE.Find(input)
+	if m == nil {
+		return nil, 0, fmt.Errorf("%w", ErrMissingParam)
+	}
+
+	return m, len(m), nil
+}
+
+// Returns the rest of the string, a bool that is true if it encountered a terminator, and a bool that is true if that terminator was a command terminator
+func (p *CommandParser) parseSkip(input []byte, inv *ParseResult, incArgs bool) ([]byte, TerminationStatus) {
+	term := None
 	skipped := false
 
 	m := p.skipRE.Find(input)
@@ -180,8 +271,13 @@ func (p *CommandParser) parseSkip(input []byte, inv *ParseResult, incArgs bool) 
 	}
 
 	if p.terminatorRE.Match(input) {
-		input = input[len(p.terminatorRE.Find(input)):]
-		term = true
+		t := p.terminatorRE.Find(input)
+		input = input[len(t):]
+		if len(t) > 0 && t[0] == CommandTerminator {
+			term = Command
+		} else {
+			term = Input
+		}
 	}
 
 	m = p.skipRE.Find(input)
