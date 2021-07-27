@@ -10,7 +10,6 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
-	"github.com/ethereum/go-ethereum/crypto"
 	types "github.com/koinos/koinos-types-golang"
 	"github.com/minio/sio"
 	"github.com/mr-tron/base58"
@@ -20,16 +19,10 @@ import (
 
 // SignTransaction signs the transaction with the given key
 func SignTransaction(key []byte, tx *types.Transaction) error {
-	privateKey, err := crypto.ToECDSA(key)
-
-	if err != nil {
-		return err
-	}
+	privateKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), key)
 
 	// Sign the transaction ID
-	//blobID := tx.ID.Serialize(types.NewVariableBlob())
-	//signatureBytes, err := crypto.Sign([]byte(*blobID), privateKey)
-	signatureBytes, err := crypto.Sign(tx.ID.Digest, privateKey)
+	signatureBytes, err := btcec.SignCompact(btcec.S256(), privateKey, tx.ID.Digest, true)
 	if err != nil {
 		return err
 	}

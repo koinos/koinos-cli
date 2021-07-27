@@ -416,7 +416,11 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	transaction.ID.Digest = transactionID
 
 	// Sign the transaction
-	SignTransaction(ee.Key.PrivateBytes(), transaction)
+	err = SignTransaction(ee.Key.PrivateBytes(), transaction)
+
+	if err != nil {
+		return nil, err
+	}
 
 	// Submit the transaction
 	params := types.NewSubmitTransactionRequest()
