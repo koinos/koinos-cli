@@ -1,9 +1,6 @@
 package interactive
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/c-bata/go-prompt"
 	"github.com/koinos/koinos-cli-wallet/internal/wallet"
 )
@@ -58,21 +55,8 @@ func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {
 }
 
 func (kp *KoinosPrompt) executor(input string) {
-	invs, err := kp.parser.Parse(input)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	for _, inv := range invs {
-		cmd := inv.Instantiate()
-		result, err := cmd.Execute(context.Background(), kp.execEnv)
-		if err != nil {
-			fmt.Println(err)
-		} else {
-			result.Print()
-		}
-	}
+	results := wallet.InterpretCommands(kp.parser, kp.execEnv, input)
+	results.Print()
 }
 
 // Run runs interactive mode

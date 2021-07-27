@@ -1,9 +1,7 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/koinos/koinos-cli-wallet/cmd/cli-wallet/interactive"
@@ -58,18 +56,8 @@ func main() {
 
 	// If the user submitted commands, execute them
 	if *executeCmd != "" {
-		invs, err := parser.Parse(*executeCmd)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		// Execute commands
-		for _, inv := range invs {
-			cmd := inv.Instantiate()
-			result, _ := cmd.Execute(context.Background(), &cmdEnv)
-			result.Print()
-		}
+		results := wallet.InterpretCommands(parser, &cmdEnv, *executeCmd)
+		results.Print()
 		// Otherwise run the interactive shell
 	} else {
 		// Enter interactive mode
