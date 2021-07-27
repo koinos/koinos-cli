@@ -37,4 +37,7 @@ var (
 
 	// ErrWalletDecrypt is returned when a wallet file does not decrypt properly
 	ErrWalletDecrypt = errors.New("wallet decryption failed")
+
+	// ErrInvalidPrivateKey is returned when an imported private key is invalid
+	ErrInvalidPrivateKey = errors.New("invalid private key")
 )

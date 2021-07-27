@@ -25,9 +25,12 @@ const (
 func BuildCommands() []*CommandDeclaration {
 	var decls []*CommandDeclaration
 	decls = append(decls, NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewCommandArg("address", Address)))
+	decls = append(decls, NewCommandDeclaration("close", "Close the currently open wallet", false, NewCloseCommand))
 	decls = append(decls, NewCommandDeclaration("create", "Create and open a new wallet file", false, NewCreateCommand,
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("generate", "Generate and display a new private key", false, NewGenerateKeyCommand))
+	decls = append(decls, NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", String),
+		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
 	decls = append(decls, NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand,
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
@@ -92,6 +95,34 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	er.AddMessage(fmt.Sprintf("%v %s", dec, KoinSymbol))
 
 	return er, nil
+}
+
+// ----------------------------------------------------------------------------
+// Close Command
+// ----------------------------------------------------------------------------
+
+// CloseCommand is a command that closes an open wallet
+type CloseCommand struct {
+}
+
+// NewCloseCommand creates a new close object
+func NewCloseCommand(inv *ParseResult) CLICommand {
+	return &CloseCommand{}
+}
+
+// Execute closes the wallet
+func (c *CloseCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot close", ErrWalletClosed)
+	}
+
+	// CLose the wallet
+	ee.Key = nil
+
+	result := NewExecutionResult()
+	result.AddMessage("Wallet closed")
+
+	return result, nil
 }
 
 // ----------------------------------------------------------------------------
@@ -164,14 +195,77 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 		return nil, fmt.Errorf("%w: %s", ErrWalletExists, c.Filename)
 	}
 
+	// Generate new key
+	key, err := GenerateKoinosKey()
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the wallet file
 	file, err := os.Create(c.Filename)
 	if err != nil {
 		return nil, err
 	}
 
-	// Generate new key
-	key, err := GenerateKoinosKey()
+	// Write the key to the wallet file
+	err = CreateWalletFile(file, c.Password, key.PrivateBytes())
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the wallet keys
+	ee.Key = key
+
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
+	result.AddMessage("Use the info command to see details")
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Import
+// ----------------------------------------------------------------------------
+
+// ImportCommand is a command that imports a private key to a wallet
+type ImportCommand struct {
+	Filename   string
+	Password   string
+	PrivateKey string
+}
+
+// NewImportCommand creates a new import object
+func NewImportCommand(inv *ParseResult) CLICommand {
+	return &ImportCommand{Filename: inv.Args["filename"], Password: inv.Args["password"], PrivateKey: inv.Args["private-key"]}
+}
+
+// Execute creates a new wallet
+func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	// Check if the wallet already exists
+	if _, err := os.Stat(c.Filename); !os.IsNotExist(err) {
+		return nil, fmt.Errorf("%w: %s", ErrWalletExists, c.Filename)
+	}
+
+	// Convert the private key to bytes
+	keyBytes, err := DecodeWIF(c.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	//keyBytes := base58.Decode(c.PrivateKey)
+
+	//if len(keyBytes) != 32 {
+	//	return nil, fmt.Errorf("%w: %s", ErrInvalidPrivateKey, c.PrivateKey)
+	//}
+
+	// Create the key
+	key, err := NewKoinosKeysFromBytes(keyBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the wallet file
+	file, err := os.Create(c.Filename)
 	if err != nil {
 		return nil, err
 	}

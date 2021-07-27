@@ -64,5 +64,4 @@ func main() {
 		p := interactive.NewKoinosPrompt(parser, &cmdEnv)
 		p.Run()
 	}
-
 }
