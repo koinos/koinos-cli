@@ -109,7 +109,11 @@ func (ir *InterpretResults) Print() {
 	for _, result := range ir.Results {
 		fmt.Println(result)
 	}
-	fmt.Println("")
+
+	// If there were results, skip a line at the end for readability
+	if len(ir.Results) > 0 {
+		fmt.Println("")
+	}
 }
 
 // InterpretParseResults interprets and executes the results of a command parse

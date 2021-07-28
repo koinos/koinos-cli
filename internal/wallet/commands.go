@@ -434,8 +434,7 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	}
 
 	result := NewExecutionResult()
-	result.AddMessage(fmt.Sprintf("%v", sAmount))
-	result.AddMessage(fmt.Sprintf("%v", nonce))
+	result.AddMessage(fmt.Sprintf("Transferring %s %s to %s", dAmount, KoinSymbol, *c.Address))
 
 	return result, nil
 }
