@@ -2,17 +2,21 @@ package wallet
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"os"
 
 	types "github.com/koinos/koinos-types-golang"
+	"github.com/shopspring/decimal"
 )
 
 // Hardcoded Koin contract constants
 const (
-	ReadContractCall = "chain.read_contract"
-	KoinSymbol       = "tKOIN"
-	KoinPrecision    = 8
+	ReadContractCall      = "chain.read_contract"
+	GetAccountNonceCall   = "chain.get_account_nonce"
+	SubmitTransactionCall = "chain.submit_transaction"
+	KoinSymbol            = "tKOIN"
+	KoinPrecision         = 8
 )
 
 // ----------------------------------------------------------------------------
@@ -34,6 +38,8 @@ func BuildCommands() []*CommandDeclaration {
 	decls = append(decls, NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
 	decls = append(decls, NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand,
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
+	decls = append(decls, NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand,
+		*NewCommandArg("amount", Amount), *NewCommandArg("address", Address)))
 	decls = append(decls, NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	decls = append(decls, NewCommandDeclaration("quit", "", true, NewExitCommand))
 
@@ -64,29 +70,10 @@ func NewBalanceCommand(inv *ParseResult) CLICommand {
 
 // Execute fetches the balance
 func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	// Build the contract request
-	params := types.NewReadContractRequest()
-	params.ContractID = *ee.KoinContractID
-	params.EntryPoint = ee.KoinBalanceOfEntry
-	// Serialize the args
-	vb := types.NewVariableBlob()
-	vb = c.Address.Serialize(vb)
-	params.Args = *vb
-
-	// Make the rpc call
-	var cResp types.ReadContractResponse
-	err := ee.RPCClient.Call(ReadContractCall, params, &cResp)
-	if err != nil {
-		return nil, err
-	}
-
-	_, balance, err := types.DeserializeUInt64(&cResp.Result)
-	if err != nil {
-		return nil, err
-	}
+	balance, err := ee.RPCClient.GetAccountBalance(c.Address, ee.KoinContractID, ee.KoinBalanceOfEntry)
 
 	// Build the result
-	dec, err := SatoshiToDecimal(int64(*balance), KoinPrecision)
+	dec, err := SatoshiToDecimal(int64(balance), KoinPrecision)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +103,7 @@ func (c *CloseCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*
 		return nil, fmt.Errorf("%w: cannot close", ErrWalletClosed)
 	}
 
-	// CLose the wallet
+	// Close the wallet
 	ee.Key = nil
 
 	result := NewExecutionResult()
@@ -347,6 +334,107 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Opened wallet: %s", c.Filename))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Transfer
+// ----------------------------------------------------------------------------
+
+// TransferCommand is a command that closes an open wallet
+type TransferCommand struct {
+	Address *types.AccountType
+	Amount  string
+}
+
+// NewTransferCommand creates a new close object
+func NewTransferCommand(inv *ParseResult) CLICommand {
+	addressString := inv.Args["address"]
+	address := types.AccountType(addressString)
+	return &TransferCommand{Address: &address, Amount: inv.Args["amount"]}
+}
+
+// Execute transfers token
+func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot transfer", ErrWalletClosed)
+	}
+
+	// Convert the amount to a decimal
+	dAmount, err := decimal.NewFromString(c.Amount)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidAmount, err.Error())
+	}
+
+	// Convert the amount to satoshis
+	sAmount, err := DecimalToSatoshi(&dAmount, KoinPrecision)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidAmount, err.Error())
+	}
+
+	// Fetch the account's nonce
+	myAddress := types.AccountType(ee.Key.Address())
+	nonce, err := ee.RPCClient.GetAccountNonce(&myAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the operation
+	callContractOp := types.NewCallContractOperation()
+	callContractOp.ContractID = *ee.KoinContractID
+	callContractOp.EntryPoint = ee.KoinTransferEntry
+
+	// Serialize and assign the args
+	vb := types.NewVariableBlob()
+	vb = myAddress.Serialize(vb)
+	vb = c.Address.Serialize(vb)
+	tAmount := types.UInt64(sAmount)
+	vb = tAmount.Serialize(vb)
+	callContractOp.Args = *vb
+
+	// Create a variant operation and assign the call contract operation
+	op := types.NewOperation()
+	op.Value = callContractOp
+
+	// Create the transaction
+	transaction := types.NewTransaction()
+	transaction.ActiveData.Native.Operations = append(transaction.ActiveData.Native.Operations, *op)
+	transaction.ActiveData.Native.Nonce = nonce
+	rLimit, err := types.NewUInt128FromString("1000000")
+	if err != nil {
+		return nil, err
+	}
+	transaction.ActiveData.Native.ResourceLimit = *rLimit
+
+	// Calculate the transaction ID
+	activeDataBytes := transaction.ActiveData.Serialize(types.NewVariableBlob())
+	sha256Hasher := sha256.New()
+	sha256Hasher.Write(*activeDataBytes)
+	transactionID := sha256Hasher.Sum(nil)
+	transaction.ID.ID = 0x12 // SHA2_256_ID
+	transaction.ID.Digest = transactionID
+
+	// Sign the transaction
+	err = SignTransaction(ee.Key.PrivateBytes(), transaction)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Submit the transaction
+	params := types.NewSubmitTransactionRequest()
+	params.Transaction = *transaction
+
+	// Make the rpc call
+	var cResp types.SubmitTransactionResponse
+	err = ee.RPCClient.Call(SubmitTransactionCall, params, &cResp)
+	if err != nil {
+		return nil, err
+	}
+
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Transferring %s %s to %s", dAmount, KoinSymbol, *c.Address))
 
 	return result, nil
 }

@@ -40,4 +40,7 @@ var (
 
 	// ErrInvalidPrivateKey is returned when an imported private key is invalid
 	ErrInvalidPrivateKey = errors.New("invalid private key")
+
+	// ErrInvalidAmount is returned when an amount is invalid
+	ErrInvalidAmount = errors.New("invalid amount")
 )

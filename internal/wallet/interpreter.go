@@ -43,6 +43,7 @@ type ExecutionEnvironment struct {
 	RPCClient          *KoinosRPCClient
 	KoinContractID     *types.ContractIDType
 	KoinBalanceOfEntry types.UInt32
+	KoinTransferEntry  types.UInt32
 	Key                *KoinosKey
 }
 
@@ -86,15 +87,6 @@ func NewCommandArg(name string, argType CommandArgType) *CommandArg {
 	}
 }
 
-// CommandArgType is an enum that defines the types of arguments a command can take
-type CommandArgType int
-
-// Types of arguments
-const (
-	Address CommandArgType = iota
-	String
-)
-
 // InterpretResults is a struct that holds the results of a multi-command interpretation
 type InterpretResults struct {
 	Results []string
@@ -116,6 +108,11 @@ func (ir *InterpretResults) AddResult(result ...string) {
 func (ir *InterpretResults) Print() {
 	for _, result := range ir.Results {
 		fmt.Println(result)
+	}
+
+	// If there were results, skip a line at the end for readability
+	if len(ir.Results) > 0 {
+		fmt.Println("")
 	}
 }
 
