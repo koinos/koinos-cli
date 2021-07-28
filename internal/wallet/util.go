@@ -212,7 +212,7 @@ func ParseAndInterpret(parser *CommandParser, ee *ExecutionEnvironment, input st
 		return o
 	}
 
-	return InterpretParseResults(result, ee)
+	return result.Interpret(ee)
 }
 
 const compressMagic byte = 0x01

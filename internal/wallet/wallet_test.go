@@ -64,8 +64,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(results) != 3 {
-		t.Error("Expected 3 result, got", len(results))
+	if results.Len() != 3 {
+		t.Error("Expected 3 result, got", results.Len())
 	}
 
 	results, err = parser.Parse("asdasd")
@@ -77,8 +77,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error("Expected error", ErrUnknownCommand, ", got", err)
 	}
 
-	if results[0].CurrentArg != -1 {
-		t.Error("Expected current arg to be -1, got", results[0].CurrentArg)
+	if results.CommandResults[0].CurrentArg != -1 {
+		t.Error("Expected current arg to be -1, got", results.CommandResults[0].CurrentArg)
 	}
 
 	results, err = parser.Parse("asdasd ")
@@ -90,8 +90,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error("Expected error", ErrUnknownCommand, ", got", err)
 	}
 
-	if results[0].CurrentArg != 0 {
-		t.Error("Expected current arg to be 0, got", results[0].CurrentArg)
+	if results.CommandResults[0].CurrentArg != 0 {
+		t.Error("Expected current arg to be 0, got", results.CommandResults[0].CurrentArg)
 	}
 
 	// Test parsing empty inputs
@@ -100,8 +100,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(results) != 0 {
-		t.Error("Expected 0 results, got", len(results))
+	if results.Len() != 0 {
+		t.Error("Expected 0 results, got", results.Len())
 	}
 
 	results, err = parser.Parse("    ")
@@ -109,8 +109,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(results) != 0 {
-		t.Error("Expected 0 results, got", len(results))
+	if results.Len() != 0 {
+		t.Error("Expected 0 results, got", results.Len())
 	}
 
 	// Test nonsensical string of empty commands
@@ -119,8 +119,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error("Expected error, got none")
 	}
 
-	if len(results) != 0 {
-		t.Error("Expected 0 results, got", len(results))
+	if results.Len() != 0 {
+		t.Error("Expected 0 results, got", results.Len())
 	}
 
 	// Test valid command followed by empty commands
@@ -133,8 +133,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error("Expected error", ErrEmptyCommandName, ", got", err)
 	}
 
-	if len(results) != 1 {
-		t.Error("Expected 1 result, got", len(results))
+	if results.Len() != 1 {
+		t.Error("Expected 1 result, got", results.Len())
 	}
 }
 
@@ -157,11 +157,11 @@ func checkTerminators(t *testing.T, parser *CommandParser, input string, termina
 		t.Error(err)
 	}
 
-	if len(results) != len(terminators) {
-		t.Error("Expected", len(terminators), "results, got", len(results))
+	if results.Len() != len(terminators) {
+		t.Error("Expected", len(terminators), "results, got", results.Len())
 	}
 
-	for i, result := range results {
+	for i, result := range results.CommandResults {
 		if result.Termination != terminators[i] {
 			t.Error("Expected terminator", terminators[i], "got", result.Termination)
 		}
@@ -180,20 +180,20 @@ func TestBalance(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(results) != 1 {
-		t.Error("Expected 1 result, got", len(results))
+	if results.Len() != 1 {
+		t.Error("Expected 1 result, got", results.Len())
 	}
 
-	if results[0].CommandName != "balance" {
-		t.Error("Expected balance parse result, got", results[0].CommandName)
+	if results.CommandResults[0].CommandName != "balance" {
+		t.Error("Expected balance parse result, got", results.CommandResults[0].CommandName)
 	}
 
-	if results[0].Args["address"] != address0 {
-		t.Errorf("Expected %s, got %s", address0, results[0].Args["address"])
+	if results.CommandResults[0].Args["address"] != address0 {
+		t.Errorf("Expected %s, got %s", address0, results.CommandResults[0].Args["address"])
 	}
 
 	// Test the command object instantiation
-	cmd := results[0].Instantiate()
+	cmd := results.CommandResults[0].Instantiate()
 	bcmd := cmd.(*BalanceCommand)
 
 	// Make sure the account type object is correct
@@ -214,15 +214,15 @@ func TestExit(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(results) != 2 {
-		t.Error("Expected 2 result, got", len(results))
+	if results.Len() != 2 {
+		t.Error("Expected 2 result, got", results.Len())
 	}
 
-	if results[0].CommandName != "quit" || results[1].CommandName != "exit" {
+	if results.CommandResults[0].CommandName != "quit" || results.CommandResults[1].CommandName != "exit" {
 		t.Error("Invalid command name")
 	}
 
-	if len(results[0].Args) != 0 || len(results[1].Args) != 0 {
+	if len(results.CommandResults[0].Args) != 0 || len(results.CommandResults[1].Args) != 0 {
 		t.Error("Invalid exit args")
 	}
 }

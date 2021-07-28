@@ -67,7 +67,7 @@ type BalanceCommand struct {
 }
 
 // NewBalanceCommand creates a new balance object
-func NewBalanceCommand(inv *ParseResult) CLICommand {
+func NewBalanceCommand(inv *CommandParseResult) CLICommand {
 	addressString := inv.Args["address"]
 	address := types.AccountType(addressString)
 	return &BalanceCommand{Address: &address}
@@ -108,7 +108,7 @@ type CloseCommand struct {
 }
 
 // NewCloseCommand creates a new close object
-func NewCloseCommand(inv *ParseResult) CLICommand {
+func NewCloseCommand(inv *CommandParseResult) CLICommand {
 	return &CloseCommand{}
 }
 
@@ -137,7 +137,7 @@ type ConnectCommand struct {
 }
 
 // NewConnectCommand creates a new connect object
-func NewConnectCommand(inv *ParseResult) CLICommand {
+func NewConnectCommand(inv *CommandParseResult) CLICommand {
 	return &ConnectCommand{URL: inv.Args["url"]}
 }
 
@@ -164,7 +164,7 @@ type DisconnectCommand struct {
 }
 
 // NewDisconnectCommand creates a new disconnect object
-func NewDisconnectCommand(inv *ParseResult) CLICommand {
+func NewDisconnectCommand(inv *CommandParseResult) CLICommand {
 	return &DisconnectCommand{}
 }
 
@@ -192,7 +192,7 @@ type ExitCommand struct {
 }
 
 // NewExitCommand creates a new exit object
-func NewExitCommand(inv *ParseResult) CLICommand {
+func NewExitCommand(inv *CommandParseResult) CLICommand {
 	return &ExitCommand{}
 }
 
@@ -211,7 +211,7 @@ type GenerateKeyCommand struct {
 }
 
 // NewGenerateKeyCommand creates a new exit object
-func NewGenerateKeyCommand(inv *ParseResult) CLICommand {
+func NewGenerateKeyCommand(inv *CommandParseResult) CLICommand {
 	return &GenerateKeyCommand{}
 }
 
@@ -241,7 +241,7 @@ type CreateCommand struct {
 }
 
 // NewCreateCommand creates a new create object
-func NewCreateCommand(inv *ParseResult) CLICommand {
+func NewCreateCommand(inv *CommandParseResult) CLICommand {
 	return &CreateCommand{Filename: inv.Args["filename"], Password: inv.Args["password"]}
 }
 
@@ -294,7 +294,7 @@ type ImportCommand struct {
 }
 
 // NewImportCommand creates a new import object
-func NewImportCommand(inv *ParseResult) CLICommand {
+func NewImportCommand(inv *CommandParseResult) CLICommand {
 	return &ImportCommand{Filename: inv.Args["filename"], Password: inv.Args["password"], PrivateKey: inv.Args["private-key"]}
 }
 
@@ -349,7 +349,7 @@ type InfoCommand struct {
 }
 
 // NewInfoCommand creates a new info command object
-func NewInfoCommand(inv *ParseResult) CLICommand {
+func NewInfoCommand(inv *CommandParseResult) CLICommand {
 	return &InfoCommand{}
 }
 
@@ -378,7 +378,7 @@ type OpenCommand struct {
 }
 
 // NewOpenCommand creates a new open command object
-func NewOpenCommand(inv *ParseResult) CLICommand {
+func NewOpenCommand(inv *CommandParseResult) CLICommand {
 	return &OpenCommand{Filename: inv.Args["filename"], Password: inv.Args["password"]}
 }
 
@@ -422,7 +422,7 @@ type TransferCommand struct {
 }
 
 // NewTransferCommand creates a new close object
-func NewTransferCommand(inv *ParseResult) CLICommand {
+func NewTransferCommand(inv *CommandParseResult) CLICommand {
 	addressString := inv.Args["address"]
 	address := types.AccountType(addressString)
 	return &TransferCommand{Address: &address, Amount: inv.Args["amount"]}

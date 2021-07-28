@@ -56,14 +56,14 @@ func (ee *ExecutionEnvironment) IsOnline() bool {
 type CommandDeclaration struct {
 	Name          string
 	Description   string
-	Instantiation func(*ParseResult) CLICommand
+	Instantiation func(*CommandParseResult) CLICommand
 	Args          []CommandArg
 	Hidden        bool // If true, the command is not shown in the help
 }
 
 // NewCommandDeclaration create a new command declaration
 func NewCommandDeclaration(name string, description string, hidden bool,
-	instantiation func(*ParseResult) CLICommand, args ...CommandArg) *CommandDeclaration {
+	instantiation func(*CommandParseResult) CLICommand, args ...CommandArg) *CommandDeclaration {
 	return &CommandDeclaration{
 		Name:          name,
 		Description:   description,
@@ -116,11 +116,11 @@ func (ir *InterpretResults) Print() {
 	}
 }
 
-// InterpretParseResults interprets and executes the results of a command parse
-func InterpretParseResults(invs []*ParseResult, ee *ExecutionEnvironment) *InterpretResults {
+// Interpret interprets and executes the results of a command parse
+func (pr *ParseResults) Interpret(ee *ExecutionEnvironment) *InterpretResults {
 	output := NewInterpretResults()
 
-	for _, inv := range invs {
+	for _, inv := range pr.CommandResults {
 		cmd := inv.Instantiate()
 		result, err := cmd.Execute(context.Background(), ee)
 		if err != nil {
