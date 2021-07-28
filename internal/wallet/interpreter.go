@@ -3,8 +3,6 @@ package wallet
 import (
 	"context"
 	"fmt"
-
-	types "github.com/koinos/koinos-types-golang"
 )
 
 // Command execution code
@@ -40,11 +38,8 @@ func (er *ExecutionResult) Print() {
 
 // ExecutionEnvironment is a struct that holds the environment for command execution.
 type ExecutionEnvironment struct {
-	RPCClient          *KoinosRPCClient
-	KoinContractID     *types.ContractIDType
-	KoinBalanceOfEntry types.UInt32
-	KoinTransferEntry  types.UInt32
-	Key                *KoinosKey
+	RPCClient *KoinosRPCClient
+	Key       *KoinosKey
 }
 
 // IsWalletOpen returns a bool representing whether or not there is an open wallet

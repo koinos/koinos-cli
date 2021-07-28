@@ -17,6 +17,9 @@ const (
 	SubmitTransactionCall = "chain.submit_transaction"
 	KoinSymbol            = "tKOIN"
 	KoinPrecision         = 8
+	KoinContractID        = "kw96mR+Hh71IWwJoT/2lJXBDl5Q="
+	KoinBalanceOfEntry    = types.UInt32(0x15619248)
+	KoinTransferEntry     = types.UInt32(0x62efa292)
 )
 
 // ----------------------------------------------------------------------------
@@ -76,7 +79,13 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 		return nil, fmt.Errorf("%w: cannot check balance", ErrOffline)
 	}
 
-	balance, err := ee.RPCClient.GetAccountBalance(c.Address, ee.KoinContractID, ee.KoinBalanceOfEntry)
+	// Setup command execution environment
+	contractID, err := ContractStringToID(KoinContractID)
+	if err != nil {
+		panic("Invalid contract ID")
+	}
+
+	balance, err := ee.RPCClient.GetAccountBalance(c.Address, contractID, KoinBalanceOfEntry)
 
 	// Build the result
 	dec, err := SatoshiToDecimal(int64(balance), KoinPrecision)
@@ -441,6 +450,11 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, fmt.Errorf("%w: %s", ErrInvalidAmount, err.Error())
 	}
 
+	// Ensure a transfer greater than zero
+	if sAmount <= 0 {
+		return nil, fmt.Errorf("%w: cannot transfer %d %s", ErrInvalidAmount, sAmount, KoinSymbol)
+	}
+
 	// Fetch the account's nonce
 	myAddress := types.AccountType(ee.Key.Address())
 	nonce, err := ee.RPCClient.GetAccountNonce(&myAddress)
@@ -448,10 +462,16 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, err
 	}
 
+	// Setup command execution environment
+	contractID, err := ContractStringToID(KoinContractID)
+	if err != nil {
+		panic("Invalid contract ID")
+	}
+
 	// Create the operation
 	callContractOp := types.NewCallContractOperation()
-	callContractOp.ContractID = *ee.KoinContractID
-	callContractOp.EntryPoint = ee.KoinTransferEntry
+	callContractOp.ContractID = *contractID
+	callContractOp.EntryPoint = KoinTransferEntry
 
 	// Serialize and assign the args
 	vb := types.NewVariableBlob()
