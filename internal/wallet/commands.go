@@ -29,9 +29,11 @@ const (
 func BuildCommands() []*CommandDeclaration {
 	var decls []*CommandDeclaration
 	decls = append(decls, NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewCommandArg("address", Address)))
+	decls = append(decls, NewCommandDeclaration("connect", "Connect to an RPC endpoint", false, NewConnectCommand, *NewCommandArg("url", String)))
 	decls = append(decls, NewCommandDeclaration("close", "Close the currently open wallet", false, NewCloseCommand))
 	decls = append(decls, NewCommandDeclaration("create", "Create and open a new wallet file", false, NewCreateCommand,
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
+	decls = append(decls, NewCommandDeclaration("disconnect", "Disconnect from RPC endpoint", false, NewDisconnectCommand))
 	decls = append(decls, NewCommandDeclaration("generate", "Generate and display a new private key", false, NewGenerateKeyCommand))
 	decls = append(decls, NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", String),
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
@@ -112,6 +114,62 @@ func (c *CloseCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*
 
 	result := NewExecutionResult()
 	result.AddMessage("Wallet closed")
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Connect Command
+// ----------------------------------------------------------------------------
+
+// ConnectCommand is a command that connects to an RPC endpoint
+type ConnectCommand struct {
+	URL string
+}
+
+// NewConnectCommand creates a new connect object
+func NewConnectCommand(inv *ParseResult) CLICommand {
+	return &ConnectCommand{URL: inv.Args["url"]}
+}
+
+// Execute connects to an RPC endpoint
+func (c *ConnectCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	rpc := NewKoinosRPCClient(c.URL)
+	ee.RPCClient = rpc
+
+	// TODO: Ensure connection (some sort of ping?)
+	// Issue #20
+
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Connected to endpoint %s", c.URL))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Disonnect Command
+// ----------------------------------------------------------------------------
+
+// DisconnectCommand is a command that disconnects from an RPC endpoint
+type DisconnectCommand struct {
+}
+
+// NewDisconnectCommand creates a new disconnect object
+func NewDisconnectCommand(inv *ParseResult) CLICommand {
+	return &DisconnectCommand{}
+}
+
+// Execute disconnects from an RPC endpoint
+func (c *DisconnectCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot disconnect", ErrOffline)
+	}
+
+	// Disconnect from the RPC endpoint
+	ee.RPCClient = nil
+
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Disconnected"))
 
 	return result, nil
 }
