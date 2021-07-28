@@ -26,6 +26,7 @@ const (
 const (
 	KoinContractID      = "kw96mR+Hh71IWwJoT/2lJXBDl5Q="
 	BalanceOfEntryPoint = types.UInt32(0x15619248)
+	TransferEntryPoint  = types.UInt32(0x62efa292)
 )
 
 func main() {
@@ -48,7 +49,7 @@ func main() {
 	}
 
 	client := wallet.NewKoinosRPCClient(*rpcAddress)
-	cmdEnv := wallet.ExecutionEnvironment{RPCClient: client, KoinContractID: contractID, KoinBalanceOfEntry: BalanceOfEntryPoint}
+	cmdEnv := wallet.ExecutionEnvironment{RPCClient: client, KoinContractID: contractID, KoinBalanceOfEntry: BalanceOfEntryPoint, KoinTransferEntry: TransferEntryPoint}
 
 	// Construct the command parser
 	commands := wallet.BuildCommands()

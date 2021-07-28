@@ -10,7 +10,6 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
-	"github.com/ethereum/go-ethereum/crypto"
 	types "github.com/koinos/koinos-types-golang"
 	"github.com/minio/sio"
 	"github.com/mr-tron/base58"
@@ -20,15 +19,13 @@ import (
 
 // SignTransaction signs the transaction with the given key
 func SignTransaction(key []byte, tx *types.Transaction) error {
-	privateKey, err := crypto.ToECDSA(key)
+	privateKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), key)
 
+	// Sign the transaction ID
+	signatureBytes, err := btcec.SignCompact(btcec.S256(), privateKey, tx.ID.Digest, true)
 	if err != nil {
 		return err
 	}
-
-	// Sign the transaction ID
-	blobID := tx.ID.Serialize(types.NewVariableBlob())
-	signatureBytes, err := crypto.Sign([]byte(*blobID), privateKey)
 
 	// Attach the signature data to the transaction
 	tx.SignatureData = types.VariableBlob(signatureBytes)
@@ -54,13 +51,23 @@ func ContractStringToID(s string) (*types.ContractIDType, error) {
 
 // SatoshiToDecimal converts the given UInt64 value to a decimals with the given precision
 func SatoshiToDecimal(balance int64, precision int) (*decimal.Decimal, error) {
-	divisor, err := decimal.NewFromString(fmt.Sprintf("1e%d", precision))
+	denominator, err := decimal.NewFromString(fmt.Sprintf("1e%d", precision))
 	if err != nil {
 		return nil, err
 	}
 
-	v := decimal.NewFromInt(balance).Div(divisor)
+	v := decimal.NewFromInt(balance).Div(denominator)
 	return &v, nil
+}
+
+// DecimalToSatoshi converts the given decimal to a satoshi value
+func DecimalToSatoshi(d *decimal.Decimal, precision int) (int64, error) {
+	multiplier, err := decimal.NewFromString(fmt.Sprintf("1e%d", precision))
+	if err != nil {
+		return 0, err
+	}
+
+	return d.Mul(multiplier).BigInt().Int64(), nil
 }
 
 // KoinosRPCClient is a wrapper around the jsonrpc client
@@ -92,6 +99,48 @@ func (c *KoinosRPCClient) Call(method string, params interface{}, returnType int
 	}
 
 	return nil
+}
+
+// GetAccountBalance gets the balance of a given account
+func (c *KoinosRPCClient) GetAccountBalance(address *types.AccountType, contractID *types.ContractIDType, balanceOfEntry types.UInt32) (types.UInt64, error) {
+	// Build the contract request
+	params := types.NewReadContractRequest()
+	params.ContractID = *contractID
+	params.EntryPoint = balanceOfEntry
+	// Serialize the args
+	vb := types.NewVariableBlob()
+	vb = address.Serialize(vb)
+	params.Args = *vb
+
+	// Make the rpc call
+	var cResp types.ReadContractResponse
+	err := c.Call(ReadContractCall, params, &cResp)
+	if err != nil {
+		return 0, err
+	}
+
+	_, balance, err := types.DeserializeUInt64(&cResp.Result)
+	if err != nil {
+		return 0, err
+	}
+
+	return *balance, nil
+}
+
+// GetAccountNonce gets the nonce of a given account
+func (c *KoinosRPCClient) GetAccountNonce(address *types.AccountType) (types.UInt64, error) {
+	// Build the contract request
+	params := types.NewGetAccountNonceRequest()
+	params.Account = *address
+
+	// Make the rpc call
+	var cResp types.GetAccountNonceResponse
+	err := c.Call(GetAccountNonceCall, params, &cResp)
+	if err != nil {
+		return 0, err
+	}
+
+	return cResp.Nonce, nil
 }
 
 func walletConfig(password []byte) sio.Config {
