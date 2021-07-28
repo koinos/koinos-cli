@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"golang.org/x/crypto/ripemd160"
@@ -39,7 +40,7 @@ func BuildCommands() []*CommandDeclaration {
 	decls = append(decls, NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", String),
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
-	decls = append(decls, NewCommandDeclaration("upload_contract", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", String)))
+	decls = append(decls, NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", String)))
 	decls = append(decls, NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand,
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand,
@@ -195,7 +196,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 		return nil, err
 	}
 
-	wasmBytes, err := os.ReadFile(c.Filename)
+	wasmBytes, err := ioutil.ReadFile(c.Filename)
 
 	if err != nil {
 		return nil, err
@@ -211,9 +212,10 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	copy(contractID[:], digest)
 	uploadContractOperation.ContractID = *contractID
 
-	bytecode := types.NewVariableBlob()
-	copy(*bytecode, wasmBytes)
-	uploadContractOperation.Bytecode = *bytecode
+	//bytecode := types.NewVariableBlob()
+	var bytecode []byte = make([]byte, len(wasmBytes))
+	copy(bytecode, wasmBytes)
+	uploadContractOperation.Bytecode = bytecode
 
 	op := types.NewOperation()
 	op.Value = uploadContractOperation
