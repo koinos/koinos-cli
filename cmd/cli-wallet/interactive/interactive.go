@@ -1,6 +1,8 @@
 package interactive
 
 import (
+	"fmt"
+
 	"github.com/c-bata/go-prompt"
 	"github.com/koinos/koinos-cli-wallet/internal/wallet"
 )
@@ -16,7 +18,7 @@ type KoinosPrompt struct {
 // NewKoinosPrompt creates a new interactive prompt object
 func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvironment) *KoinosPrompt {
 	kp := &KoinosPrompt{parser: parser, execEnv: execEnv}
-	kp.gPrompt = prompt.New(kp.executor, kp.completer, prompt.OptionPrefix("🔐 > "), prompt.OptionLivePrefix(kp.changeLivePrefix))
+	kp.gPrompt = prompt.New(kp.executor, kp.completer, prompt.OptionLivePrefix(kp.changeLivePrefix))
 
 	// Generate command suggestions
 	kp.commandSuggestions = make([]prompt.Suggest, 0)
@@ -32,7 +34,19 @@ func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvi
 }
 
 func (kp *KoinosPrompt) changeLivePrefix() (string, bool) {
-	return "🔓 > ", kp.execEnv.IsWalletOpen()
+	// Calculate online status
+	onlineStatus := "🚫"
+	if kp.execEnv.IsOnline() {
+		onlineStatus = "📶"
+	}
+
+	// Calculate wallet status
+	walletStatus := "🔐"
+	if kp.execEnv.IsWalletOpen() {
+		walletStatus = "🔓"
+	}
+
+	return fmt.Sprintf("%s %s > ", onlineStatus, walletStatus), true
 }
 
 func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {

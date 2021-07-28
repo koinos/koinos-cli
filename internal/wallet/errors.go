@@ -40,4 +40,7 @@ var (
 
 	// ErrInvalidAmount is returned when an amount is invalid
 	ErrInvalidAmount = errors.New("invalid amount")
+
+	// ErrOffline is returned when a wallet is not online
+	ErrOffline = errors.New("wallet is offline")
 )

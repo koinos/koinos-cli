@@ -70,6 +70,10 @@ func NewBalanceCommand(inv *ParseResult) CLICommand {
 
 // Execute fetches the balance
 func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot check balance", ErrOffline)
+	}
+
 	balance, err := ee.RPCClient.GetAccountBalance(c.Address, ee.KoinContractID, ee.KoinBalanceOfEntry)
 
 	// Build the result
@@ -359,6 +363,10 @@ func NewTransferCommand(inv *ParseResult) CLICommand {
 func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
 		return nil, fmt.Errorf("%w: cannot transfer", ErrWalletClosed)
+	}
+
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot transfer", ErrOffline)
 	}
 
 	// Convert the amount to a decimal

@@ -18,7 +18,7 @@ const (
 
 // Default options
 const (
-	rpcDefault     = "http://localhost:8080"
+	rpcDefault     = ""
 	executeDefault = ""
 )
 
@@ -48,7 +48,12 @@ func main() {
 		panic("Invalid contract ID")
 	}
 
-	client := wallet.NewKoinosRPCClient(*rpcAddress)
+	// Setup client
+	var client *wallet.KoinosRPCClient
+	if *rpcAddress != "" {
+		client = wallet.NewKoinosRPCClient(*rpcAddress)
+	}
+
 	cmdEnv := wallet.ExecutionEnvironment{RPCClient: client, KoinContractID: contractID, KoinBalanceOfEntry: BalanceOfEntryPoint, KoinTransferEntry: TransferEntryPoint}
 
 	// Construct the command parser

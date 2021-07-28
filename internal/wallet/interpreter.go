@@ -52,6 +52,11 @@ func (ee *ExecutionEnvironment) IsWalletOpen() bool {
 	return ee.Key != nil
 }
 
+// IsOnline returns a bool representing whether or not the wallet is online
+func (ee *ExecutionEnvironment) IsOnline() bool {
+	return ee.RPCClient != nil
+}
+
 // CommandDeclaration is a struct that declares a command
 type CommandDeclaration struct {
 	Name          string
