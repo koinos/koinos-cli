@@ -35,9 +35,9 @@ func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvi
 
 func (kp *KoinosPrompt) changeLivePrefix() (string, bool) {
 	// Calculate online status
-	onlineStatus := "🚫"
+	onlineStatus := "🔴"
 	if kp.execEnv.IsOnline() {
-		onlineStatus = "📶"
+		onlineStatus = "🟢"
 	}
 
 	// Calculate wallet status
