@@ -3,7 +3,6 @@ package wallet
 import (
 	"context"
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -76,6 +75,9 @@ func NewBalanceCommand(inv *ParseResult) CLICommand {
 // Execute fetches the balance
 func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	balance, err := ee.RPCClient.GetAccountBalance(c.Address, ee.KoinContractID, ee.KoinBalanceOfEntry)
+	if err != nil {
+		return nil, err
+	}
 
 	// Build the result
 	dec, err := SatoshiToDecimal(int64(balance), KoinPrecision)
@@ -186,7 +188,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 
 	// Check if the wallet already exists
 	if _, err := os.Stat(c.Filename); os.IsNotExist(err) {
-		return nil, fmt.Errorf("%w: %s", errors.New("file not found"), c.Filename)
+		return nil, fmt.Errorf("%w: %s", ErrFileNotFound, c.Filename)
 	}
 
 	// Fetch the accounts nonce
