@@ -3,8 +3,8 @@ package wallet
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"golang.org/x/crypto/ripemd160"
@@ -39,7 +39,7 @@ func BuildCommands() []*CommandDeclaration {
 	decls = append(decls, NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", String),
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
-	decls = append(decls, NewCommandDeclaration("upload_contract", "Upload a smart contract", false, NewUploadContractCommand))
+	decls = append(decls, NewCommandDeclaration("upload_contract", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", String)))
 	decls = append(decls, NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand,
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand,
@@ -180,16 +180,22 @@ func NewUploadContractCommand(inv *ParseResult) CLICommand {
 // Execute calls a contract
 func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
-		return nil, fmt.Errorf("%w: cannot upload contract without an open wallet", ErrWalletClosed)
+		return nil, fmt.Errorf("%w: cannot upload contract", ErrWalletClosed)
 	}
 
-	wasmFile, err := os.Open(c.Filename)
+	// Check if the wallet already exists
+	if _, err := os.Stat(c.Filename); os.IsNotExist(err) {
+		return nil, fmt.Errorf("%w: %s", errors.New("file not found"), c.Filename)
+	}
 
+	// Fetch the accounts nonce
+	myAddress := types.AccountType(ee.Key.Address())
+	nonce, err := ee.RPCClient.GetAccountNonce(&myAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	wasmBytes, err := ioutil.ReadAll(wasmFile)
+	wasmBytes, err := os.ReadFile(c.Filename)
 
 	if err != nil {
 		return nil, err
@@ -198,16 +204,28 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	uploadContractOperation := types.NewUploadContractOperation()
 
 	ripemd160Hasher := ripemd160.New()
-	ripemd160Hasher.Write(ee.Key.PublicBytes())
+	ripemd160Hasher.Write([]byte(ee.Key.Address()))
+	digest := ripemd160Hasher.Sum(nil)
 
-	copy(uploadContractOperation.ContractID[:], ripemd160Hasher.Sum(nil))
-	copy(uploadContractOperation.Bytecode, wasmBytes)
+	contractID := types.NewContractIDType()
+	copy(contractID[:], digest)
+	uploadContractOperation.ContractID = *contractID
+
+	bytecode := types.NewVariableBlob()
+	copy(*bytecode, wasmBytes)
+	uploadContractOperation.Bytecode = *bytecode
 
 	op := types.NewOperation()
 	op.Value = uploadContractOperation
 
 	transaction := types.NewTransaction()
 	transaction.ActiveData.Native.Operations = append(transaction.ActiveData.Native.Operations, *op)
+	transaction.ActiveData.Native.Nonce = nonce
+	rLimit, err := types.NewUInt128FromString("1000000")
+	if err != nil {
+		return nil, err
+	}
+	transaction.ActiveData.Native.ResourceLimit = *rLimit
 
 	activeDataBytes := transaction.ActiveData.Serialize(types.NewVariableBlob())
 
@@ -218,7 +236,11 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	transaction.ID.ID = 0x12 // SHA2_256_ID
 	transaction.ID.Digest = transactionID
 
-	SignTransaction(ee.Key.PrivateBytes(), transaction)
+	err = SignTransaction(ee.Key.PrivateBytes(), transaction)
+
+	if err != nil {
+		return nil, err
+	}
 
 	params := types.NewSubmitTransactionRequest()
 	params.Transaction = *transaction
@@ -232,7 +254,11 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 
 	er := NewExecutionResult()
 	mh, err := transaction.ID.MarshalJSON()
-	er.AddMessage(fmt.Sprintf("Transaction submitted with ID: %s", string(mh)))
+	if err != nil {
+		er.AddMessage("Transaction submitted")
+	} else {
+		er.AddMessage(fmt.Sprintf("Transaction submitted with ID: %s", string(mh)))
+	}
 
 	return er, nil
 }
