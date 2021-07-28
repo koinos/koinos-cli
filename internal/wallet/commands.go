@@ -267,7 +267,8 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
-	result.AddMessage("Use the info command to see details")
+	result.AddMessage(fmt.Sprintf("Address: %s", key.Address()))
+	result.AddMessage("Use the info command to see more information")
 
 	return result, nil
 }
@@ -324,7 +325,8 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
-	result.AddMessage("Use the info command to see details")
+	result.AddMessage(fmt.Sprintf("Address: %s", key.Address()))
+	result.AddMessage("Use the info command to see more information")
 
 	return result, nil
 }
