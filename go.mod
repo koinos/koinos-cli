@@ -5,7 +5,7 @@ go 1.15
 require (
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/btcsuite/btcutil v1.0.2
-	github.com/c-bata/go-prompt v0.2.5
+	github.com/c-bata/go-prompt v0.2.6-0.20210301180729-8aae7fb1a6f9
 	github.com/ethereum/go-ethereum v1.10.5
 	github.com/joho/godotenv v1.3.0
 	github.com/koinos/koinos-types-golang v0.0.0-20210628221636-0b4f1b4a2ccf
