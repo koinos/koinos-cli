@@ -204,15 +204,21 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 
 	uploadContractOperation := types.NewUploadContractOperation()
 
+	// Serialize the string so it matches what C++ crypto is doing
+	// We humbly apologize
+	// TODO: Fix this
+	vb := types.NewVariableBlob()
+	a := types.VariableBlob([]byte(ee.Key.Address()))
+	vb = a.Serialize(vb)
+
 	ripemd160Hasher := ripemd160.New()
-	ripemd160Hasher.Write([]byte(ee.Key.Address()))
+	ripemd160Hasher.Write([]byte(*vb))
 	digest := ripemd160Hasher.Sum(nil)
 
 	contractID := types.NewContractIDType()
 	copy(contractID[:], digest)
 	uploadContractOperation.ContractID = *contractID
 
-	//bytecode := types.NewVariableBlob()
 	var bytecode []byte = make([]byte, len(wasmBytes))
 	copy(bytecode, wasmBytes)
 	uploadContractOperation.Bytecode = bytecode
