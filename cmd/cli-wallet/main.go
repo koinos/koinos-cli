@@ -24,7 +24,7 @@ const (
 
 // Koin contract constants
 const (
-	KoinContractID      = "kw96mR+Hh71IWwJoT/2lJXBDl5Q="
+	KoinContractID      = "Mkw96mR+Hh71IWwJoT/2lJXBDl5Q="
 	BalanceOfEntryPoint = types.UInt32(0x15619248)
 	TransferEntryPoint  = types.UInt32(0x62efa292)
 )

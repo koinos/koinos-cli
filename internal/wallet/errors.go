@@ -43,4 +43,7 @@ var (
 
 	// ErrInvalidAmount is returned when an amount is invalid
 	ErrInvalidAmount = errors.New("invalid amount")
+
+	// ErrFileNotFound is returned when the file is not found
+	ErrFileNotFound = errors.New("file not found")
 )
