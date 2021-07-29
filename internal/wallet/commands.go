@@ -467,9 +467,10 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		return nil, err
 	}
 
-	vb := types.VariableBlob(argumentBytes)
-	vb = *vb.Serialize(&vb)
-	callContractOp.Args = vb
+	vb := types.NewVariableBlob()
+	a := types.VariableBlob(argumentBytes)
+	vb = a.Serialize(vb)
+	callContractOp.Args = *vb
 
 	// Create a variant operation and assign the call contract operation
 	op := types.NewOperation()
