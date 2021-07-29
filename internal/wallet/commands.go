@@ -438,7 +438,7 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		return nil, fmt.Errorf("%w: cannot call contract", ErrWalletClosed)
 	}
 
-	entryPoint, err := strconv.ParseUint(c.EntryPoint, 16, 32)
+	entryPoint, err := strconv.ParseUint(c.EntryPoint[2:], 16, 32)
 	if err != nil {
 		return nil, err
 	}
