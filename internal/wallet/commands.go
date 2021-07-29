@@ -440,7 +440,7 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		return nil, fmt.Errorf("%w: cannot call contract", ErrWalletClosed)
 	}
 
-	entryPoint, err := strconv.ParseUint(c.EntryPoint, 16, 32)
+	entryPoint, err := strconv.ParseUint(c.EntryPoint[2:], 16, 32)
 	if err != nil {
 		return nil, err
 	}
@@ -469,9 +469,10 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		return nil, err
 	}
 
-	vb := types.VariableBlob(argumentBytes)
-	vb = *vb.Serialize(&vb)
-	callContractOp.Args = vb
+	vb := types.NewVariableBlob()
+	a := types.VariableBlob(argumentBytes)
+	vb = a.Serialize(vb)
+	callContractOp.Args = *vb
 
 	// Create a variant operation and assign the call contract operation
 	op := types.NewOperation()
