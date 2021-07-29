@@ -11,7 +11,6 @@ import (
 
 	"golang.org/x/crypto/ripemd160"
 
-	"github.com/koinos/koinos-types-golang"
 	types "github.com/koinos/koinos-types-golang"
 	"github.com/shopspring/decimal"
 )
@@ -461,7 +460,7 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	// Create the operation
 	callContractOp := types.NewCallContractOperation()
 	callContractOp.ContractID = *contractID
-	callContractOp.EntryPoint = koinos.UInt32(entryPoint)
+	callContractOp.EntryPoint = types.UInt32(entryPoint)
 
 	// Serialize and assign the args
 	argumentBytes, err := base64.StdEncoding.DecodeString(c.Arguments[1:])
@@ -568,18 +567,47 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 // Read
 // ----------------------------------------------------------------------------
 
+// ReadCommand is a command that reads from a contract
 type ReadCommand struct {
-	ContractId string
+	ContractID string
 	EntryPoint string
 	Arguments  string
 }
 
+// NewReadCommand creates a new read command object
 func NewReadCommand(inv *ParseResult) CLICommand {
-	return &ReadCommand{ContractId: inv.Args["contract-id"], EntryPoint: inv.Args["entry-point"], Arguments: inv.Args["arguments"]}
+	return &ReadCommand{ContractID: inv.Args["contract-id"], EntryPoint: inv.Args["entry-point"], Arguments: inv.Args["arguments"]}
 }
 
+// Execute reads from a contract
 func (c *ReadCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	s, err := ContractStringToID(c.ContractId)
+	cid, err := ContractStringToID(c.ContractID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse the entry point (drop the 0x)
+	entryPoint, err := strconv.ParseUint(c.EntryPoint[2:], 16, 32)
+	if err != nil {
+		return nil, err
+	}
+
+	// Serialize and assign the args
+	argumentBytes, err := base64.StdEncoding.DecodeString(c.Arguments[1:])
+	if err != nil {
+		return nil, err
+	}
+
+	vbArgs := types.VariableBlob(argumentBytes)
+	cResp, err := ee.RPCClient.ReadContract(&vbArgs, cid, types.UInt32(entryPoint))
+	if err != nil {
+		return nil, err
+	}
+
+	result := NewExecutionResult()
+	result.AddMessage(base64.StdEncoding.EncodeToString(cResp.Result))
+
+	return result, nil
 }
 
 // ----------------------------------------------------------------------------

@@ -121,6 +121,7 @@ func (c *KoinosRPCClient) GetAccountBalance(address *types.AccountType, contract
 	return *balance, nil
 }
 
+// ReadContract reads from the given contract and returns the response
 func (c *KoinosRPCClient) ReadContract(args *types.VariableBlob, contractID *types.ContractIDType, balanceOfEntry types.UInt32) (*types.ReadContractResponse, error) {
 	// Build the contract request
 	params := types.NewReadContractRequest()
