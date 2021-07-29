@@ -42,7 +42,7 @@ func BuildCommands() []*CommandDeclaration {
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
 	decls = append(decls, NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", String)))
-	decls = append(decls, NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", String), *NewCommandArg("entrypoint", String), *NewCommandArg("arguments", String)))
+	decls = append(decls, NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", String), *NewCommandArg("entry-point", String), *NewCommandArg("arguments", String)))
 	decls = append(decls, NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand,
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("read", "Read from a contract", false, NewReadCommand, *NewCommandArg("contract-id", String),
@@ -428,7 +428,7 @@ type CallCommand struct {
 func NewCallCommand(inv *ParseResult) CLICommand {
 	return &CallCommand{
 		ContractID: inv.Args["contract-id"],
-		EntryPoint: inv.Args["entrypoint"],
+		EntryPoint: inv.Args["entry-point"],
 		Arguments:  inv.Args["arguments"],
 	}
 }
