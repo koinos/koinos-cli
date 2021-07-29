@@ -103,18 +103,12 @@ func (c *KoinosRPCClient) Call(method string, params interface{}, returnType int
 
 // GetAccountBalance gets the balance of a given account
 func (c *KoinosRPCClient) GetAccountBalance(address *types.AccountType, contractID *types.ContractIDType, balanceOfEntry types.UInt32) (types.UInt64, error) {
-	// Build the contract request
-	params := types.NewReadContractRequest()
-	params.ContractID = *contractID
-	params.EntryPoint = balanceOfEntry
-	// Serialize the args
+	// Form the args
 	vb := types.NewVariableBlob()
 	vb = address.Serialize(vb)
-	params.Args = *vb
 
 	// Make the rpc call
-	var cResp types.ReadContractResponse
-	err := c.Call(ReadContractCall, params, &cResp)
+	cResp, err := c.ReadContract(vb, contractID, balanceOfEntry)
 	if err != nil {
 		return 0, err
 	}
@@ -125,6 +119,23 @@ func (c *KoinosRPCClient) GetAccountBalance(address *types.AccountType, contract
 	}
 
 	return *balance, nil
+}
+
+func (c *KoinosRPCClient) ReadContract(args *types.VariableBlob, contractID *types.ContractIDType, balanceOfEntry types.UInt32) (*types.ReadContractResponse, error) {
+	// Build the contract request
+	params := types.NewReadContractRequest()
+	params.ContractID = *contractID
+	params.EntryPoint = balanceOfEntry
+	params.Args = *args
+
+	// Make the rpc call
+	var cResp types.ReadContractResponse
+	err := c.Call(ReadContractCall, params, &cResp)
+	if err != nil {
+		return nil, err
+	}
+
+	return &cResp, nil
 }
 
 // GetAccountNonce gets the nonce of a given account

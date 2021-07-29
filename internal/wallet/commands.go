@@ -38,6 +38,8 @@ func BuildCommands() []*CommandDeclaration {
 	decls = append(decls, NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
 	decls = append(decls, NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand,
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
+	decls = append(decls, NewCommandDeclaration("read", "Read from a contract", false, NewReadCommand, *NewCommandArg("contract-id", String),
+		*NewCommandArg("entry-point", String), *NewCommandArg("arguments", String)))
 	decls = append(decls, NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand,
 		*NewCommandArg("amount", Amount), *NewCommandArg("address", Address)))
 	decls = append(decls, NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
@@ -336,6 +338,24 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	result.AddMessage(fmt.Sprintf("Opened wallet: %s", c.Filename))
 
 	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Read
+// ----------------------------------------------------------------------------
+
+type ReadCommand struct {
+	ContractId string
+	EntryPoint string
+	Arguments  string
+}
+
+func NewReadCommand(inv *ParseResult) CLICommand {
+	return &ReadCommand{ContractId: inv.Args["contract-id"], EntryPoint: inv.Args["entry-point"], Arguments: inv.Args["arguments"]}
+}
+
+func (c *ReadCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	s, err := ContractStringToID(c.ContractId)
 }
 
 // ----------------------------------------------------------------------------
