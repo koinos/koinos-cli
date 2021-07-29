@@ -39,7 +39,7 @@ func SignTransaction(key []byte, tx *types.Transaction) error {
 
 // ContractStringToID converts a base64 contract id string to a contract id object
 func ContractStringToID(s string) (*types.ContractIDType, error) {
-	b, err := base64.StdEncoding.DecodeString(s)
+	b, err := base64.StdEncoding.DecodeString(s[1:])
 	cid := types.NewContractIDType()
 	if err != nil {
 		return cid, err

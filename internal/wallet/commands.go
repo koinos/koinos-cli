@@ -3,9 +3,15 @@ package wallet
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"strconv"
 
+	"golang.org/x/crypto/ripemd160"
+
+	"github.com/koinos/koinos-types-golang"
 	types "github.com/koinos/koinos-types-golang"
 	"github.com/shopspring/decimal"
 )
@@ -36,6 +42,8 @@ func BuildCommands() []*CommandDeclaration {
 	decls = append(decls, NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", String),
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
+	decls = append(decls, NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", String)))
+	decls = append(decls, NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", String), *NewCommandArg("entrypoint", String), *NewCommandArg("arguments", String)))
 	decls = append(decls, NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand,
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("read", "Read from a contract", false, NewReadCommand, *NewCommandArg("contract-id", String),
@@ -73,6 +81,9 @@ func NewBalanceCommand(inv *ParseResult) CLICommand {
 // Execute fetches the balance
 func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	balance, err := ee.RPCClient.GetAccountBalance(c.Address, ee.KoinContractID, ee.KoinBalanceOfEntry)
+	if err != nil {
+		return nil, err
+	}
 
 	// Build the result
 	dec, err := SatoshiToDecimal(int64(balance), KoinPrecision)
@@ -159,6 +170,113 @@ func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironme
 	result.AddMessage(fmt.Sprintf("Private: %s", k.Private()))
 
 	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Upload Contract Command
+// ----------------------------------------------------------------------------
+
+// UploadContractCommand is a command that uploads a smart contract
+type UploadContractCommand struct {
+	Filename string
+}
+
+// NewUploadContractCommand creates an upload contract object
+func NewUploadContractCommand(inv *ParseResult) CLICommand {
+	return &UploadContractCommand{Filename: inv.Args["filename"]}
+}
+
+// Execute calls a contract
+func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot upload contract", ErrWalletClosed)
+	}
+
+	// Check if the wallet already exists
+	if _, err := os.Stat(c.Filename); os.IsNotExist(err) {
+		return nil, fmt.Errorf("%w: %s", ErrFileNotFound, c.Filename)
+	}
+
+	// Fetch the accounts nonce
+	myAddress := types.AccountType(ee.Key.Address())
+	nonce, err := ee.RPCClient.GetAccountNonce(&myAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	wasmBytes, err := ioutil.ReadFile(c.Filename)
+
+	if err != nil {
+		return nil, err
+	}
+
+	uploadContractOperation := types.NewUploadContractOperation()
+
+	// Serialize the string so it matches what C++ crypto is doing
+	// We humbly apologize
+	// TODO: Fix this
+	vb := types.NewVariableBlob()
+	a := types.VariableBlob([]byte(ee.Key.Address()))
+	vb = a.Serialize(vb)
+
+	ripemd160Hasher := ripemd160.New()
+	ripemd160Hasher.Write([]byte(*vb))
+	digest := ripemd160Hasher.Sum(nil)
+
+	contractID := types.NewContractIDType()
+	copy(contractID[:], digest)
+	uploadContractOperation.ContractID = *contractID
+
+	var bytecode []byte = make([]byte, len(wasmBytes))
+	copy(bytecode, wasmBytes)
+	uploadContractOperation.Bytecode = bytecode
+
+	op := types.NewOperation()
+	op.Value = uploadContractOperation
+
+	transaction := types.NewTransaction()
+	transaction.ActiveData.Native.Operations = append(transaction.ActiveData.Native.Operations, *op)
+	transaction.ActiveData.Native.Nonce = nonce
+	rLimit, err := types.NewUInt128FromString("1000000")
+	if err != nil {
+		return nil, err
+	}
+	transaction.ActiveData.Native.ResourceLimit = *rLimit
+
+	activeDataBytes := transaction.ActiveData.Serialize(types.NewVariableBlob())
+
+	sha256Hasher := sha256.New()
+	sha256Hasher.Write(*activeDataBytes)
+	transactionID := sha256Hasher.Sum(nil)
+
+	transaction.ID.ID = 0x12 // SHA2_256_ID
+	transaction.ID.Digest = transactionID
+
+	err = SignTransaction(ee.Key.PrivateBytes(), transaction)
+
+	if err != nil {
+		return nil, err
+	}
+
+	params := types.NewSubmitTransactionRequest()
+	params.Transaction = *transaction
+
+	// Make the rpc call
+	var cResp types.SubmitTransactionResponse
+	err = ee.RPCClient.Call(SubmitTransactionCall, params, &cResp)
+	if err != nil {
+		return nil, err
+	}
+
+	er := NewExecutionResult()
+	mh, err := contractID.MarshalJSON()
+	if err != nil {
+		er.AddMessage("Transaction submitted")
+	} else {
+		er.AddMessage(fmt.Sprintf("Contract submitted with ID: %s", string(mh)))
+	}
+
+	return er, nil
 }
 
 // ----------------------------------------------------------------------------
@@ -292,6 +410,111 @@ func (c *InfoCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	result.AddMessage("Wallet information:")
 	result.AddMessage(fmt.Sprintf("Address: %s", ee.Key.Address()))
 	result.AddMessage(fmt.Sprintf("Private: %s", ee.Key.Private()))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Call Command
+// ----------------------------------------------------------------------------
+
+// CallCommand is a command that shows the currently opened wallet's address and private key
+type CallCommand struct {
+	ContractID string
+	EntryPoint string
+	Arguments  string
+}
+
+// NewCallCommand calls a contract method
+func NewCallCommand(inv *ParseResult) CLICommand {
+	return &CallCommand{
+		ContractID: inv.Args["contract-id"],
+		EntryPoint: inv.Args["entrypoint"],
+		Arguments:  inv.Args["arguments"],
+	}
+}
+
+// Execute a contract call
+func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot call contract", ErrWalletClosed)
+	}
+
+	entryPoint, err := strconv.ParseUint(c.EntryPoint, 16, 32)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the accounts nonce
+	myAddress := types.AccountType(ee.Key.Address())
+	nonce, err := ee.RPCClient.GetAccountNonce(&myAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	contractID, err := ContractStringToID(c.ContractID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the operation
+	callContractOp := types.NewCallContractOperation()
+	callContractOp.ContractID = *contractID
+	callContractOp.EntryPoint = koinos.UInt32(entryPoint)
+
+	// Serialize and assign the args
+	argumentBytes, err := base64.StdEncoding.DecodeString(c.Arguments[1:])
+	if err != nil {
+		return nil, err
+	}
+
+	vb := types.VariableBlob(argumentBytes)
+	vb = *vb.Serialize(&vb)
+	callContractOp.Args = vb
+
+	// Create a variant operation and assign the call contract operation
+	op := types.NewOperation()
+	op.Value = callContractOp
+
+	// Create the transaction
+	transaction := types.NewTransaction()
+	transaction.ActiveData.Native.Operations = append(transaction.ActiveData.Native.Operations, *op)
+	transaction.ActiveData.Native.Nonce = nonce
+	rLimit, err := types.NewUInt128FromString("1000000")
+	if err != nil {
+		return nil, err
+	}
+	transaction.ActiveData.Native.ResourceLimit = *rLimit
+
+	// Calculate the transaction ID
+	activeDataBytes := transaction.ActiveData.Serialize(types.NewVariableBlob())
+	sha256Hasher := sha256.New()
+	sha256Hasher.Write(*activeDataBytes)
+
+	transaction.ID.ID = 0x12 // SHA2_256_ID
+	transaction.ID.Digest = sha256Hasher.Sum(nil)
+
+	// Sign the transaction
+	err = SignTransaction(ee.Key.PrivateBytes(), transaction)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Submit the transaction
+	params := types.NewSubmitTransactionRequest()
+	params.Transaction = *transaction
+
+	// Make the rpc call
+	var cResp types.SubmitTransactionResponse
+	err = ee.RPCClient.Call(SubmitTransactionCall, params, &cResp)
+	if err != nil {
+		return nil, err
+	}
+
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Calling contract %s at entry point: %s with arguments %s", c.ContractID, c.EntryPoint, c.Arguments))
 
 	return result, nil
 }
