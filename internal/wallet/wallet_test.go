@@ -48,7 +48,8 @@ func makeTestParser() *CommandParser {
 	decls = append(decls, NewCommandDeclaration("test_string", "Test command which takes a string", false, nil, *NewCommandArg("string", String)))
 	decls = append(decls, NewCommandDeclaration("test_none", "Test command which takes no arguments", false, nil))
 	decls = append(decls, NewCommandDeclaration("test_none2", "Another test command which takes no arguments", false, nil))
-	decls = append(decls, NewCommandDeclaration("test_multi", "Test command which takes multiple arguments, and of different types", false, NewGenerateKeyCommand))
+	decls = append(decls, NewCommandDeclaration("test_multi", "Test command which takes multiple arguments, and of different types", false, NewGenerateKeyCommand,
+		*NewCommandArg("arg0", Address), *NewCommandArg("arg1", String), *NewCommandArg("arg2", Amount), *NewCommandArg("arg0", String)))
 
 	parser := NewCommandParser(decls)
 
@@ -295,4 +296,59 @@ func TestWalletFile(t *testing.T) {
 	}
 
 	errfile.Close()
+}
+
+func TestParseMetrics(t *testing.T) {
+	// Construct the command parser
+	parser := makeTestParser()
+
+	// Test parsing a half finished command
+	checkMetrics("test_mu", parser, t, true, 0, -1)
+
+	// Test parsing a finished command
+	checkMetrics("test_multi", parser, t, true, 0, -1)
+
+	// Test parsing a finished command with a space
+	checkMetrics("test_multi ", parser, t, true, 0, 0)
+
+	// Test parsing the rest of the arguments address string amount string
+	checkMetrics("test_multi 1iwBq2QA", parser, t, true, 0, 0)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", parser, t, true, 0, 0)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk ", parser, t, true, 0, 1)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword str", parser, t, true, 0, 1)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string'", parser, t, true, 0, 1)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' ", parser, t, true, 0, 2)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403", parser, t, true, 0, 2)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873", parser, t, true, 0, 2)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 ", parser, t, true, 0, 3)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str", parser, t, false, 0, 3)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str ", parser, t, false, 0, 3) // What should happen here?
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str;", parser, t, false, 1, -1)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; ", parser, t, false, 1, -1)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; tes", parser, t, true, 1, -1)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string", parser, t, true, 1, -1)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string ", parser, t, true, 1, 0)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string \"abc", parser, t, true, 1, 0)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\"", parser, t, false, 1, 0)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\";", parser, t, false, 2, -1)
+
+}
+
+func checkMetrics(input string, parser *CommandParser, t *testing.T, expectError bool, index int, arg int) {
+	res, err := parser.Parse(input)
+	if err == nil && expectError {
+		t.Error("Expected error, got none")
+	} else if err != nil && !expectError {
+		t.Error(err.Error())
+	}
+
+	metrics := res.Metrics()
+
+	if metrics.CurrentResultIndex != index {
+		t.Error("Expected current result index to be", index, "got", metrics.CurrentResultIndex)
+	}
+
+	if metrics.CurrentArg != arg {
+		t.Error("Expected current arg to be", arg, "got", metrics.CurrentArg)
+	}
 }

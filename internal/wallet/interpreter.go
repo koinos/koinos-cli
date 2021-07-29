@@ -132,3 +132,19 @@ func (pr *ParseResults) Interpret(ee *ExecutionEnvironment) *InterpretResults {
 
 	return output
 }
+
+type ParseResultMetrics struct {
+	CurrentResultIndex int
+	CurrentArg         int
+}
+
+func (pr *ParseResults) Metrics() *ParseResultMetrics {
+	index := len(pr.CommandResults) - 1
+	arg := pr.CommandResults[index].CurrentArg
+	if pr.CommandResults[index].Termination == Command {
+		index++
+		arg = -1
+	}
+
+	return &ParseResultMetrics{CurrentResultIndex: index, CurrentArg: arg}
+}
