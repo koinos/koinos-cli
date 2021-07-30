@@ -40,6 +40,7 @@ func (er *ExecutionResult) Print() {
 type ExecutionEnvironment struct {
 	RPCClient *KoinosRPCClient
 	Key       *KoinosKey
+	Parser    *CommandParser
 }
 
 // IsWalletOpen returns a bool representing whether or not there is an open wallet
@@ -59,6 +60,15 @@ type CommandDeclaration struct {
 	Instantiation func(*CommandParseResult) CLICommand
 	Args          []CommandArg
 	Hidden        bool // If true, the command is not shown in the help
+}
+
+func (d *CommandDeclaration) String() string {
+	s := d.Name
+	for _, arg := range d.Args {
+		s += " <" + arg.Name + ">"
+	}
+
+	return s
 }
 
 // NewCommandDeclaration create a new command declaration

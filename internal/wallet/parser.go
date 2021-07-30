@@ -78,7 +78,7 @@ func (pr *ParseResults) Len() int {
 // CommandParser is a parser for commands
 type CommandParser struct {
 	Commands     []*CommandDeclaration
-	name2command map[string]*CommandDeclaration
+	Name2Command map[string]*CommandDeclaration
 
 	// Parser token recognizer regexps
 	commandNameRE  *regexp.Regexp
@@ -93,11 +93,11 @@ type CommandParser struct {
 func NewCommandParser(commands []*CommandDeclaration) *CommandParser {
 	parser := &CommandParser{
 		Commands:     commands,
-		name2command: make(map[string]*CommandDeclaration),
+		Name2Command: make(map[string]*CommandDeclaration),
 	}
 
 	for _, command := range commands {
-		parser.name2command[command.Name] = command
+		parser.Name2Command[command.Name] = command
 	}
 
 	parser.commandNameRE = regexp.MustCompile(`^[a-zA-Z0-9_]+`)
@@ -151,7 +151,7 @@ func (p *CommandParser) parseNextCommand(input []byte) (*CommandParseResult, []b
 
 	// Create the invocation object
 	inv := NewCommandParseResult(string(name))
-	if decl, ok := p.name2command[string(name)]; ok {
+	if decl, ok := p.Name2Command[string(name)]; ok {
 		inv.Decl = decl
 	} else {
 		p.parseSkip(input, inv, true)

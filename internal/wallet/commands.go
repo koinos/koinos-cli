@@ -38,6 +38,7 @@ func BuildCommands() []*CommandDeclaration {
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("disconnect", "Disconnect from RPC endpoint", false, NewDisconnectCommand))
 	decls = append(decls, NewCommandDeclaration("generate", "Generate and display a new private key", false, NewGenerateKeyCommand))
+	decls = append(decls, NewCommandDeclaration("help", "Show help on a given command", false, NewHelpCommand, *NewCommandArg("command", CmdName)))
 	decls = append(decls, NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", String),
 		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	decls = append(decls, NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
@@ -363,6 +364,36 @@ func (c *InfoCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	result.AddMessage("Wallet information:")
 	result.AddMessage(fmt.Sprintf("Address: %s", ee.Key.Address()))
 	result.AddMessage(fmt.Sprintf("Private: %s", ee.Key.Private()))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Help
+// ----------------------------------------------------------------------------
+
+// OpenCommand is a command that opens a wallet file
+type HelpCommand struct {
+	Command string
+}
+
+// NewOpenCommand creates a new open command object
+func NewHelpCommand(inv *CommandParseResult) CLICommand {
+	return &HelpCommand{Command: inv.Args["command"]}
+}
+
+// Execute opens a wallet
+func (c *HelpCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	decl, ok := ee.Parser.Name2Command[string(c.Command)]
+
+	if !ok {
+		return nil, fmt.Errorf("%w: cannot show help for %s", ErrUnknownCommand, c.Command)
+	}
+
+	result := NewExecutionResult()
+	result.AddMessage(decl.Description)
+	result.AddMessage("Usage:")
+	result.AddMessage(decl.String())
 
 	return result, nil
 }

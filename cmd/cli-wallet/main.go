@@ -43,11 +43,11 @@ func main() {
 		client = wallet.NewKoinosRPCClient(*rpcAddress)
 	}
 
-	cmdEnv := wallet.ExecutionEnvironment{RPCClient: client}
-
 	// Construct the command parser
 	commands := wallet.BuildCommands()
 	parser := wallet.NewCommandParser(commands)
+
+	cmdEnv := wallet.ExecutionEnvironment{RPCClient: client, Parser: parser}
 
 	// If the user submitted commands, execute them
 	if *executeCmd != "" {
