@@ -136,9 +136,14 @@ func (pr *ParseResults) Interpret(ee *ExecutionEnvironment) *InterpretResults {
 type ParseResultMetrics struct {
 	CurrentResultIndex int
 	CurrentArg         int
+	CurrentParamType   CommandArgType
 }
 
 func (pr *ParseResults) Metrics() *ParseResultMetrics {
+	if len(pr.CommandResults) == 0 {
+		return &ParseResultMetrics{CurrentResultIndex: 0, CurrentArg: -1, CurrentParamType: CmdName}
+	}
+
 	index := len(pr.CommandResults) - 1
 	arg := pr.CommandResults[index].CurrentArg
 	if pr.CommandResults[index].Termination == Command {
@@ -146,5 +151,11 @@ func (pr *ParseResults) Metrics() *ParseResultMetrics {
 		arg = -1
 	}
 
-	return &ParseResultMetrics{CurrentResultIndex: index, CurrentArg: arg}
+	// Calculated the type of param
+	pType := CmdName
+	if arg >= 0 {
+		pType = pr.CommandResults[index].Decl.Args[arg].ArgType
+	}
+
+	return &ParseResultMetrics{CurrentResultIndex: index, CurrentArg: arg, CurrentParamType: pType}
 }

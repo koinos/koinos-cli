@@ -23,6 +23,7 @@ const (
 	Address CommandArgType = iota
 	String
 	Amount
+	CmdName
 )
 
 // Characters used in parsing
@@ -203,6 +204,8 @@ func (p *CommandParser) parseArgs(input []byte, inv *CommandParseResult) ([]byte
 			match, l, err = p.parseString(input)
 		case Amount:
 			match, l, err = p.parseAmount(input)
+		case CmdName:
+			match, l, err = p.parseString(input)
 		}
 		input = input[l:] // Consume the match
 

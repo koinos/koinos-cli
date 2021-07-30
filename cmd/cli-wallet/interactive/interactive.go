@@ -50,18 +50,10 @@ func (kp *KoinosPrompt) changeLivePrefix() (string, bool) {
 }
 
 func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {
-	var currentInv *wallet.CommandParseResult
-	invs, err := kp.parser.Parse(d.Text)
-	if invs.Len() != 0 {
-		currentInv = invs.CommandResults[invs.Len()-1]
-	}
+	invs, _ := kp.parser.Parse(d.Text)
+	metrics := invs.Metrics()
 
-	// If on a new command, yet the last has not been properly terminated, then suggest a semicolon
-	if err == nil && currentInv != nil && currentInv.Termination != wallet.Command {
-		return []prompt.Suggest{}
-	}
-
-	if len(d.Text) == 0 || currentInv != nil && currentInv.CurrentArg == -1 {
+	if metrics.CurrentParamType == wallet.CmdName {
 		return prompt.FilterHasPrefix(kp.commandSuggestions, d.GetWordBeforeCursor(), true)
 	}
 
