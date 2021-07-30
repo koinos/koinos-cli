@@ -21,9 +21,6 @@ const (
 	executeDefault = ""
 )
 
-// Koin contract constants
-const ()
-
 func main() {
 	// Load .env file
 	err := godotenv.Load()

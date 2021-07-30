@@ -43,4 +43,7 @@ var (
 
 	// ErrOffline is returned when a wallet is not online
 	ErrOffline = errors.New("wallet is offline")
+
+	// ErrFileNotFound is returned when the file is not found
+	ErrFileNotFound = errors.New("file not found")
 )
