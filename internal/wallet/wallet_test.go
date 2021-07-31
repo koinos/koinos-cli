@@ -41,15 +41,16 @@ func TestSatoshiToDecimal(t *testing.T) {
 
 func makeTestParser() *CommandParser {
 	// Construct the command parser
-	var decls []*CommandDeclaration
-	decls = append(decls, NewCommandDeclaration("test_address", "Test command which takes an address", false, nil, *NewCommandArg("address", Address)))
-	decls = append(decls, NewCommandDeclaration("test_string", "Test command which takes a string", false, nil, *NewCommandArg("string", String)))
-	decls = append(decls, NewCommandDeclaration("test_none", "Test command which takes no arguments", false, nil))
-	decls = append(decls, NewCommandDeclaration("test_none2", "Another test command which takes no arguments", false, nil))
-	decls = append(decls, NewCommandDeclaration("test_multi", "Test command which takes multiple arguments, and of different types", false, NewGenerateKeyCommand,
+	cs := NewCommandSet()
+
+	cs.AddCommand(NewCommandDeclaration("test_address", "Test command which takes an address", false, nil, *NewCommandArg("address", Address)))
+	cs.AddCommand(NewCommandDeclaration("test_string", "Test command which takes a string", false, nil, *NewCommandArg("string", String)))
+	cs.AddCommand(NewCommandDeclaration("test_none", "Test command which takes no arguments", false, nil))
+	cs.AddCommand(NewCommandDeclaration("test_none2", "Another test command which takes no arguments", false, nil))
+	cs.AddCommand(NewCommandDeclaration("test_multi", "Test command which takes multiple arguments, and of different types", false, NewGenerateKeyCommand,
 		*NewCommandArg("arg0", Address), *NewCommandArg("arg1", String), *NewCommandArg("arg2", Amount), *NewCommandArg("arg0", String)))
 
-	parser := NewCommandParser(decls)
+	parser := NewCommandParser(cs)
 
 	return parser
 }
