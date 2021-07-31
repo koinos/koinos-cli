@@ -3,12 +3,10 @@ package wallet
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
 
-	types "github.com/koinos/koinos-types-golang"
 	"github.com/shopspring/decimal"
 )
 
@@ -166,65 +164,6 @@ func checkTerminators(t *testing.T, parser *CommandParser, input string, termina
 		if result.Termination != terminators[i] {
 			t.Error("Expected terminator", terminators[i], "got", result.Termination)
 		}
-	}
-}
-
-func TestBalance(t *testing.T) {
-	// Construct the command parser
-	commands := BuildCommands()
-	parser := NewCommandParser(commands)
-
-	// Test parsing a single balance command
-	address0 := "1iwBq2QAax2URVqU2h878hTs8DFFKADMk"
-	results, err := parser.Parse(fmt.Sprintf("balance %s", address0))
-	if err != nil {
-		t.Error(err)
-	}
-
-	if results.Len() != 1 {
-		t.Error("Expected 1 result, got", results.Len())
-	}
-
-	if results.CommandResults[0].CommandName != "balance" {
-		t.Error("Expected balance parse result, got", results.CommandResults[0].CommandName)
-	}
-
-	if results.CommandResults[0].Args["address"] != address0 {
-		t.Errorf("Expected %s, got %s", address0, results.CommandResults[0].Args["address"])
-	}
-
-	// Test the command object instantiation
-	cmd := results.CommandResults[0].Instantiate()
-	bcmd := cmd.(*BalanceCommand)
-
-	// Make sure the account type object is correct
-	addr := types.AccountType(address0)
-	if !bytes.Equal(addr, []byte(*bcmd.Address)) {
-		t.Error("Address in balance command object does not match given address")
-	}
-}
-
-func TestExit(t *testing.T) {
-	// Construct the command parser
-	commands := BuildCommands()
-	parser := NewCommandParser(commands)
-
-	// Test parsing a single balance command
-	results, err := parser.Parse("quit; exit")
-	if err != nil {
-		t.Error(err)
-	}
-
-	if results.Len() != 2 {
-		t.Error("Expected 2 result, got", results.Len())
-	}
-
-	if results.CommandResults[0].CommandName != "quit" || results.CommandResults[1].CommandName != "exit" {
-		t.Error("Invalid command name")
-	}
-
-	if len(results.CommandResults[0].Args) != 0 || len(results.CommandResults[1].Args) != 0 {
-		t.Error("Invalid exit args")
 	}
 }
 

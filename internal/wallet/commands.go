@@ -27,38 +27,51 @@ const (
 	KoinTransferEntry     = types.UInt32(0x62efa292)
 )
 
+type CommandSet struct {
+	Commands     []*CommandDeclaration
+	Name2Command map[string]*CommandDeclaration
+}
+
+func NewCommandSet() *CommandSet {
+	cs := &CommandSet{}
+	cs.Commands = make([]*CommandDeclaration, 0)
+	cs.Name2Command = make(map[string]*CommandDeclaration)
+
+	return cs
+}
+
+func (cs *CommandSet) AddCommand(decl *CommandDeclaration) {
+	cs.Commands = append(cs.Commands, decl)
+	cs.Name2Command[decl.Name] = decl
+}
+
 // ----------------------------------------------------------------------------
 // Command Declarations
 // ----------------------------------------------------------------------------
 
 // All commands should be declared here
 
-// BuildCommands constructs the declarations needed by the parser
-func BuildCommands() []*CommandDeclaration {
-	var decls []*CommandDeclaration
-	decls = append(decls, NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewCommandArg("address", Address)))
-	decls = append(decls, NewCommandDeclaration("connect", "Connect to an RPC endpoint", false, NewConnectCommand, *NewCommandArg("url", String)))
-	decls = append(decls, NewCommandDeclaration("close", "Close the currently open wallet", false, NewCloseCommand))
-	decls = append(decls, NewCommandDeclaration("create", "Create and open a new wallet file", false, NewCreateCommand,
-		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
-	decls = append(decls, NewCommandDeclaration("disconnect", "Disconnect from RPC endpoint", false, NewDisconnectCommand))
-	decls = append(decls, NewCommandDeclaration("generate", "Generate and display a new private key", false, NewGenerateKeyCommand))
-	decls = append(decls, NewCommandDeclaration("help", "Show help on a given command", false, NewHelpCommand, *NewCommandArg("command", CmdName)))
-	decls = append(decls, NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", String),
-		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
-	decls = append(decls, NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
-	decls = append(decls, NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", String)))
-	decls = append(decls, NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", String), *NewCommandArg("entry-point", String), *NewCommandArg("arguments", String)))
-	decls = append(decls, NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand,
-		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
-	decls = append(decls, NewCommandDeclaration("read", "Read from a contract", false, NewReadCommand, *NewCommandArg("contract-id", String),
-		*NewCommandArg("entry-point", String), *NewCommandArg("arguments", String)))
-	decls = append(decls, NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand,
-		*NewCommandArg("amount", Amount), *NewCommandArg("address", Address)))
-	decls = append(decls, NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
-	decls = append(decls, NewCommandDeclaration("quit", "", true, NewExitCommand))
+func NewKoinosCommandSet() *CommandSet {
+	cs := NewCommandSet()
 
-	return decls
+	cs.AddCommand(NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewCommandArg("address", Address)))
+	cs.AddCommand(NewCommandDeclaration("connect", "Connect to an RPC endpoint", false, NewConnectCommand, *NewCommandArg("url", String)))
+	cs.AddCommand(NewCommandDeclaration("close", "Close the currently open wallet", false, NewCloseCommand))
+	cs.AddCommand(NewCommandDeclaration("create", "Create and open a new wallet file", false, NewCreateCommand, *NewCommandArg("filename", String), *NewCommandArg("password", String)))
+	cs.AddCommand(NewCommandDeclaration("disconnect", "Disconnect from RPC endpoint", false, NewDisconnectCommand))
+	cs.AddCommand(NewCommandDeclaration("generate", "Generate and display a new private key", false, NewGenerateKeyCommand))
+	cs.AddCommand(NewCommandDeclaration("help", "Show help on a given command", false, NewHelpCommand, *NewCommandArg("command", CmdName)))
+	cs.AddCommand(NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", String), *NewCommandArg("filename", String), *NewCommandArg("password", String)))
+	cs.AddCommand(NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
+	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", String)))
+	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", String), *NewCommandArg("entry-point", String), *NewCommandArg("arguments", String)))
+	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand, *NewCommandArg("filename", String), *NewCommandArg("password", String)))
+	cs.AddCommand(NewCommandDeclaration("read", "Read from a smart contract", false, NewReadCommand, *NewCommandArg("contract-id", String), *NewCommandArg("entry-point", String), *NewCommandArg("arguments", String)))
+	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("amount", Amount), *NewCommandArg("address", Address)))
+	cs.AddCommand(NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
+	cs.AddCommand(NewCommandDeclaration("quit", "", true, NewExitCommand))
+
+	return cs
 }
 
 // ----------------------------------------------------------------------------
@@ -500,7 +513,7 @@ func NewHelpCommand(inv *CommandParseResult) CLICommand {
 
 // Execute opens a wallet
 func (c *HelpCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	decl, ok := ee.Parser.Name2Command[string(c.Command)]
+	decl, ok := ee.Parser.Commands.Name2Command[string(c.Command)]
 
 	if !ok {
 		return nil, fmt.Errorf("%w: cannot show help for %s", ErrUnknownCommand, c.Command)
@@ -508,8 +521,7 @@ func (c *HelpCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 
 	result := NewExecutionResult()
 	result.AddMessage(decl.Description)
-	result.AddMessage("Usage:")
-	result.AddMessage(decl.String())
+	result.AddMessage(fmt.Sprintf("Usage: %s", decl))
 
 	return result, nil
 }

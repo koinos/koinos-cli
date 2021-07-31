@@ -41,7 +41,7 @@ func main() {
 	}
 
 	// Construct the command parser
-	commands := wallet.BuildCommands()
+	commands := wallet.NewKoinosCommandSet()
 	parser := wallet.NewCommandParser(commands)
 
 	cmdEnv := wallet.ExecutionEnvironment{RPCClient: client, Parser: parser}

@@ -22,7 +22,7 @@ func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvi
 
 	// Generate command suggestions
 	kp.commandSuggestions = make([]prompt.Suggest, 0)
-	for _, cmd := range parser.Commands {
+	for _, cmd := range parser.Commands.Commands {
 		if cmd.Hidden {
 			continue
 		}
@@ -67,5 +67,7 @@ func (kp *KoinosPrompt) executor(input string) {
 
 // Run runs interactive mode
 func (kp *KoinosPrompt) Run() {
+	fmt.Println("Koinos CLI Wallet")
+	fmt.Println("Type \"list\" for a list of commands, \"help <command>\" for help on a specific command.")
 	kp.gPrompt.Run()
 }
