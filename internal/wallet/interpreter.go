@@ -25,8 +25,8 @@ func NewExecutionResult() *ExecutionResult {
 }
 
 // AddMessage adds a message to the execution result
-func (er *ExecutionResult) AddMessage(m string) {
-	er.Message = append(er.Message, m)
+func (er *ExecutionResult) AddMessage(m ...string) {
+	er.Message = append(er.Message, m...)
 }
 
 // Print prints each message in the execution result

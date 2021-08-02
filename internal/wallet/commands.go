@@ -45,6 +45,36 @@ func (cs *CommandSet) AddCommand(decl *CommandDeclaration) {
 	cs.Name2Command[decl.Name] = decl
 }
 
+func (cs *CommandSet) List(pretty bool) []string {
+	names := make([]string, 0)
+	longest := 0
+
+	// Compile the names, and find the longest
+	for _, c := range cs.Commands {
+		if c.Hidden {
+			continue
+		}
+
+		names = append(names, c.Name)
+		if len(c.Name) > longest {
+			longest = len(c.Name)
+		}
+	}
+
+	// If no pretty output, just return the list
+	if !pretty {
+		return names
+	}
+
+	// If pretty output add descriptions
+	o := make([]string, 0)
+	for i, name := range names {
+		o = append(o, fmt.Sprintf("%*s - %s", -longest, name, cs.Commands[i].Description))
+	}
+
+	return o
+}
+
 // ----------------------------------------------------------------------------
 // Command Declarations
 // ----------------------------------------------------------------------------
@@ -63,6 +93,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("help", "Show help on a given command", false, NewHelpCommand, *NewCommandArg("command", CmdName)))
 	cs.AddCommand(NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", String), *NewCommandArg("filename", String), *NewCommandArg("password", String)))
 	cs.AddCommand(NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
+	cs.AddCommand(NewCommandDeclaration("list", "List available commands", false, NewListCommand))
 	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", String)))
 	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", String), *NewCommandArg("entry-point", String), *NewCommandArg("arguments", String)))
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand, *NewCommandArg("filename", String), *NewCommandArg("password", String)))
@@ -835,6 +866,29 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Transferring %s %s to %s", dAmount, KoinSymbol, *c.Address))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// List
+// ----------------------------------------------------------------------------
+
+// ReadCommand is a command that reads from a contract
+type ListCommand struct {
+}
+
+// NewReadCommand creates a new read command object
+func NewListCommand(inv *CommandParseResult) CLICommand {
+	return &ListCommand{}
+}
+
+// Execute reads from a contract
+func (c *ListCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	cmds := ee.Parser.Commands.List(true)
+
+	result := NewExecutionResult()
+	result.AddMessage(cmds...)
 
 	return result, nil
 }
