@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strconv"
 
 	"golang.org/x/crypto/ripemd160"
@@ -60,6 +61,9 @@ func (cs *CommandSet) List(pretty bool) []string {
 			longest = len(c.Name)
 		}
 	}
+
+	// Alphabetize the list
+	sort.Strings(names)
 
 	// If no pretty output, just return the list
 	if !pretty {
