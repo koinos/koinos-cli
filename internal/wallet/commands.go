@@ -28,11 +28,13 @@ const (
 	KoinTransferEntry     = types.UInt32(0x62efa292)
 )
 
+// CommandSet represents a set of commands for the parser
 type CommandSet struct {
 	Commands     []*CommandDeclaration
 	Name2Command map[string]*CommandDeclaration
 }
 
+// NewCommandSet creates a new command set
 func NewCommandSet() *CommandSet {
 	cs := &CommandSet{}
 	cs.Commands = make([]*CommandDeclaration, 0)
@@ -41,11 +43,13 @@ func NewCommandSet() *CommandSet {
 	return cs
 }
 
+// AddCommand add a command to the command set
 func (cs *CommandSet) AddCommand(decl *CommandDeclaration) {
 	cs.Commands = append(cs.Commands, decl)
 	cs.Name2Command[decl.Name] = decl
 }
 
+// List returns an alphabetized list of commands. The pretty argument makes it return the commands in neat columns with the descriptions
 func (cs *CommandSet) List(pretty bool) []string {
 	names := make([]string, 0)
 	longest := 0
@@ -85,6 +89,7 @@ func (cs *CommandSet) List(pretty bool) []string {
 
 // All commands should be declared here
 
+// NewKoinosCommandSet creates the base set of commands used by the wallet
 func NewKoinosCommandSet() *CommandSet {
 	cs := NewCommandSet()
 
@@ -536,17 +541,17 @@ func (c *InfoCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 // Help
 // ----------------------------------------------------------------------------
 
-// OpenCommand is a command that opens a wallet file
+// HelpCommand is a command that displays help for a given command
 type HelpCommand struct {
 	Command string
 }
 
-// NewOpenCommand creates a new open command object
+// NewHelpCommand creates a new help command object
 func NewHelpCommand(inv *CommandParseResult) CLICommand {
 	return &HelpCommand{Command: inv.Args["command"]}
 }
 
-// Execute opens a wallet
+// Execute displays help for a given command
 func (c *HelpCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	decl, ok := ee.Parser.Commands.Name2Command[string(c.Command)]
 
@@ -878,16 +883,16 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 // List
 // ----------------------------------------------------------------------------
 
-// ReadCommand is a command that reads from a contract
+// ListCommand is a command that lists available commands
 type ListCommand struct {
 }
 
-// NewReadCommand creates a new read command object
+// NewListCommand creates a new list command object
 func NewListCommand(inv *CommandParseResult) CLICommand {
 	return &ListCommand{}
 }
 
-// Execute reads from a contract
+// Execute lists available commands
 func (c *ListCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	cmds := ee.Parser.Commands.List(true)
 

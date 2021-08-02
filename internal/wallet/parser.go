@@ -71,6 +71,7 @@ func (pr *ParseResults) AddResult(result *CommandParseResult) {
 	pr.CommandResults = append(pr.CommandResults, result)
 }
 
+// Len is the number of command parse results
 func (pr *ParseResults) Len() int {
 	return len(pr.CommandResults)
 }

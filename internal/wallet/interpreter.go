@@ -143,12 +143,15 @@ func (pr *ParseResults) Interpret(ee *ExecutionEnvironment) *InterpretResults {
 	return output
 }
 
+// ParseResultMetrics is a struct that holds various data about the parse results
+// It is useful for interactive mode suggestions and error reporting
 type ParseResultMetrics struct {
 	CurrentResultIndex int
 	CurrentArg         int
 	CurrentParamType   CommandArgType
 }
 
+// Metrics is a function that returns a ParseResultMetrics object
 func (pr *ParseResults) Metrics() *ParseResultMetrics {
 	if len(pr.CommandResults) == 0 {
 		return &ParseResultMetrics{CurrentResultIndex: 0, CurrentArg: -1, CurrentParamType: CmdName}
