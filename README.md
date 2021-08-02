@@ -8,7 +8,7 @@ When running the wallet, it will start in interactive mode. Press tab or type `l
 
 `help <command-name>` will show a help message for the given command.
 
-Some commands require a node rpc endpoint. This can be specified either when starting the wallet with '--rpc' command line switch, or with the `connect` command from within the wallet.
+Some commands require a node rpc endpoint. This can be specified either when starting the wallet with '--rpc' command line switch, or with the `connect` command from within the wallet. Both take an endpoint url.
 
 A circle top the left of the prompt will show red or green depending on whether or not you have specified an RPC endpoint.
 
