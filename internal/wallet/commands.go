@@ -718,7 +718,7 @@ func (c *ReadCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	}
 
 	result := NewExecutionResult()
-	result.AddMessage(base64.StdEncoding.EncodeToString(cResp.Result))
+	result.AddMessage("M" + base64.StdEncoding.EncodeToString(cResp.Result))
 
 	return result, nil
 }
