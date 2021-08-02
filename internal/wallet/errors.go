@@ -17,8 +17,8 @@ var (
 	// ErrMissingParam is returned when a parameter is missing.
 	ErrMissingParam = errors.New("missing parameter")
 
-	// ErrInvalidString is returned when a string is invalid.
-	ErrInvalidString = errors.New("invalid string")
+	// ErrInvalidParam is returned when a parameter is invalid.
+	ErrInvalidParam = errors.New("invalid value given for parameter")
 
 	// ErrUnexpectedHashLength is returned when the passphrase hash length is incorrect
 	ErrUnexpectedHashLength = errors.New("unexpected hash length")

@@ -205,7 +205,7 @@ func (p *CommandParser) parseArgs(input []byte, inv *CommandParseResult) ([]byte
 
 		// Check for error during match
 		if err != nil {
-			return input, err
+			return input, fmt.Errorf("%w: %s", err, arg.Name)
 		}
 
 		// Store the argument value in the invocation
@@ -220,7 +220,7 @@ func (p *CommandParser) parseAddress(input []byte) ([]byte, int, error) {
 	// Parse address
 	m := p.addressRE.Find(input)
 	if m == nil {
-		return nil, 0, fmt.Errorf("%w", ErrMissingParam)
+		return nil, 0, fmt.Errorf("%w", ErrInvalidParam)
 	}
 
 	return m, len(m), nil
@@ -230,7 +230,7 @@ func (p *CommandParser) parseAmount(input []byte) ([]byte, int, error) {
 	// Parse amount
 	m := p.amountRE.Find(input)
 	if m == nil {
-		return nil, 0, fmt.Errorf("%w", ErrMissingParam)
+		return nil, 0, fmt.Errorf("%w", ErrInvalidParam)
 	}
 
 	return m, len(m), nil
@@ -287,13 +287,13 @@ func (p *CommandParser) parseQuotedString(input []byte) ([]byte, int, error) {
 		output = append(output, c)
 	}
 
-	return nil, 0, fmt.Errorf("%w: missing closing quote", ErrInvalidString)
+	return nil, 0, fmt.Errorf("%w (missing closing quote)", ErrInvalidParam)
 }
 
 func (p *CommandParser) parseSimpleString(input []byte) ([]byte, int, error) {
 	m := p.simpleStringRE.Find(input)
 	if m == nil {
-		return nil, 0, fmt.Errorf("%w", ErrMissingParam)
+		return nil, 0, fmt.Errorf("%w", ErrInvalidParam)
 	}
 
 	return m, len(m), nil
