@@ -22,7 +22,9 @@ func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvi
 
 	// Generate command suggestions
 	kp.commandSuggestions = make([]prompt.Suggest, 0)
-	for _, cmd := range parser.Commands.Commands {
+	list := parser.Commands.List(false)
+	for _, name := range list {
+		cmd := parser.Commands.Name2Command[name]
 		if cmd.Hidden {
 			continue
 		}
