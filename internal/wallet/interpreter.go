@@ -3,8 +3,6 @@ package wallet
 import (
 	"context"
 	"fmt"
-
-	types "github.com/koinos/koinos-types-golang"
 )
 
 // Command execution code
@@ -27,8 +25,8 @@ func NewExecutionResult() *ExecutionResult {
 }
 
 // AddMessage adds a message to the execution result
-func (er *ExecutionResult) AddMessage(m string) {
-	er.Message = append(er.Message, m)
+func (er *ExecutionResult) AddMessage(m ...string) {
+	er.Message = append(er.Message, m...)
 }
 
 // Print prints each message in the execution result
@@ -40,11 +38,9 @@ func (er *ExecutionResult) Print() {
 
 // ExecutionEnvironment is a struct that holds the environment for command execution.
 type ExecutionEnvironment struct {
-	RPCClient          *KoinosRPCClient
-	KoinContractID     *types.ContractIDType
-	KoinBalanceOfEntry types.UInt32
-	KoinTransferEntry  types.UInt32
-	Key                *KoinosKey
+	RPCClient *KoinosRPCClient
+	Key       *KoinosKey
+	Parser    *CommandParser
 }
 
 // IsWalletOpen returns a bool representing whether or not there is an open wallet
@@ -52,18 +48,32 @@ func (ee *ExecutionEnvironment) IsWalletOpen() bool {
 	return ee.Key != nil
 }
 
+// IsOnline returns a bool representing whether or not the wallet is online
+func (ee *ExecutionEnvironment) IsOnline() bool {
+	return ee.RPCClient != nil
+}
+
 // CommandDeclaration is a struct that declares a command
 type CommandDeclaration struct {
 	Name          string
 	Description   string
-	Instantiation func(*ParseResult) CLICommand
+	Instantiation func(*CommandParseResult) CLICommand
 	Args          []CommandArg
 	Hidden        bool // If true, the command is not shown in the help
 }
 
+func (d *CommandDeclaration) String() string {
+	s := d.Name
+	for _, arg := range d.Args {
+		s += " <" + arg.Name + ">"
+	}
+
+	return s
+}
+
 // NewCommandDeclaration create a new command declaration
 func NewCommandDeclaration(name string, description string, hidden bool,
-	instantiation func(*ParseResult) CLICommand, args ...CommandArg) *CommandDeclaration {
+	instantiation func(*CommandParseResult) CLICommand, args ...CommandArg) *CommandDeclaration {
 	return &CommandDeclaration{
 		Name:          name,
 		Description:   description,
@@ -116,11 +126,11 @@ func (ir *InterpretResults) Print() {
 	}
 }
 
-// InterpretParseResults interprets and executes the results of a command parse
-func InterpretParseResults(invs []*ParseResult, ee *ExecutionEnvironment) *InterpretResults {
+// Interpret interprets and executes the results of a command parse
+func (pr *ParseResults) Interpret(ee *ExecutionEnvironment) *InterpretResults {
 	output := NewInterpretResults()
 
-	for _, inv := range invs {
+	for _, inv := range pr.CommandResults {
 		cmd := inv.Instantiate()
 		result, err := cmd.Execute(context.Background(), ee)
 		if err != nil {
@@ -131,4 +141,34 @@ func InterpretParseResults(invs []*ParseResult, ee *ExecutionEnvironment) *Inter
 	}
 
 	return output
+}
+
+// ParseResultMetrics is a struct that holds various data about the parse results
+// It is useful for interactive mode suggestions and error reporting
+type ParseResultMetrics struct {
+	CurrentResultIndex int
+	CurrentArg         int
+	CurrentParamType   CommandArgType
+}
+
+// Metrics is a function that returns a ParseResultMetrics object
+func (pr *ParseResults) Metrics() *ParseResultMetrics {
+	if len(pr.CommandResults) == 0 {
+		return &ParseResultMetrics{CurrentResultIndex: 0, CurrentArg: -1, CurrentParamType: CmdName}
+	}
+
+	index := len(pr.CommandResults) - 1
+	arg := pr.CommandResults[index].CurrentArg
+	if pr.CommandResults[index].Termination == Command {
+		index++
+		arg = -1
+	}
+
+	// Calculated the type of param
+	pType := CmdName
+	if arg >= 0 {
+		pType = pr.CommandResults[index].Decl.Args[arg].ArgType
+	}
+
+	return &ParseResultMetrics{CurrentResultIndex: index, CurrentArg: arg, CurrentParamType: pType}
 }

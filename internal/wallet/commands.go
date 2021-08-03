@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strconv"
 
 	"golang.org/x/crypto/ripemd160"
@@ -22,7 +23,65 @@ const (
 	SubmitTransactionCall = "chain.submit_transaction"
 	KoinSymbol            = "tKOIN"
 	KoinPrecision         = 8
+	KoinContractID        = "Mkw96mR+Hh71IWwJoT/2lJXBDl5Q="
+	KoinBalanceOfEntry    = types.UInt32(0x15619248)
+	KoinTransferEntry     = types.UInt32(0x62efa292)
 )
+
+// CommandSet represents a set of commands for the parser
+type CommandSet struct {
+	Commands     []*CommandDeclaration
+	Name2Command map[string]*CommandDeclaration
+}
+
+// NewCommandSet creates a new command set
+func NewCommandSet() *CommandSet {
+	cs := &CommandSet{}
+	cs.Commands = make([]*CommandDeclaration, 0)
+	cs.Name2Command = make(map[string]*CommandDeclaration)
+
+	return cs
+}
+
+// AddCommand add a command to the command set
+func (cs *CommandSet) AddCommand(decl *CommandDeclaration) {
+	cs.Commands = append(cs.Commands, decl)
+	cs.Name2Command[decl.Name] = decl
+}
+
+// List returns an alphabetized list of commands. The pretty argument makes it return the commands in neat columns with the descriptions
+func (cs *CommandSet) List(pretty bool) []string {
+	names := make([]string, 0)
+	longest := 0
+
+	// Compile the names, and find the longest
+	for _, c := range cs.Commands {
+		if c.Hidden {
+			continue
+		}
+
+		names = append(names, c.Name)
+		if len(c.Name) > longest {
+			longest = len(c.Name)
+		}
+	}
+
+	// Alphabetize the list
+	sort.Strings(names)
+
+	// If no pretty output, just return the list
+	if !pretty {
+		return names
+	}
+
+	// If pretty output add descriptions
+	o := make([]string, 0)
+	for i, name := range names {
+		o = append(o, fmt.Sprintf("%*s - %s", -longest, name, cs.Commands[i].Description))
+	}
+
+	return o
+}
 
 // ----------------------------------------------------------------------------
 // Command Declarations
@@ -30,29 +89,29 @@ const (
 
 // All commands should be declared here
 
-// BuildCommands constructs the declarations needed by the parser
-func BuildCommands() []*CommandDeclaration {
-	var decls []*CommandDeclaration
-	decls = append(decls, NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewCommandArg("address", Address)))
-	decls = append(decls, NewCommandDeclaration("close", "Close the currently open wallet", false, NewCloseCommand))
-	decls = append(decls, NewCommandDeclaration("create", "Create and open a new wallet file", false, NewCreateCommand,
-		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
-	decls = append(decls, NewCommandDeclaration("generate", "Generate and display a new private key", false, NewGenerateKeyCommand))
-	decls = append(decls, NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", String),
-		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
-	decls = append(decls, NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
-	decls = append(decls, NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", String)))
-	decls = append(decls, NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", String), *NewCommandArg("entry-point", String), *NewCommandArg("arguments", String)))
-	decls = append(decls, NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand,
-		*NewCommandArg("filename", String), *NewCommandArg("password", String)))
-	decls = append(decls, NewCommandDeclaration("read", "Read from a contract", false, NewReadCommand, *NewCommandArg("contract-id", String),
-		*NewCommandArg("entry-point", String), *NewCommandArg("arguments", String)))
-	decls = append(decls, NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand,
-		*NewCommandArg("amount", Amount), *NewCommandArg("address", Address)))
-	decls = append(decls, NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
-	decls = append(decls, NewCommandDeclaration("quit", "", true, NewExitCommand))
+// NewKoinosCommandSet creates the base set of commands used by the wallet
+func NewKoinosCommandSet() *CommandSet {
+	cs := NewCommandSet()
 
-	return decls
+	cs.AddCommand(NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewCommandArg("address", Address)))
+	cs.AddCommand(NewCommandDeclaration("connect", "Connect to an RPC endpoint", false, NewConnectCommand, *NewCommandArg("url", String)))
+	cs.AddCommand(NewCommandDeclaration("close", "Close the currently open wallet", false, NewCloseCommand))
+	cs.AddCommand(NewCommandDeclaration("create", "Create and open a new wallet file", false, NewCreateCommand, *NewCommandArg("filename", String), *NewCommandArg("password", String)))
+	cs.AddCommand(NewCommandDeclaration("disconnect", "Disconnect from RPC endpoint", false, NewDisconnectCommand))
+	cs.AddCommand(NewCommandDeclaration("generate", "Generate and display a new private key", false, NewGenerateKeyCommand))
+	cs.AddCommand(NewCommandDeclaration("help", "Show help on a given command", false, NewHelpCommand, *NewCommandArg("command", CmdName)))
+	cs.AddCommand(NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", String), *NewCommandArg("filename", String), *NewCommandArg("password", String)))
+	cs.AddCommand(NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
+	cs.AddCommand(NewCommandDeclaration("list", "List available commands", false, NewListCommand))
+	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", String)))
+	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", String), *NewCommandArg("entry-point", String), *NewCommandArg("arguments", String)))
+	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand, *NewCommandArg("filename", String), *NewCommandArg("password", String)))
+	cs.AddCommand(NewCommandDeclaration("read", "Read from a smart contract", false, NewReadCommand, *NewCommandArg("contract-id", String), *NewCommandArg("entry-point", String), *NewCommandArg("arguments", String)))
+	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("amount", Amount), *NewCommandArg("address", Address)))
+	cs.AddCommand(NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
+	cs.AddCommand(NewCommandDeclaration("quit", "", true, NewExitCommand))
+
+	return cs
 }
 
 // ----------------------------------------------------------------------------
@@ -71,7 +130,7 @@ type BalanceCommand struct {
 }
 
 // NewBalanceCommand creates a new balance object
-func NewBalanceCommand(inv *ParseResult) CLICommand {
+func NewBalanceCommand(inv *CommandParseResult) CLICommand {
 	addressString := inv.Args["address"]
 	address := types.AccountType(addressString)
 	return &BalanceCommand{Address: &address}
@@ -79,10 +138,17 @@ func NewBalanceCommand(inv *ParseResult) CLICommand {
 
 // Execute fetches the balance
 func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	balance, err := ee.RPCClient.GetAccountBalance(c.Address, ee.KoinContractID, ee.KoinBalanceOfEntry)
-	if err != nil {
-		return nil, err
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot check balance", ErrOffline)
 	}
+
+	// Setup command execution environment
+	contractID, err := ContractStringToID(KoinContractID)
+	if err != nil {
+		panic("Invalid contract ID")
+	}
+
+	balance, err := ee.RPCClient.GetAccountBalance(c.Address, contractID, KoinBalanceOfEntry)
 
 	// Build the result
 	dec, err := SatoshiToDecimal(int64(balance), KoinPrecision)
@@ -105,7 +171,7 @@ type CloseCommand struct {
 }
 
 // NewCloseCommand creates a new close object
-func NewCloseCommand(inv *ParseResult) CLICommand {
+func NewCloseCommand(inv *CommandParseResult) CLICommand {
 	return &CloseCommand{}
 }
 
@@ -125,6 +191,62 @@ func (c *CloseCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*
 }
 
 // ----------------------------------------------------------------------------
+// Connect Command
+// ----------------------------------------------------------------------------
+
+// ConnectCommand is a command that connects to an RPC endpoint
+type ConnectCommand struct {
+	URL string
+}
+
+// NewConnectCommand creates a new connect object
+func NewConnectCommand(inv *CommandParseResult) CLICommand {
+	return &ConnectCommand{URL: inv.Args["url"]}
+}
+
+// Execute connects to an RPC endpoint
+func (c *ConnectCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	rpc := NewKoinosRPCClient(c.URL)
+	ee.RPCClient = rpc
+
+	// TODO: Ensure connection (some sort of ping?)
+	// Issue #20
+
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Connected to endpoint %s", c.URL))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Disonnect Command
+// ----------------------------------------------------------------------------
+
+// DisconnectCommand is a command that disconnects from an RPC endpoint
+type DisconnectCommand struct {
+}
+
+// NewDisconnectCommand creates a new disconnect object
+func NewDisconnectCommand(inv *CommandParseResult) CLICommand {
+	return &DisconnectCommand{}
+}
+
+// Execute disconnects from an RPC endpoint
+func (c *DisconnectCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot disconnect", ErrOffline)
+	}
+
+	// Disconnect from the RPC endpoint
+	ee.RPCClient = nil
+
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Disconnected"))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
 // Exit Command
 // ----------------------------------------------------------------------------
 
@@ -133,7 +255,7 @@ type ExitCommand struct {
 }
 
 // NewExitCommand creates a new exit object
-func NewExitCommand(inv *ParseResult) CLICommand {
+func NewExitCommand(inv *CommandParseResult) CLICommand {
 	return &ExitCommand{}
 }
 
@@ -152,7 +274,7 @@ type GenerateKeyCommand struct {
 }
 
 // NewGenerateKeyCommand creates a new exit object
-func NewGenerateKeyCommand(inv *ParseResult) CLICommand {
+func NewGenerateKeyCommand(inv *CommandParseResult) CLICommand {
 	return &GenerateKeyCommand{}
 }
 
@@ -181,7 +303,7 @@ type UploadContractCommand struct {
 }
 
 // NewUploadContractCommand creates an upload contract object
-func NewUploadContractCommand(inv *ParseResult) CLICommand {
+func NewUploadContractCommand(inv *CommandParseResult) CLICommand {
 	return &UploadContractCommand{Filename: inv.Args["filename"]}
 }
 
@@ -289,7 +411,7 @@ type CreateCommand struct {
 }
 
 // NewCreateCommand creates a new create object
-func NewCreateCommand(inv *ParseResult) CLICommand {
+func NewCreateCommand(inv *CommandParseResult) CLICommand {
 	return &CreateCommand{Filename: inv.Args["filename"], Password: inv.Args["password"]}
 }
 
@@ -324,7 +446,8 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
-	result.AddMessage("Use the info command to see details")
+	result.AddMessage(fmt.Sprintf("Address: %s", key.Address()))
+	result.AddMessage("Use the info command to see more information")
 
 	return result, nil
 }
@@ -341,7 +464,7 @@ type ImportCommand struct {
 }
 
 // NewImportCommand creates a new import object
-func NewImportCommand(inv *ParseResult) CLICommand {
+func NewImportCommand(inv *CommandParseResult) CLICommand {
 	return &ImportCommand{Filename: inv.Args["filename"], Password: inv.Args["password"], PrivateKey: inv.Args["private-key"]}
 }
 
@@ -381,7 +504,8 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
-	result.AddMessage("Use the info command to see details")
+	result.AddMessage(fmt.Sprintf("Address: %s", key.Address()))
+	result.AddMessage("Use the info command to see more information")
 
 	return result, nil
 }
@@ -395,7 +519,7 @@ type InfoCommand struct {
 }
 
 // NewInfoCommand creates a new info command object
-func NewInfoCommand(inv *ParseResult) CLICommand {
+func NewInfoCommand(inv *CommandParseResult) CLICommand {
 	return &InfoCommand{}
 }
 
@@ -414,6 +538,35 @@ func (c *InfoCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 }
 
 // ----------------------------------------------------------------------------
+// Help
+// ----------------------------------------------------------------------------
+
+// HelpCommand is a command that displays help for a given command
+type HelpCommand struct {
+	Command string
+}
+
+// NewHelpCommand creates a new help command object
+func NewHelpCommand(inv *CommandParseResult) CLICommand {
+	return &HelpCommand{Command: inv.Args["command"]}
+}
+
+// Execute displays help for a given command
+func (c *HelpCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	decl, ok := ee.Parser.Commands.Name2Command[string(c.Command)]
+
+	if !ok {
+		return nil, fmt.Errorf("%w: cannot show help for %s", ErrUnknownCommand, c.Command)
+	}
+
+	result := NewExecutionResult()
+	result.AddMessage(decl.Description)
+	result.AddMessage(fmt.Sprintf("Usage: %s", decl))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
 // Call Command
 // ----------------------------------------------------------------------------
 
@@ -425,7 +578,7 @@ type CallCommand struct {
 }
 
 // NewCallCommand calls a contract method
-func NewCallCommand(inv *ParseResult) CLICommand {
+func NewCallCommand(inv *CommandParseResult) CLICommand {
 	return &CallCommand{
 		ContractID: inv.Args["contract-id"],
 		EntryPoint: inv.Args["entry-point"],
@@ -530,7 +683,7 @@ type OpenCommand struct {
 }
 
 // NewOpenCommand creates a new open command object
-func NewOpenCommand(inv *ParseResult) CLICommand {
+func NewOpenCommand(inv *CommandParseResult) CLICommand {
 	return &OpenCommand{Filename: inv.Args["filename"], Password: inv.Args["password"]}
 }
 
@@ -575,7 +728,7 @@ type ReadCommand struct {
 }
 
 // NewReadCommand creates a new read command object
-func NewReadCommand(inv *ParseResult) CLICommand {
+func NewReadCommand(inv *CommandParseResult) CLICommand {
 	return &ReadCommand{ContractID: inv.Args["contract-id"], EntryPoint: inv.Args["entry-point"], Arguments: inv.Args["arguments"]}
 }
 
@@ -605,7 +758,7 @@ func (c *ReadCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	}
 
 	result := NewExecutionResult()
-	result.AddMessage(base64.StdEncoding.EncodeToString(cResp.Result))
+	result.AddMessage("M" + base64.StdEncoding.EncodeToString(cResp.Result))
 
 	return result, nil
 }
@@ -621,7 +774,7 @@ type TransferCommand struct {
 }
 
 // NewTransferCommand creates a new close object
-func NewTransferCommand(inv *ParseResult) CLICommand {
+func NewTransferCommand(inv *CommandParseResult) CLICommand {
 	addressString := inv.Args["address"]
 	address := types.AccountType(addressString)
 	return &TransferCommand{Address: &address, Amount: inv.Args["amount"]}
@@ -631,6 +784,10 @@ func NewTransferCommand(inv *ParseResult) CLICommand {
 func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
 		return nil, fmt.Errorf("%w: cannot transfer", ErrWalletClosed)
+	}
+
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot transfer", ErrOffline)
 	}
 
 	// Convert the amount to a decimal
@@ -645,6 +802,11 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, fmt.Errorf("%w: %s", ErrInvalidAmount, err.Error())
 	}
 
+	// Ensure a transfer greater than zero
+	if sAmount <= 0 {
+		return nil, fmt.Errorf("%w: cannot transfer %d %s", ErrInvalidAmount, sAmount, KoinSymbol)
+	}
+
 	// Fetch the account's nonce
 	myAddress := types.AccountType(ee.Key.Address())
 	nonce, err := ee.RPCClient.GetAccountNonce(&myAddress)
@@ -652,10 +814,16 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, err
 	}
 
+	// Setup command execution environment
+	contractID, err := ContractStringToID(KoinContractID)
+	if err != nil {
+		panic("Invalid contract ID")
+	}
+
 	// Create the operation
 	callContractOp := types.NewCallContractOperation()
-	callContractOp.ContractID = *ee.KoinContractID
-	callContractOp.EntryPoint = ee.KoinTransferEntry
+	callContractOp.ContractID = *contractID
+	callContractOp.EntryPoint = KoinTransferEntry
 
 	// Serialize and assign the args
 	vb := types.NewVariableBlob()
@@ -707,6 +875,29 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Transferring %s %s to %s", dAmount, KoinSymbol, *c.Address))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// List
+// ----------------------------------------------------------------------------
+
+// ListCommand is a command that lists available commands
+type ListCommand struct {
+}
+
+// NewListCommand creates a new list command object
+func NewListCommand(inv *CommandParseResult) CLICommand {
+	return &ListCommand{}
+}
+
+// Execute lists available commands
+func (c *ListCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	cmds := ee.Parser.Commands.List(true)
+
+	result := NewExecutionResult()
+	result.AddMessage(cmds...)
 
 	return result, nil
 }

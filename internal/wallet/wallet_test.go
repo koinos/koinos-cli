@@ -3,12 +3,10 @@ package wallet
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
 
-	types "github.com/koinos/koinos-types-golang"
 	"github.com/shopspring/decimal"
 )
 
@@ -43,14 +41,16 @@ func TestSatoshiToDecimal(t *testing.T) {
 
 func makeTestParser() *CommandParser {
 	// Construct the command parser
-	var decls []*CommandDeclaration
-	decls = append(decls, NewCommandDeclaration("test_address", "Test command which takes an address", false, nil, *NewCommandArg("address", Address)))
-	decls = append(decls, NewCommandDeclaration("test_string", "Test command which takes a string", false, nil, *NewCommandArg("string", String)))
-	decls = append(decls, NewCommandDeclaration("test_none", "Test command which takes no arguments", false, nil))
-	decls = append(decls, NewCommandDeclaration("test_none2", "Another test command which takes no arguments", false, nil))
-	decls = append(decls, NewCommandDeclaration("test_multi", "Test command which takes multiple arguments, and of different types", false, NewGenerateKeyCommand))
+	cs := NewCommandSet()
 
-	parser := NewCommandParser(decls)
+	cs.AddCommand(NewCommandDeclaration("test_address", "Test command which takes an address", false, nil, *NewCommandArg("address", Address)))
+	cs.AddCommand(NewCommandDeclaration("test_string", "Test command which takes a string", false, nil, *NewCommandArg("string", String)))
+	cs.AddCommand(NewCommandDeclaration("test_none", "Test command which takes no arguments", false, nil))
+	cs.AddCommand(NewCommandDeclaration("test_none2", "Another test command which takes no arguments", false, nil))
+	cs.AddCommand(NewCommandDeclaration("test_multi", "Test command which takes multiple arguments, and of different types", false, NewGenerateKeyCommand,
+		*NewCommandArg("arg0", Address), *NewCommandArg("arg1", String), *NewCommandArg("arg2", Amount), *NewCommandArg("arg0", String)))
+
+	parser := NewCommandParser(cs)
 
 	return parser
 }
@@ -64,8 +64,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(results) != 3 {
-		t.Error("Expected 3 result, got", len(results))
+	if results.Len() != 3 {
+		t.Error("Expected 3 result, got", results.Len())
 	}
 
 	results, err = parser.Parse("asdasd")
@@ -77,8 +77,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error("Expected error", ErrUnknownCommand, ", got", err)
 	}
 
-	if results[0].CurrentArg != -1 {
-		t.Error("Expected current arg to be -1, got", results[0].CurrentArg)
+	if results.CommandResults[0].CurrentArg != -1 {
+		t.Error("Expected current arg to be -1, got", results.CommandResults[0].CurrentArg)
 	}
 
 	results, err = parser.Parse("asdasd ")
@@ -90,8 +90,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error("Expected error", ErrUnknownCommand, ", got", err)
 	}
 
-	if results[0].CurrentArg != 0 {
-		t.Error("Expected current arg to be 0, got", results[0].CurrentArg)
+	if results.CommandResults[0].CurrentArg != 0 {
+		t.Error("Expected current arg to be 0, got", results.CommandResults[0].CurrentArg)
 	}
 
 	// Test parsing empty inputs
@@ -100,8 +100,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(results) != 0 {
-		t.Error("Expected 0 results, got", len(results))
+	if results.Len() != 0 {
+		t.Error("Expected 0 results, got", results.Len())
 	}
 
 	results, err = parser.Parse("    ")
@@ -109,8 +109,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(results) != 0 {
-		t.Error("Expected 0 results, got", len(results))
+	if results.Len() != 0 {
+		t.Error("Expected 0 results, got", results.Len())
 	}
 
 	// Test nonsensical string of empty commands
@@ -119,8 +119,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error("Expected error, got none")
 	}
 
-	if len(results) != 0 {
-		t.Error("Expected 0 results, got", len(results))
+	if results.Len() != 0 {
+		t.Error("Expected 0 results, got", results.Len())
 	}
 
 	// Test valid command followed by empty commands
@@ -133,8 +133,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error("Expected error", ErrEmptyCommandName, ", got", err)
 	}
 
-	if len(results) != 1 {
-		t.Error("Expected 1 result, got", len(results))
+	if results.Len() != 1 {
+		t.Error("Expected 1 result, got", results.Len())
 	}
 }
 
@@ -157,73 +157,14 @@ func checkTerminators(t *testing.T, parser *CommandParser, input string, termina
 		t.Error(err)
 	}
 
-	if len(results) != len(terminators) {
-		t.Error("Expected", len(terminators), "results, got", len(results))
+	if results.Len() != len(terminators) {
+		t.Error("Expected", len(terminators), "results, got", results.Len())
 	}
 
-	for i, result := range results {
+	for i, result := range results.CommandResults {
 		if result.Termination != terminators[i] {
 			t.Error("Expected terminator", terminators[i], "got", result.Termination)
 		}
-	}
-}
-
-func TestBalance(t *testing.T) {
-	// Construct the command parser
-	commands := BuildCommands()
-	parser := NewCommandParser(commands)
-
-	// Test parsing a single balance command
-	address0 := "1iwBq2QAax2URVqU2h878hTs8DFFKADMk"
-	results, err := parser.Parse(fmt.Sprintf("balance %s", address0))
-	if err != nil {
-		t.Error(err)
-	}
-
-	if len(results) != 1 {
-		t.Error("Expected 1 result, got", len(results))
-	}
-
-	if results[0].CommandName != "balance" {
-		t.Error("Expected balance parse result, got", results[0].CommandName)
-	}
-
-	if results[0].Args["address"] != address0 {
-		t.Errorf("Expected %s, got %s", address0, results[0].Args["address"])
-	}
-
-	// Test the command object instantiation
-	cmd := results[0].Instantiate()
-	bcmd := cmd.(*BalanceCommand)
-
-	// Make sure the account type object is correct
-	addr := types.AccountType(address0)
-	if !bytes.Equal(addr, []byte(*bcmd.Address)) {
-		t.Error("Address in balance command object does not match given address")
-	}
-}
-
-func TestExit(t *testing.T) {
-	// Construct the command parser
-	commands := BuildCommands()
-	parser := NewCommandParser(commands)
-
-	// Test parsing a single balance command
-	results, err := parser.Parse("quit; exit")
-	if err != nil {
-		t.Error(err)
-	}
-
-	if len(results) != 2 {
-		t.Error("Expected 2 result, got", len(results))
-	}
-
-	if results[0].CommandName != "quit" || results[1].CommandName != "exit" {
-		t.Error("Invalid command name")
-	}
-
-	if len(results[0].Args) != 0 || len(results[1].Args) != 0 {
-		t.Error("Invalid exit args")
 	}
 }
 
@@ -295,4 +236,59 @@ func TestWalletFile(t *testing.T) {
 	}
 
 	errfile.Close()
+}
+
+func TestParseMetrics(t *testing.T) {
+	// Construct the command parser
+	parser := makeTestParser()
+
+	// Test parsing a half finished command
+	checkMetrics("test_mu", parser, t, true, 0, -1)
+
+	// Test parsing a finished command
+	checkMetrics("test_multi", parser, t, true, 0, -1)
+
+	// Test parsing a finished command with a space
+	checkMetrics("test_multi ", parser, t, true, 0, 0)
+
+	// Test parsing the rest of the arguments address string amount string
+	checkMetrics("test_multi 1iwBq2QA", parser, t, true, 0, 0)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", parser, t, true, 0, 0)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk ", parser, t, true, 0, 1)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword str", parser, t, true, 0, 1)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string'", parser, t, true, 0, 1)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' ", parser, t, true, 0, 2)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403", parser, t, true, 0, 2)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873", parser, t, true, 0, 2)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 ", parser, t, true, 0, 3)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str", parser, t, false, 0, 3)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str ", parser, t, false, 0, 3) // What should happen here?
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str;", parser, t, false, 1, -1)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; ", parser, t, false, 1, -1)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; tes", parser, t, true, 1, -1)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string", parser, t, true, 1, -1)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string ", parser, t, true, 1, 0)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string \"abc", parser, t, true, 1, 0)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\"", parser, t, false, 1, 0)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\";", parser, t, false, 2, -1)
+
+}
+
+func checkMetrics(input string, parser *CommandParser, t *testing.T, expectError bool, index int, arg int) {
+	res, err := parser.Parse(input)
+	if err == nil && expectError {
+		t.Error("Expected error, got none")
+	} else if err != nil && !expectError {
+		t.Error(err.Error())
+	}
+
+	metrics := res.Metrics()
+
+	if metrics.CurrentResultIndex != index {
+		t.Error("Expected current result index to be", index, "got", metrics.CurrentResultIndex)
+	}
+
+	if metrics.CurrentArg != arg {
+		t.Error("Expected current arg to be", arg, "got", metrics.CurrentArg)
+	}
 }

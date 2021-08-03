@@ -17,11 +17,8 @@ var (
 	// ErrMissingParam is returned when a parameter is missing.
 	ErrMissingParam = errors.New("missing parameter")
 
-	// ErrInvalidString is returned when a string is invalid.
-	ErrInvalidString = errors.New("invalid string")
-
-	// ErrEmptyParam is returned when a parameter is empty.
-	ErrEmptyParam = errors.New("empty parameter")
+	// ErrInvalidParam is returned when a parameter is invalid.
+	ErrInvalidParam = errors.New("invalid value given for parameter")
 
 	// ErrUnexpectedHashLength is returned when the passphrase hash length is incorrect
 	ErrUnexpectedHashLength = errors.New("unexpected hash length")
@@ -43,6 +40,9 @@ var (
 
 	// ErrInvalidAmount is returned when an amount is invalid
 	ErrInvalidAmount = errors.New("invalid amount")
+
+	// ErrOffline is returned when a wallet is not online
+	ErrOffline = errors.New("wallet is offline")
 
 	// ErrFileNotFound is returned when the file is not found
 	ErrFileNotFound = errors.New("file not found")

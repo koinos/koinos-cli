@@ -23,6 +23,7 @@ const (
 	Address CommandArgType = iota
 	String
 	Amount
+	CmdName
 )
 
 // Characters used in parsing
@@ -30,8 +31,8 @@ const (
 	CommandTerminator = ';'
 )
 
-// ParseResult is the result of parsing a command string
-type ParseResult struct {
+// CommandParseResult is the result of parsing a single command string
+type CommandParseResult struct {
 	CommandName string
 	Args        map[string]string // This could be a slice of strings potentially
 	Decl        *CommandDeclaration
@@ -39,9 +40,9 @@ type ParseResult struct {
 	Termination TerminationStatus
 }
 
-// NewParseResult creates a new parse result object
-func NewParseResult(name string) *ParseResult {
-	inv := &ParseResult{
+// NewCommandParseResult creates a new parse result object
+func NewCommandParseResult(name string) *CommandParseResult {
+	inv := &CommandParseResult{
 		CommandName: name,
 		Args:        make(map[string]string),
 		CurrentArg:  -1,
@@ -51,14 +52,33 @@ func NewParseResult(name string) *ParseResult {
 }
 
 // Instantiate creates a new command object from the invocation object
-func (inv *ParseResult) Instantiate() CLICommand {
+func (inv *CommandParseResult) Instantiate() CLICommand {
 	return inv.Decl.Instantiation(inv)
+}
+
+// ParseResults represents the result of parsing a string of commands
+type ParseResults struct {
+	CommandResults []*CommandParseResult
+}
+
+// NewParseResults creates a new parse results object
+func NewParseResults() *ParseResults {
+	return &ParseResults{CommandResults: make([]*CommandParseResult, 0)}
+}
+
+// AddResult adds a new result to the parse results
+func (pr *ParseResults) AddResult(result *CommandParseResult) {
+	pr.CommandResults = append(pr.CommandResults, result)
+}
+
+// Len is the number of command parse results
+func (pr *ParseResults) Len() int {
+	return len(pr.CommandResults)
 }
 
 // CommandParser is a parser for commands
 type CommandParser struct {
-	Commands     []*CommandDeclaration
-	name2command map[string]*CommandDeclaration
+	Commands *CommandSet
 
 	// Parser token recognizer regexps
 	commandNameRE  *regexp.Regexp
@@ -70,14 +90,9 @@ type CommandParser struct {
 }
 
 // NewCommandParser creates a new command parser
-func NewCommandParser(commands []*CommandDeclaration) *CommandParser {
+func NewCommandParser(commands *CommandSet) *CommandParser {
 	parser := &CommandParser{
-		Commands:     commands,
-		name2command: make(map[string]*CommandDeclaration),
-	}
-
-	for _, command := range commands {
-		parser.name2command[command.Name] = command
+		Commands: commands,
 	}
 
 	parser.commandNameRE = regexp.MustCompile(`^[a-zA-Z0-9_]+`)
@@ -91,21 +106,21 @@ func NewCommandParser(commands []*CommandDeclaration) *CommandParser {
 }
 
 // Parse parses a string of command(s)
-func (p *CommandParser) Parse(commands string) ([]*ParseResult, error) {
+func (p *CommandParser) Parse(commands string) (*ParseResults, error) {
 	// Sanitize input string and make byte buffer
 	input := []byte(commands)
-	var invs []*ParseResult = make([]*ParseResult, 0)
+	invs := NewParseResults()
 
 	input, _ = p.parseSkip(input, nil, false)
 
 	// Loop until we've consumed all input
 	for len(input) > 0 {
 		var err error
-		var inv *ParseResult
+		var inv *CommandParseResult
 
 		inv, input, err = p.parseNextCommand(input)
 		if inv != nil {
-			invs = append(invs, inv)
+			invs.AddResult(inv)
 		}
 		if err != nil {
 			return invs, err
@@ -120,7 +135,7 @@ func (p *CommandParser) Parse(commands string) ([]*ParseResult, error) {
 	return invs, nil
 }
 
-func (p *CommandParser) parseNextCommand(input []byte) (*ParseResult, []byte, error) {
+func (p *CommandParser) parseNextCommand(input []byte) (*CommandParseResult, []byte, error) {
 	// Parse the command name
 	name, err := p.parseCommandName(input)
 	if err != nil {
@@ -130,8 +145,8 @@ func (p *CommandParser) parseNextCommand(input []byte) (*ParseResult, []byte, er
 	input = input[len(name):]
 
 	// Create the invocation object
-	inv := NewParseResult(string(name))
-	if decl, ok := p.name2command[string(name)]; ok {
+	inv := NewCommandParseResult(string(name))
+	if decl, ok := p.Commands.Name2Command[string(name)]; ok {
 		inv.Decl = decl
 	} else {
 		p.parseSkip(input, inv, true)
@@ -162,7 +177,7 @@ func (p *CommandParser) parseCommandName(input []byte) ([]byte, error) {
 }
 
 // Parse a command's arguments. Returns unconsumed input
-func (p *CommandParser) parseArgs(input []byte, inv *ParseResult) ([]byte, error) {
+func (p *CommandParser) parseArgs(input []byte, inv *CommandParseResult) ([]byte, error) {
 	// Loop through expected arguments
 	for _, arg := range inv.Decl.Args {
 		// Skip whitespace
@@ -184,12 +199,14 @@ func (p *CommandParser) parseArgs(input []byte, inv *ParseResult) ([]byte, error
 			match, l, err = p.parseString(input)
 		case Amount:
 			match, l, err = p.parseAmount(input)
+		case CmdName:
+			match, l, err = p.parseString(input)
 		}
 		input = input[l:] // Consume the match
 
 		// Check for error during match
 		if err != nil {
-			return input, err
+			return input, fmt.Errorf("%w: %s", err, arg.Name)
 		}
 
 		// Store the argument value in the invocation
@@ -204,7 +221,7 @@ func (p *CommandParser) parseAddress(input []byte) ([]byte, int, error) {
 	// Parse address
 	m := p.addressRE.Find(input)
 	if m == nil {
-		return nil, 0, fmt.Errorf("%w", ErrMissingParam)
+		return nil, 0, fmt.Errorf("%w", ErrInvalidParam)
 	}
 
 	return m, len(m), nil
@@ -214,7 +231,7 @@ func (p *CommandParser) parseAmount(input []byte) ([]byte, int, error) {
 	// Parse amount
 	m := p.amountRE.Find(input)
 	if m == nil {
-		return nil, 0, fmt.Errorf("%w", ErrMissingParam)
+		return nil, 0, fmt.Errorf("%w", ErrInvalidParam)
 	}
 
 	return m, len(m), nil
@@ -271,20 +288,20 @@ func (p *CommandParser) parseQuotedString(input []byte) ([]byte, int, error) {
 		output = append(output, c)
 	}
 
-	return nil, 0, fmt.Errorf("%w: missing closing quote", ErrInvalidString)
+	return nil, 0, fmt.Errorf("%w (missing closing quote)", ErrInvalidParam)
 }
 
 func (p *CommandParser) parseSimpleString(input []byte) ([]byte, int, error) {
 	m := p.simpleStringRE.Find(input)
 	if m == nil {
-		return nil, 0, fmt.Errorf("%w", ErrMissingParam)
+		return nil, 0, fmt.Errorf("%w", ErrInvalidParam)
 	}
 
 	return m, len(m), nil
 }
 
 // Returns the rest of the string, a bool that is true if it encountered a terminator, and a bool that is true if that terminator was a command terminator
-func (p *CommandParser) parseSkip(input []byte, inv *ParseResult, incArgs bool) ([]byte, TerminationStatus) {
+func (p *CommandParser) parseSkip(input []byte, inv *CommandParseResult, incArgs bool) ([]byte, TerminationStatus) {
 	term := None
 	skipped := false
 

@@ -1,6 +1,8 @@
 package interactive
 
 import (
+	"fmt"
+
 	"github.com/c-bata/go-prompt"
 	"github.com/koinos/koinos-cli-wallet/internal/wallet"
 )
@@ -16,11 +18,13 @@ type KoinosPrompt struct {
 // NewKoinosPrompt creates a new interactive prompt object
 func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvironment) *KoinosPrompt {
 	kp := &KoinosPrompt{parser: parser, execEnv: execEnv}
-	kp.gPrompt = prompt.New(kp.executor, kp.completer, prompt.OptionPrefix("🔐 > "), prompt.OptionLivePrefix(kp.changeLivePrefix))
+	kp.gPrompt = prompt.New(kp.executor, kp.completer, prompt.OptionLivePrefix(kp.changeLivePrefix))
 
 	// Generate command suggestions
 	kp.commandSuggestions = make([]prompt.Suggest, 0)
-	for _, cmd := range parser.Commands {
+	list := parser.Commands.List(false)
+	for _, name := range list {
+		cmd := parser.Commands.Name2Command[name]
 		if cmd.Hidden {
 			continue
 		}
@@ -32,22 +36,26 @@ func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvi
 }
 
 func (kp *KoinosPrompt) changeLivePrefix() (string, bool) {
-	return "🔓 > ", kp.execEnv.IsWalletOpen()
+	// Calculate online status
+	onlineStatus := "🔴"
+	if kp.execEnv.IsOnline() {
+		onlineStatus = "🟢"
+	}
+
+	// Calculate wallet status
+	walletStatus := "🔐"
+	if kp.execEnv.IsWalletOpen() {
+		walletStatus = "🔓"
+	}
+
+	return fmt.Sprintf("%s %s > ", onlineStatus, walletStatus), true
 }
 
 func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {
-	var currentInv *wallet.ParseResult
-	invs, err := kp.parser.Parse(d.Text)
-	if len(invs) != 0 {
-		currentInv = invs[len(invs)-1]
-	}
+	invs, _ := kp.parser.Parse(d.Text)
+	metrics := invs.Metrics()
 
-	// If on a new command, yet the last has not been properly terminated, then suggest a semicolon
-	if err == nil && currentInv != nil && currentInv.Termination != wallet.Command {
-		return []prompt.Suggest{}
-	}
-
-	if len(d.Text) == 0 || currentInv != nil && currentInv.CurrentArg == -1 {
+	if metrics.CurrentParamType == wallet.CmdName {
 		return prompt.FilterHasPrefix(kp.commandSuggestions, d.GetWordBeforeCursor(), true)
 	}
 
@@ -61,5 +69,7 @@ func (kp *KoinosPrompt) executor(input string) {
 
 // Run runs interactive mode
 func (kp *KoinosPrompt) Run() {
+	fmt.Println("Koinos CLI Wallet")
+	fmt.Println("Type \"list\" for a list of commands, \"help <command>\" for help on a specific command.")
 	kp.gPrompt.Run()
 }

@@ -221,10 +221,17 @@ func ParseAndInterpret(parser *CommandParser, ee *ExecutionEnvironment, input st
 	if err != nil {
 		o := NewInterpretResults()
 		o.AddResult(err.Error())
+		metrics := result.Metrics()
+		// Display help for the command if it is a valid command
+		if result.CommandResults[metrics.CurrentResultIndex].Decl != nil {
+			o.AddResult("Usage: " + result.CommandResults[metrics.CurrentResultIndex].Decl.String())
+		} else {
+			o.AddResult("Type \"list\" for a list of commands.")
+		}
 		return o
 	}
 
-	return InterpretParseResults(result, ee)
+	return result.Interpret(ee)
 }
 
 const compressMagic byte = 0x01

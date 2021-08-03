@@ -6,7 +6,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/koinos/koinos-cli-wallet/cmd/cli-wallet/interactive"
 	"github.com/koinos/koinos-cli-wallet/internal/wallet"
-	types "github.com/koinos/koinos-types-golang"
 	flag "github.com/spf13/pflag"
 )
 
@@ -18,15 +17,8 @@ const (
 
 // Default options
 const (
-	rpcDefault     = "http://localhost:8080"
+	rpcDefault     = ""
 	executeDefault = ""
-)
-
-// Koin contract constants
-const (
-	KoinContractID      = "Mkw96mR+Hh71IWwJoT/2lJXBDl5Q="
-	BalanceOfEntryPoint = types.UInt32(0x15619248)
-	TransferEntryPoint  = types.UInt32(0x62efa292)
 )
 
 func main() {
@@ -42,18 +34,17 @@ func main() {
 
 	flag.Parse()
 
-	// Setup command execution environment
-	contractID, err := wallet.ContractStringToID(KoinContractID)
-	if err != nil {
-		panic("Invalid contract ID")
+	// Setup client
+	var client *wallet.KoinosRPCClient
+	if *rpcAddress != "" {
+		client = wallet.NewKoinosRPCClient(*rpcAddress)
 	}
 
-	client := wallet.NewKoinosRPCClient(*rpcAddress)
-	cmdEnv := wallet.ExecutionEnvironment{RPCClient: client, KoinContractID: contractID, KoinBalanceOfEntry: BalanceOfEntryPoint, KoinTransferEntry: TransferEntryPoint}
-
 	// Construct the command parser
-	commands := wallet.BuildCommands()
+	commands := wallet.NewKoinosCommandSet()
 	parser := wallet.NewCommandParser(commands)
+
+	cmdEnv := wallet.ExecutionEnvironment{RPCClient: client, Parser: parser}
 
 	// If the user submitted commands, execute them
 	if *executeCmd != "" {
