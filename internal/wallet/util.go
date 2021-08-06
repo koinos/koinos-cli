@@ -17,6 +17,11 @@ import (
 	"github.com/ybbus/jsonrpc/v2"
 )
 
+const (
+	// Version number (this should probably not live here)
+	Version = "v0.1.2"
+)
+
 // SignTransaction signs the transaction with the given key
 func SignTransaction(key []byte, tx *types.Transaction) error {
 	privateKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), key)
