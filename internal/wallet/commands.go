@@ -76,8 +76,8 @@ func (cs *CommandSet) List(pretty bool) []string {
 
 	// If pretty output add descriptions
 	o := make([]string, 0)
-	for i, name := range names {
-		o = append(o, fmt.Sprintf("%*s - %s", -longest, name, cs.Commands[i].Description))
+	for _, name := range names {
+		o = append(o, fmt.Sprintf("%*s - %s", -longest, name, cs.Name2Command[name].Description))
 	}
 
 	return o
