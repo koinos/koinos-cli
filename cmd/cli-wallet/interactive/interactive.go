@@ -2,6 +2,8 @@ package interactive
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/c-bata/go-prompt"
 	"github.com/koinos/koinos-cli-wallet/internal/wallet"
@@ -13,6 +15,12 @@ type KoinosPrompt struct {
 	execEnv            *wallet.ExecutionEnvironment
 	gPrompt            *prompt.Prompt
 	commandSuggestions []prompt.Suggest
+	unicodeSupport     bool
+
+	onlineDisplay  string
+	offlineDisplay string
+	openDisplay    string
+	closeDisplay   string
 }
 
 // NewKoinosPrompt creates a new interactive prompt object
@@ -32,20 +40,37 @@ func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvi
 		kp.commandSuggestions = append(kp.commandSuggestions, prompt.Suggest{Text: cmd.Name, Description: cmd.Description})
 	}
 
+	// Check for terminal unicode support
+	lang := strings.ToUpper(os.Getenv("LANG"))
+	kp.unicodeSupport = strings.Contains(lang, "UTF")
+
+	// Setup status characters
+	if kp.unicodeSupport {
+		kp.onlineDisplay = "🟢"
+		kp.offlineDisplay = "🔴"
+		kp.closeDisplay = "🔐"
+		kp.openDisplay = "🔓"
+	} else {
+		kp.onlineDisplay = "(online)"
+		kp.offlineDisplay = "(offline)"
+		kp.closeDisplay = "(locked)"
+		kp.openDisplay = "(unlocked)"
+	}
+
 	return kp
 }
 
 func (kp *KoinosPrompt) changeLivePrefix() (string, bool) {
 	// Calculate online status
-	onlineStatus := "🔴"
+	onlineStatus := kp.offlineDisplay
 	if kp.execEnv.IsOnline() {
-		onlineStatus = "🟢"
+		onlineStatus = kp.onlineDisplay
 	}
 
 	// Calculate wallet status
-	walletStatus := "🔐"
+	walletStatus := kp.closeDisplay
 	if kp.execEnv.IsWalletOpen() {
-		walletStatus = "🔓"
+		walletStatus = kp.openDisplay
 	}
 
 	return fmt.Sprintf("%s %s > ", onlineStatus, walletStatus), true
@@ -69,7 +94,7 @@ func (kp *KoinosPrompt) executor(input string) {
 
 // Run runs interactive mode
 func (kp *KoinosPrompt) Run() {
-	fmt.Println("Koinos CLI Wallet")
+	fmt.Println(fmt.Sprintf("Koinos CLI Wallet %s", wallet.Version))
 	fmt.Println("Type \"list\" for a list of commands, \"help <command>\" for help on a specific command.")
 	kp.gPrompt.Run()
 }

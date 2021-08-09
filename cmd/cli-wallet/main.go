@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/koinos/koinos-cli-wallet/cmd/cli-wallet/interactive"
@@ -13,6 +14,7 @@ import (
 const (
 	rpcOption     = "rpc"
 	executeOption = "execute"
+	versionOption = "version"
 )
 
 // Default options
@@ -31,8 +33,14 @@ func main() {
 	// Setup command line options
 	rpcAddress := flag.StringP(rpcOption, "r", rpcDefault, "RPC server URL")
 	executeCmd := flag.StringP(executeOption, "x", executeDefault, "Command to execute")
+	versionCmd := flag.BoolP(versionOption, "v", false, "Display the version")
 
 	flag.Parse()
+
+	if *versionCmd {
+		fmt.Println(wallet.Version)
+		os.Exit(0)
+	}
 
 	// Setup client
 	var client *wallet.KoinosRPCClient
