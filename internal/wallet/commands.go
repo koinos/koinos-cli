@@ -149,6 +149,9 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	balance, err := ee.RPCClient.GetAccountBalance(c.Address, contractID, KoinBalanceOfEntry)
+	if err != nil {
+		return nil, err
+	}
 
 	// Build the result
 	dec, err := SatoshiToDecimal(int64(balance), KoinPrecision)
@@ -241,7 +244,7 @@ func (c *DisconnectCommand) Execute(ctx context.Context, ee *ExecutionEnvironmen
 	ee.RPCClient = nil
 
 	result := NewExecutionResult()
-	result.AddMessage(fmt.Sprintf("Disconnected"))
+	result.AddMessage("Disconnected")
 
 	return result, nil
 }
@@ -807,17 +810,32 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, fmt.Errorf("%w: cannot transfer %d %s", ErrInvalidAmount, sAmount, KoinSymbol)
 	}
 
-	// Fetch the account's nonce
-	myAddress := types.AccountType(ee.Key.Address())
-	nonce, err := ee.RPCClient.GetAccountNonce(&myAddress)
-	if err != nil {
-		return nil, err
-	}
-
 	// Setup command execution environment
 	contractID, err := ContractStringToID(KoinContractID)
 	if err != nil {
 		panic("Invalid contract ID")
+	}
+
+	// Fetch the account's balance
+	myAddress := types.AccountType(ee.Key.Address())
+	balance, err := ee.RPCClient.GetAccountBalance(&myAddress, contractID, KoinBalanceOfEntry)
+	if err != nil {
+		return nil, err
+	}
+	dBalance, err := SatoshiToDecimal(int64(balance), KoinPrecision)
+	if err != nil {
+		return nil, err
+	}
+
+	// Ensure a transfer greater than opened account balance
+	if int64(balance) <= sAmount {
+		return nil, fmt.Errorf("%w: insufficient balance %s %s on opened wallet %s, cannot transfer %s %s", ErrInvalidAmount, dBalance, KoinSymbol, myAddress, dAmount, KoinSymbol)
+	}
+
+	// Fetch the account's nonce
+	nonce, err := ee.RPCClient.GetAccountNonce(&myAddress)
+	if err != nil {
+		return nil, err
 	}
 
 	// Create the operation
