@@ -149,9 +149,6 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	balance, err := ee.RPCClient.GetAccountBalance(c.Address, contractID, KoinBalanceOfEntry)
-	if err != nil {
-		return nil, err
-	}
 
 	// Build the result
 	dec, err := SatoshiToDecimal(int64(balance), KoinPrecision)
