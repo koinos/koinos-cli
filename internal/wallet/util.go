@@ -318,3 +318,25 @@ func paddedAppend(size uint, dst, src []byte) []byte {
 	}
 	return append(dst, src...)
 }
+
+// GetPassword takes the password input from a command, and returns the string password which should be used
+func GetPassword(password *string) (string, error) {
+	// Get the password
+	result := ""
+	if password == nil { // If no password is provided, check the environment variable
+		result = os.Getenv("WALLET_PASS")
+		// Advise about the environment variable
+		if result == "" {
+			return result, fmt.Errorf("%w: no password was provided and env variable WALLET_PASS is empty", ErrBlankPassword)
+		}
+	} else {
+		result = *password
+	}
+
+	// If the result is blank, return an error
+	if result == "" {
+		return result, fmt.Errorf("%w: password cannot be empty", ErrBlankPassword)
+	}
+
+	return result, nil
+}

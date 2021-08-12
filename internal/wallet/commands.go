@@ -448,11 +448,9 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	}
 
 	// Get the password
-	pass := ""
-	if c.Password == nil {
-		pass = os.Getenv("WALLET_PASS")
-	} else {
-		pass = *c.Password
+	pass, err := GetPassword(c.Password)
+	if err != nil {
+		return nil, err
 	}
 
 	// Write the key to the wallet file
@@ -514,11 +512,9 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	}
 
 	// Get the password
-	pass := ""
-	if c.Password == nil {
-		pass = os.Getenv("WALLET_PASS")
-	} else {
-		pass = *c.Password
+	pass, err := GetPassword(c.Password)
+	if err != nil {
+		return nil, err
 	}
 
 	// Write the key to the wallet file
@@ -724,11 +720,9 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	}
 
 	// Get the password
-	pass := ""
-	if c.Password == nil {
-		pass = os.Getenv("WALLET_PASS")
-	} else {
-		pass = *c.Password
+	pass, err := GetPassword(c.Password)
+	if err != nil {
+		return nil, err
 	}
 
 	// Read the wallet file
