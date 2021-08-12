@@ -85,15 +85,26 @@ func NewCommandDeclaration(name string, description string, hidden bool,
 
 // CommandArg is a struct that holds an argument for a command
 type CommandArg struct {
-	Name    string
-	ArgType CommandArgType
+	Name     string
+	ArgType  CommandArgType
+	Optional bool
 }
 
 // NewCommandArg creates a new command argument
 func NewCommandArg(name string, argType CommandArgType) *CommandArg {
 	return &CommandArg{
-		Name:    name,
-		ArgType: argType,
+		Name:     name,
+		ArgType:  argType,
+		Optional: false,
+	}
+}
+
+// NewOptioanlCommandArg creates a new optional command argument
+func NewOptionalCommandArg(name string, argType CommandArgType) *CommandArg {
+	return &CommandArg{
+		Name:     name,
+		ArgType:  argType,
+		Optional: true,
 	}
 }
 
