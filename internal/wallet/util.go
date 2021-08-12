@@ -19,7 +19,7 @@ import (
 
 const (
 	// Version number (this should probably not live here)
-	Version = "v0.1.2"
+	Version = "v0.2.0"
 )
 
 // SignTransaction signs the transaction with the given key
