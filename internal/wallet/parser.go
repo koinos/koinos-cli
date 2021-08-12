@@ -184,7 +184,12 @@ func (p *CommandParser) parseArgs(input []byte, inv *CommandParseResult) ([]byte
 		var t TerminationStatus
 		input, t = p.parseSkip(input, inv, true)
 		if t != None {
-			return input, fmt.Errorf("%w: %s", ErrMissingParam, arg.Name)
+			if arg.Optional {
+				inv.Args[arg.Name] = ""
+				return input, nil
+			} else {
+				return input, fmt.Errorf("%w: %s", ErrMissingParam, arg.Name)
+			}
 		}
 
 		var match []byte

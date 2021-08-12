@@ -93,7 +93,7 @@ func (cs *CommandSet) List(pretty bool) []string {
 func NewKoinosCommandSet() *CommandSet {
 	cs := NewCommandSet()
 
-	cs.AddCommand(NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewCommandArg("address", Address)))
+	cs.AddCommand(NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewOptionalCommandArg("address", Address)))
 	cs.AddCommand(NewCommandDeclaration("connect", "Connect to an RPC endpoint", false, NewConnectCommand, *NewCommandArg("url", String)))
 	cs.AddCommand(NewCommandDeclaration("close", "Close the currently open wallet", false, NewCloseCommand))
 	cs.AddCommand(NewCommandDeclaration("create", "Create and open a new wallet file", false, NewCreateCommand, *NewCommandArg("filename", String), *NewCommandArg("password", String)))
@@ -126,14 +126,13 @@ func NewKoinosCommandSet() *CommandSet {
 
 // BalanceCommand is a command that checks the balance of an address
 type BalanceCommand struct {
-	Address *types.AccountType
+	AddressString *string
 }
 
 // NewBalanceCommand creates a new balance object
 func NewBalanceCommand(inv *CommandParseResult) CLICommand {
 	addressString := inv.Args["address"]
-	address := types.AccountType(addressString)
-	return &BalanceCommand{Address: &address}
+	return &BalanceCommand{AddressString: &addressString}
 }
 
 // Execute fetches the balance
@@ -142,13 +141,26 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 		return nil, fmt.Errorf("%w: cannot check balance", ErrOffline)
 	}
 
+	var address types.AccountType
+
+	// Get current account balance if empty address
+	if *c.AddressString == "" {
+		if !ee.IsWalletOpen() {
+			return nil, fmt.Errorf("%w: address", ErrMissingParam)
+		}
+
+		address = types.AccountType(ee.Key.Address())
+	} else {
+		address = types.AccountType(*c.AddressString)
+	}
+
 	// Setup command execution environment
 	contractID, err := ContractStringToID(KoinContractID)
 	if err != nil {
 		panic("Invalid contract ID")
 	}
 
-	balance, err := ee.RPCClient.GetAccountBalance(c.Address, contractID, KoinBalanceOfEntry)
+	balance, err := ee.RPCClient.GetAccountBalance(&address, contractID, KoinBalanceOfEntry)
 
 	// Build the result
 	dec, err := SatoshiToDecimal(int64(balance), KoinPrecision)
