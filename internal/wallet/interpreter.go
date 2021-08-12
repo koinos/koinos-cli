@@ -65,7 +65,13 @@ type CommandDeclaration struct {
 func (d *CommandDeclaration) String() string {
 	s := d.Name
 	for _, arg := range d.Args {
-		s += " <" + arg.Name + ">"
+		val := ""
+		if arg.Optional {
+			val = " [" + arg.Name + "]"
+		} else {
+			val = " <" + arg.Name + ">"
+		}
+		s += val
 	}
 
 	return s

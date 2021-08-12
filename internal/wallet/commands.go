@@ -99,12 +99,12 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("create", "Create and open a new wallet file", false, NewCreateCommand, *NewCommandArg("filename", String), *NewOptionalCommandArg("password", String)))
 	cs.AddCommand(NewCommandDeclaration("disconnect", "Disconnect from RPC endpoint", false, NewDisconnectCommand))
 	cs.AddCommand(NewCommandDeclaration("generate", "Generate and display a new private key", false, NewGenerateKeyCommand))
-	cs.AddCommand(NewCommandDeclaration("help", "Show help on a given command", false, NewHelpCommand, *NewOptionalCommandArg("command", CmdName)))
+	cs.AddCommand(NewCommandDeclaration("help", "Show help on a given command", false, NewHelpCommand, *NewCommandArg("command", CmdName)))
 	cs.AddCommand(NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", String), *NewCommandArg("filename", String), *NewOptionalCommandArg("password", String)))
 	cs.AddCommand(NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
 	cs.AddCommand(NewCommandDeclaration("list", "List available commands", false, NewListCommand))
 	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", String)))
-	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", String), *NewCommandArg("entry-point", String), *NewOptionalCommandArg("arguments", String)))
+	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", String), *NewCommandArg("entry-point", String), *NewCommandArg("arguments", String)))
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand, *NewCommandArg("filename", String), *NewOptionalCommandArg("password", String)))
 	cs.AddCommand(NewCommandDeclaration("read", "Read from a smart contract", false, NewReadCommand, *NewCommandArg("contract-id", String), *NewCommandArg("entry-point", String), *NewCommandArg("arguments", String)))
 	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("amount", Amount), *NewCommandArg("address", Address)))
@@ -144,9 +144,9 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	var address types.AccountType
 
 	// Get current account balance if empty address
-	if *c.AddressString == "" {
+	if c.AddressString == nil {
 		if !ee.IsWalletOpen() {
-			return nil, fmt.Errorf("%w: address", ErrMissingParam)
+			return nil, fmt.Errorf("%w: must give an address", ErrWalletClosed)
 		}
 
 		address = types.AccountType(ee.Key.Address())
@@ -419,12 +419,12 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 // CreateCommand is a command that creates a new wallet
 type CreateCommand struct {
 	Filename string
-	Password string
+	Password *string
 }
 
 // NewCreateCommand creates a new create object
 func NewCreateCommand(inv *CommandParseResult) CLICommand {
-	return &CreateCommand{Filename: *inv.Args["filename"], Password: *inv.Args["password"]}
+	return &CreateCommand{Filename: *inv.Args["filename"], Password: inv.Args["password"]}
 }
 
 // Execute creates a new wallet
@@ -447,8 +447,16 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 		return nil, err
 	}
 
+	// Get the password
+	pass := ""
+	if c.Password == nil {
+		pass = os.Getenv("WALLET_PASS")
+	} else {
+		pass = *c.Password
+	}
+
 	// Write the key to the wallet file
-	err = CreateWalletFile(file, c.Password, key.PrivateBytes())
+	err = CreateWalletFile(file, pass, key.PrivateBytes())
 	if err != nil {
 		return nil, err
 	}
@@ -471,13 +479,13 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 // ImportCommand is a command that imports a private key to a wallet
 type ImportCommand struct {
 	Filename   string
-	Password   string
+	Password   *string
 	PrivateKey string
 }
 
 // NewImportCommand creates a new import object
 func NewImportCommand(inv *CommandParseResult) CLICommand {
-	return &ImportCommand{Filename: *inv.Args["filename"], Password: *inv.Args["password"], PrivateKey: *inv.Args["private-key"]}
+	return &ImportCommand{Filename: *inv.Args["filename"], Password: inv.Args["password"], PrivateKey: *inv.Args["private-key"]}
 }
 
 // Execute creates a new wallet
@@ -505,8 +513,16 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 		return nil, err
 	}
 
+	// Get the password
+	pass := ""
+	if c.Password == nil {
+		pass = os.Getenv("WALLET_PASS")
+	} else {
+		pass = *c.Password
+	}
+
 	// Write the key to the wallet file
-	err = CreateWalletFile(file, c.Password, key.PrivateBytes())
+	err = CreateWalletFile(file, pass, key.PrivateBytes())
 	if err != nil {
 		return nil, err
 	}
@@ -691,12 +707,12 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 // OpenCommand is a command that opens a wallet file
 type OpenCommand struct {
 	Filename string
-	Password string
+	Password *string
 }
 
 // NewOpenCommand creates a new open command object
 func NewOpenCommand(inv *CommandParseResult) CLICommand {
-	return &OpenCommand{Filename: *inv.Args["filename"], Password: *inv.Args["password"]}
+	return &OpenCommand{Filename: *inv.Args["filename"], Password: inv.Args["password"]}
 }
 
 // Execute opens a wallet
@@ -707,8 +723,16 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		return nil, err
 	}
 
+	// Get the password
+	pass := ""
+	if c.Password == nil {
+		pass = os.Getenv("WALLET_PASS")
+	} else {
+		pass = *c.Password
+	}
+
 	// Read the wallet file
-	keyBytes, err := ReadWalletFile(file, c.Password)
+	keyBytes, err := ReadWalletFile(file, pass)
 	if err != nil {
 		return nil, fmt.Errorf("%w: check your password", ErrWalletDecrypt)
 	}
