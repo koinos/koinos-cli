@@ -804,8 +804,8 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 
 	// Ensure a transfer greater than zero
 	if sAmount <= 0 {
-		minialAmount, _ := SatoshiToDecimal(1, KoinPrecision)
-		return nil, fmt.Errorf("%w: cannot transfer %s %s, amount should be grater than minimal %s (1e-%d) %s", ErrInvalidAmount, dAmount, KoinSymbol, minialAmount, KoinPrecision, KoinSymbol)
+		minimalAmount, _ := SatoshiToDecimal(1, KoinPrecision)
+		return nil, fmt.Errorf("%w: cannot transfer %s %s, amount should be greater than minimal %s (1e-%d) %s", ErrInvalidAmount, dAmount, KoinSymbol, minimalAmount, KoinPrecision, KoinSymbol)
 	}
 
 	// Fetch the account's nonce
