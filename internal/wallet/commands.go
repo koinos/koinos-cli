@@ -816,7 +816,8 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 
 	// Ensure a transfer greater than zero
 	if sAmount <= 0 {
-		return nil, fmt.Errorf("%w: cannot transfer %d %s", ErrInvalidAmount, sAmount, KoinSymbol)
+		minimalAmount, _ := SatoshiToDecimal(1, KoinPrecision)
+		return nil, fmt.Errorf("%w: cannot transfer %s %s, amount should be greater than minimal %s (1e-%d) %s", ErrInvalidAmount, dAmount, KoinSymbol, minimalAmount, KoinPrecision, KoinSymbol)
 	}
 
 	// Setup command execution environment
