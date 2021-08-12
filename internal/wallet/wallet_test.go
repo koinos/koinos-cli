@@ -49,6 +49,7 @@ func makeTestParser() *CommandParser {
 	cs.AddCommand(NewCommandDeclaration("test_none2", "Another test command which takes no arguments", false, nil))
 	cs.AddCommand(NewCommandDeclaration("test_multi", "Test command which takes multiple arguments, and of different types", false, NewGenerateKeyCommand,
 		*NewCommandArg("arg0", Address), *NewCommandArg("arg1", String), *NewCommandArg("arg2", Amount), *NewCommandArg("arg0", String)))
+	cs.AddCommand(NewCommandDeclaration("optional", "Test command which takes optional arguments", false, nil, *NewCommandArg("arg0", String), *NewCommandArg("arg1", String), *NewOptionalCommandArg("arg2", String), *NewOptionalCommandArg("arg3", String)))
 
 	parser := NewCommandParser(cs)
 
@@ -136,6 +137,22 @@ func TestBasicParser(t *testing.T) {
 	if results.Len() != 1 {
 		t.Error("Expected 1 result, got", results.Len())
 	}
+}
+
+func TestOptionalArguments(t *testing.T) {
+	parser := makeTestParser()
+
+	// This should error since it is missing a required argument
+	_, err := parser.Parse("optional abcd")
+	if !errors.Is(err, ErrMissingParam) {
+		t.Error("Expected error", ErrMissingParam, ", got", err)
+	}
+
+	// Check with two optional parameters
+	//_, err = parser.Parse("optional abcd efgh")
+	//if !errors.Is(err, ErrMissingParam) {
+	//	t.Error("Expected error", ErrMissingParam, ", got", err)
+	//}
 }
 
 // Test that parser correctly parses terminators

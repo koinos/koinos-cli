@@ -74,6 +74,18 @@ func (d *CommandDeclaration) String() string {
 // NewCommandDeclaration create a new command declaration
 func NewCommandDeclaration(name string, description string, hidden bool,
 	instantiation func(*CommandParseResult) CLICommand, args ...CommandArg) *CommandDeclaration {
+	// Ensure optionals are only at the end
+	req := true
+	for _, arg := range args {
+		if !arg.Optional {
+			if !req {
+				return nil
+			}
+		} else {
+			req = false
+		}
+	}
+
 	return &CommandDeclaration{
 		Name:          name,
 		Description:   description,
@@ -99,7 +111,7 @@ func NewCommandArg(name string, argType CommandArgType) *CommandArg {
 	}
 }
 
-// NewOptioanlCommandArg creates a new optional command argument
+// NewOptionalCommandArg creates a new optional command argument
 func NewOptionalCommandArg(name string, argType CommandArgType) *CommandArg {
 	return &CommandArg{
 		Name:     name,
