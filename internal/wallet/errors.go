@@ -46,4 +46,7 @@ var (
 
 	// ErrFileNotFound is returned when the file is not found
 	ErrFileNotFound = errors.New("file not found")
+
+	// ErrBlankPassword is returned when the user supplies a blank password
+	ErrBlankPassword = errors.New("blank password")
 )

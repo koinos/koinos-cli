@@ -65,7 +65,13 @@ type CommandDeclaration struct {
 func (d *CommandDeclaration) String() string {
 	s := d.Name
 	for _, arg := range d.Args {
-		s += " <" + arg.Name + ">"
+		val := ""
+		if arg.Optional {
+			val = " [" + arg.Name + "]"
+		} else {
+			val = " <" + arg.Name + ">"
+		}
+		s += val
 	}
 
 	return s
@@ -74,6 +80,18 @@ func (d *CommandDeclaration) String() string {
 // NewCommandDeclaration create a new command declaration
 func NewCommandDeclaration(name string, description string, hidden bool,
 	instantiation func(*CommandParseResult) CLICommand, args ...CommandArg) *CommandDeclaration {
+	// Ensure optionals are only at the end
+	req := true
+	for _, arg := range args {
+		if !arg.Optional {
+			if !req {
+				return nil
+			}
+		} else {
+			req = false
+		}
+	}
+
 	return &CommandDeclaration{
 		Name:          name,
 		Description:   description,
@@ -99,7 +117,7 @@ func NewCommandArg(name string, argType CommandArgType) *CommandArg {
 	}
 }
 
-// NewOptioanlCommandArg creates a new optional command argument
+// NewOptionalCommandArg creates a new optional command argument
 func NewOptionalCommandArg(name string, argType CommandArgType) *CommandArg {
 	return &CommandArg{
 		Name:     name,

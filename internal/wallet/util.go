@@ -19,7 +19,7 @@ import (
 
 const (
 	// Version number (this should probably not live here)
-	Version = "v0.1.2"
+	Version = "v0.2.0"
 )
 
 // SignTransaction signs the transaction with the given key
@@ -317,4 +317,26 @@ func paddedAppend(size uint, dst, src []byte) []byte {
 		dst = append(dst, 0)
 	}
 	return append(dst, src...)
+}
+
+// GetPassword takes the password input from a command, and returns the string password which should be used
+func GetPassword(password *string) (string, error) {
+	// Get the password
+	result := ""
+	if password == nil { // If no password is provided, check the environment variable
+		result = os.Getenv("WALLET_PASS")
+		// Advise about the environment variable
+		if result == "" {
+			return result, fmt.Errorf("%w: no password was provided and env variable WALLET_PASS is empty", ErrBlankPassword)
+		}
+	} else {
+		result = *password
+	}
+
+	// If the result is blank, return an error
+	if result == "" {
+		return result, fmt.Errorf("%w: password cannot be empty", ErrBlankPassword)
+	}
+
+	return result, nil
 }

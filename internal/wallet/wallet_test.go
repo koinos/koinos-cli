@@ -49,6 +49,7 @@ func makeTestParser() *CommandParser {
 	cs.AddCommand(NewCommandDeclaration("test_none2", "Another test command which takes no arguments", false, nil))
 	cs.AddCommand(NewCommandDeclaration("test_multi", "Test command which takes multiple arguments, and of different types", false, NewGenerateKeyCommand,
 		*NewCommandArg("arg0", Address), *NewCommandArg("arg1", String), *NewCommandArg("arg2", Amount), *NewCommandArg("arg0", String)))
+	cs.AddCommand(NewCommandDeclaration("optional", "Test command which takes optional arguments", false, nil, *NewCommandArg("arg0", String), *NewCommandArg("arg1", String), *NewOptionalCommandArg("arg2", String), *NewOptionalCommandArg("arg3", String)))
 
 	parser := NewCommandParser(cs)
 
@@ -135,6 +136,52 @@ func TestBasicParser(t *testing.T) {
 
 	if results.Len() != 1 {
 		t.Error("Expected 1 result, got", results.Len())
+	}
+}
+
+func TestOptionalArguments(t *testing.T) {
+	parser := makeTestParser()
+
+	// These should error since it is missing a required argument
+	checkParseResults(t, parser, "optional", ErrMissingParam, []string{}, []interface{}{})
+	checkParseResults(t, parser, "optional abcd", ErrMissingParam, []string{}, []interface{}{})
+
+	// Check with proper optional arguments
+	checkParseResults(t, parser, "optional abcd efgh", nil, []string{"arg0", "arg1", "arg2", "arg3"}, []interface{}{"abcd", "efgh", nil, nil})
+	checkParseResults(t, parser, "optional abcd efgh ijkl", nil, []string{"arg0", "arg1", "arg2", "arg3"}, []interface{}{"abcd", "efgh", "ijkl", nil})
+	checkParseResults(t, parser, "optional abcd efgh ijkl mnop", nil, []string{"arg0", "arg1", "arg2", "arg3"}, []interface{}{"abcd", "efgh", "ijkl", "mnop"})
+}
+
+func checkParseResults(t *testing.T, parser *CommandParser, cmd string, errType error, names []string, values []interface{}) {
+	res, err := parser.Parse(cmd)
+	if errType != nil {
+		if !errors.Is(err, errType) {
+			t.Error("Expected error", errType, ", got", err)
+		}
+
+		return
+	} else if err != nil {
+		t.Error(err)
+	}
+
+	for i, name := range names {
+		// Get creative to parse the results
+		var s *string = nil
+		if values[i] != nil {
+			v := values[i].(string)
+			s = &v
+		}
+
+		if s == nil {
+			if res.CommandResults[0].Args[name] != nil {
+				t.Error("Expected nil, got", res.CommandResults[0].Args[name])
+			}
+			return
+		}
+
+		if *res.CommandResults[0].Args[name] != *s {
+			t.Error("Expected command name", *s, "but got", *res.CommandResults[0].Args[name])
+		}
 	}
 }
 

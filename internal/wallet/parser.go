@@ -34,7 +34,7 @@ const (
 // CommandParseResult is the result of parsing a single command string
 type CommandParseResult struct {
 	CommandName string
-	Args        map[string]string // This could be a slice of strings potentially
+	Args        map[string]*string // This could be a slice of strings potentially
 	Decl        *CommandDeclaration
 	CurrentArg  int
 	Termination TerminationStatus
@@ -44,7 +44,7 @@ type CommandParseResult struct {
 func NewCommandParseResult(name string) *CommandParseResult {
 	inv := &CommandParseResult{
 		CommandName: name,
-		Args:        make(map[string]string),
+		Args:        make(map[string]*string),
 		CurrentArg:  -1,
 	}
 
@@ -185,11 +185,11 @@ func (p *CommandParser) parseArgs(input []byte, inv *CommandParseResult) ([]byte
 		input, t = p.parseSkip(input, inv, true)
 		if t != None {
 			if arg.Optional {
-				inv.Args[arg.Name] = ""
+				inv.Args[arg.Name] = nil
 				return input, nil
-			} else {
-				return input, fmt.Errorf("%w: %s", ErrMissingParam, arg.Name)
 			}
+
+			return input, fmt.Errorf("%w: %s", ErrMissingParam, arg.Name)
 		}
 
 		var match []byte
@@ -215,7 +215,8 @@ func (p *CommandParser) parseArgs(input []byte, inv *CommandParseResult) ([]byte
 		}
 
 		// Store the argument value in the invocation
-		inv.Args[arg.Name] = string(match)
+		val := string(match)
+		inv.Args[arg.Name] = &val
 	}
 
 	return input, nil

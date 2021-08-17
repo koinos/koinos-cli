@@ -26,6 +26,8 @@ To import an existing WIF private key, use the commands `import <wif> <filename>
 
 To close an open wallet, simply use the `close` command.
 
+Any of the commands which take a password may be called with it omitted. In this case it will use the value in the `WALLET_PASS` environment variable / .env file.
+
 ## Other useful commands
 
 To check the balance of a given public address, use the commands `balance <address>`.
