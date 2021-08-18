@@ -196,7 +196,12 @@ func (pr *ParseResults) Metrics() *ParseResultMetrics {
 	// Calculated the type of param
 	pType := CmdName
 	if arg >= 0 {
-		pType = pr.CommandResults[index].Decl.Args[arg].ArgType
+		// If there is a declaration, find the type of the param
+		if pr.CommandResults[index].Decl != nil {
+			pType = pr.CommandResults[index].Decl.Args[arg].ArgType
+		} else { // Otherwise it is an invalid command
+			pType = Nothing
+		}
 	}
 
 	return &ParseResultMetrics{CurrentResultIndex: index, CurrentArg: arg, CurrentParamType: pType}

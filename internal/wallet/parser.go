@@ -24,6 +24,9 @@ const (
 	String
 	Amount
 	CmdName
+
+	// A parameter should never be declared as type nothing, this is only for parsing errors
+	Nothing
 )
 
 // Characters used in parsing
