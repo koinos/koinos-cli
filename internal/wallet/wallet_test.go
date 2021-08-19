@@ -113,9 +113,13 @@ func TestBasicParser(t *testing.T) {
 	if results.Len() != 0 {
 		t.Error("Expected 0 results, got", results.Len())
 	}
+}
+
+func TestBadInput(t *testing.T) {
+	parser := makeTestParser()
 
 	// Test nonsensical string of empty commands
-	results, err = parser.Parse(" ; ;; ;; ;;;;    ;     ;  ;    ")
+	results, err := parser.Parse(" ; ;; ;; ;;;;    ;     ;  ;    ")
 	if err == nil {
 		t.Error("Expected error, got none")
 	}
@@ -290,38 +294,43 @@ func TestParseMetrics(t *testing.T) {
 	parser := makeTestParser()
 
 	// Test parsing a half finished command
-	checkMetrics("test_mu", parser, t, true, 0, -1)
+	checkMetrics("test_mu", parser, t, true, 0, -1, CmdName)
 
 	// Test parsing a finished command
-	checkMetrics("test_multi", parser, t, true, 0, -1)
+	checkMetrics("test_multi", parser, t, true, 0, -1, CmdName)
 
 	// Test parsing a finished command with a space
-	checkMetrics("test_multi ", parser, t, true, 0, 0)
+	checkMetrics("test_multi ", parser, t, true, 0, 0, Address)
 
 	// Test parsing the rest of the arguments address string amount string
-	checkMetrics("test_multi 1iwBq2QA", parser, t, true, 0, 0)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", parser, t, true, 0, 0)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk ", parser, t, true, 0, 1)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword str", parser, t, true, 0, 1)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string'", parser, t, true, 0, 1)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' ", parser, t, true, 0, 2)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403", parser, t, true, 0, 2)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873", parser, t, true, 0, 2)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 ", parser, t, true, 0, 3)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str", parser, t, false, 0, 3)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str ", parser, t, false, 0, 3) // What should happen here?
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str;", parser, t, false, 1, -1)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; ", parser, t, false, 1, -1)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; tes", parser, t, true, 1, -1)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string", parser, t, true, 1, -1)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string ", parser, t, true, 1, 0)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string \"abc", parser, t, true, 1, 0)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\"", parser, t, false, 1, 0)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\";", parser, t, false, 2, -1)
+	checkMetrics("test_multi 1iwBq2QA", parser, t, true, 0, 0, Address)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", parser, t, true, 0, 0, Address)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk ", parser, t, true, 0, 1, String)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword str", parser, t, true, 0, 1, String)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string'", parser, t, true, 0, 1, String)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' ", parser, t, true, 0, 2, Amount)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403", parser, t, true, 0, 2, Amount)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873", parser, t, true, 0, 2, Amount)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 ", parser, t, true, 0, 3, String)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str", parser, t, false, 0, 3, String)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str ", parser, t, false, 0, 3, String) // What should happen here?
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str;", parser, t, false, 1, -1, CmdName)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; ", parser, t, false, 1, -1, CmdName)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; tes", parser, t, true, 1, -1, CmdName)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string", parser, t, true, 1, -1, CmdName)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string ", parser, t, true, 1, 0, String)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string \"abc", parser, t, true, 1, 0, String)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\"", parser, t, false, 1, 0, String)
+	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\";", parser, t, false, 2, -1, CmdName)
 
+	// Test parsing invalid command followed by spaces
+	checkMetrics("n  ", parser, t, true, 0, 0, Nothing)
+	checkMetrics("    n         ", parser, t, true, 0, 0, Nothing)
+	checkMetrics("nonsense ", parser, t, true, 0, 0, Nothing)
+	checkMetrics(" a  d dsf ", parser, t, true, 0, 0, Nothing)
 }
 
-func checkMetrics(input string, parser *CommandParser, t *testing.T, expectError bool, index int, arg int) {
+func checkMetrics(input string, parser *CommandParser, t *testing.T, expectError bool, index int, arg int, pType CommandArgType) {
 	res, err := parser.Parse(input)
 	if err == nil && expectError {
 		t.Error("Expected error, got none")
@@ -337,5 +346,9 @@ func checkMetrics(input string, parser *CommandParser, t *testing.T, expectError
 
 	if metrics.CurrentArg != arg {
 		t.Error("Expected current arg to be", arg, "got", metrics.CurrentArg)
+	}
+
+	if metrics.CurrentParamType != pType {
+		t.Error("Expected current param type to be", pType, "got", metrics.CurrentParamType)
 	}
 }
