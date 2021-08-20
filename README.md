@@ -53,3 +53,7 @@ Commands can be executed without using interactive mode. The `--execute` command
 To build the wallet from source, you will need Go version 1.15 or higher.
 
 From the root of the repository, simply run the command `go build -o koinos-cli-wallet cmd/cli-wallet/main.go`
+
+## Public RPC server
+
+There is a public RPC server that may be used for testing at this address: http://192.241.131.189:8080
