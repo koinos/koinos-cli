@@ -11,13 +11,14 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
+	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/koinos/koinos-proto-golang/koinos/rpc/chain"
 	"github.com/minio/sio"
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multihash"
 	"github.com/shopspring/decimal"
-	"github.com/ybbus/jsonrpc/v2"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -75,17 +76,17 @@ func DecimalToSatoshi(d *decimal.Decimal, precision int) (int64, error) {
 
 // KoinosRPCClient is a wrapper around the jsonrpc client
 type KoinosRPCClient struct {
-	client jsonrpc.RPCClient
+	client kjsonrpc.RPCClient
 }
 
 // NewKoinosRPCClient creates a new koinos rpc client
 func NewKoinosRPCClient(url string) *KoinosRPCClient {
-	client := jsonrpc.NewClient(url)
+	client := kjsonrpc.NewClient(url)
 	return &KoinosRPCClient{client: client}
 }
 
 // Call wraps the rpc client call and handles some of the boilerplate
-func (c *KoinosRPCClient) Call(method string, params interface{}, returnType interface{}) error {
+func (c *KoinosRPCClient) Call(method string, params proto.Message, returnType interface{}) error {
 	// Make the rpc call
 	resp, err := c.client.Call(method, params)
 	if err != nil {
@@ -127,7 +128,7 @@ func (c *KoinosRPCClient) ReadContract(args []byte, contractID []byte, balanceOf
 
 	// Make the rpc call
 	var cResp chain.ReadContractResponse
-	err := c.Call(ReadContractCall, params, &cResp)
+	err := c.Call(ReadContractCall, &params, &cResp)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +144,7 @@ func (c *KoinosRPCClient) GetAccountNonce(address string) (uint64, error) {
 
 	// Make the rpc call
 	var cResp chain.GetAccountNonceResponse
-	err := c.Call(GetAccountNonceCall, params, &cResp)
+	err := c.Call(GetAccountNonceCall, &params, &cResp)
 	if err != nil {
 		return 0, err
 	}

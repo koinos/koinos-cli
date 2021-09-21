@@ -230,10 +230,6 @@ github.com/klauspost/pgzip v1.0.2-0.20170402124221-0bf5dcad4ada/go.mod h1:Ch1tH6
 github.com/koinos/koinos-proto-golang v0.0.0-20210817202730-232f9d89dd0b/go.mod h1:X0JDk9LJhh3zXCTtKc0OLL9zUGbVk1HIGPKi/WLpFuE=
 github.com/koinos/koinos-proto-golang v0.0.0-20210919011007-d51316fca0ff h1:309ck5Zld7LiMxFRExyXpA7njXL+N7RXLsTnVYkssrM=
 github.com/koinos/koinos-proto-golang v0.0.0-20210919011007-d51316fca0ff/go.mod h1:za0qDhkL4SFoDhKW0ZGde/t+SkIHlM1DtT4u9yz98mw=
-github.com/koinos/koinos-types-golang v0.0.0-20210628221636-0b4f1b4a2ccf h1:daOxlccXpidZ7QY1I8WQ6ENCnkZtU5/BOrlVCk4r8X0=
-github.com/koinos/koinos-types-golang v0.0.0-20210628221636-0b4f1b4a2ccf/go.mod h1:inTj1woeLBXfRICUkKYjW7pCsrVJCBBJvMcOzx7+PSs=
-github.com/koinos/koinos-util-golang v0.0.0-20210812171140-1bd3aaf09f9b h1:3XrTVtsWPz+Q24uLavesQp/H8RyKSOPO47EP3xc7n/4=
-github.com/koinos/koinos-util-golang v0.0.0-20210812171140-1bd3aaf09f9b/go.mod h1:vusKGouWVliG3CZmzgRSSe07bWccEU+MFIdnrIqmhXU=
 github.com/koinos/koinos-util-golang v0.0.0-20210909225633-da2fb456bade h1:qiTxIjQpu3xo4dm6QCp0EmN0PnhR/VsA3yyu5USMZA4=
 github.com/koinos/koinos-util-golang v0.0.0-20210909225633-da2fb456bade/go.mod h1:3NWXUf07ZUBOBYzU7r+aG34kA2bI0Y/kLXaZyF1Y7q4=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=

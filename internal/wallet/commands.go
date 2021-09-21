@@ -383,7 +383,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 
 	// Make the rpc call
 	var cResp chain.SubmitTransactionResponse
-	err = ee.RPCClient.Call(SubmitTransactionCall, params, &cResp)
+	err = ee.RPCClient.Call(SubmitTransactionCall, &params, &cResp)
 	if err != nil {
 		return nil, err
 	}
@@ -658,7 +658,7 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 
 	// Make the rpc call
 	var cResp chain.SubmitTransactionResponse
-	err = ee.RPCClient.Call(SubmitTransactionCall, params, &cResp)
+	err = ee.RPCClient.Call(SubmitTransactionCall, &params, &cResp)
 	if err != nil {
 		return nil, err
 	}
@@ -881,7 +881,7 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 
 	// Make the rpc call
 	var cResp chain.SubmitTransactionResponse
-	err = ee.RPCClient.Call(SubmitTransactionCall, params, &cResp)
+	err = ee.RPCClient.Call(SubmitTransactionCall, &params, &cResp)
 	if err != nil {
 		return nil, err
 	}
