@@ -4,15 +4,18 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"os"
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
-	types "github.com/koinos/koinos-types-golang"
+	"github.com/koinos/koinos-proto-golang/koinos/protocol"
+	"github.com/koinos/koinos-proto-golang/koinos/rpc/chain"
 	"github.com/minio/sio"
 	"github.com/mr-tron/base58"
+	"github.com/multiformats/go-multihash"
 	"github.com/shopspring/decimal"
 	"github.com/ybbus/jsonrpc/v2"
 )
@@ -23,35 +26,30 @@ const (
 )
 
 // SignTransaction signs the transaction with the given key
-func SignTransaction(key []byte, tx *types.Transaction) error {
+func SignTransaction(key []byte, tx *protocol.Transaction) error {
 	privateKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), key)
 
+	// Decode the mutlihashed ID
+	idBytes, err := multihash.Decode(tx.Id)
+	if err != nil {
+		return err
+	}
+
 	// Sign the transaction ID
-	signatureBytes, err := btcec.SignCompact(btcec.S256(), privateKey, tx.ID.Digest, true)
+	signatureBytes, err := btcec.SignCompact(btcec.S256(), privateKey, idBytes.Digest, true)
 	if err != nil {
 		return err
 	}
 
 	// Attach the signature data to the transaction
-	tx.SignatureData = types.VariableBlob(signatureBytes)
-
-	if err != nil {
-		return err
-	}
+	tx.SignatureData = signatureBytes
 
 	return nil
 }
 
 // ContractStringToID converts a base64 contract id string to a contract id object
-func ContractStringToID(s string) (*types.ContractIDType, error) {
-	b, err := base64.StdEncoding.DecodeString(s[1:])
-	cid := types.NewContractIDType()
-	if err != nil {
-		return cid, err
-	}
-
-	copy(cid[:], b)
-	return cid, nil
+func ContractStringToID(s string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(s[1:])
 }
 
 // SatoshiToDecimal converts the given UInt64 value to a decimals with the given precision
@@ -107,35 +105,28 @@ func (c *KoinosRPCClient) Call(method string, params interface{}, returnType int
 }
 
 // GetAccountBalance gets the balance of a given account
-func (c *KoinosRPCClient) GetAccountBalance(address *types.AccountType, contractID *types.ContractIDType, balanceOfEntry types.UInt32) (types.UInt64, error) {
-	// Form the args
-	vb := types.NewVariableBlob()
-	vb = address.Serialize(vb)
-
+func (c *KoinosRPCClient) GetAccountBalance(address string, contractID []byte, balanceOfEntry uint32) (uint64, error) {
 	// Make the rpc call
-	cResp, err := c.ReadContract(vb, contractID, balanceOfEntry)
+	cResp, err := c.ReadContract([]byte(address), contractID, balanceOfEntry)
 	if err != nil {
 		return 0, err
 	}
 
-	_, balance, err := types.DeserializeUInt64(&cResp.Result)
-	if err != nil {
-		return 0, err
+	balance, i := binary.Uvarint(cResp.Result)
+	if i <= 0 {
+		return 0, fmt.Errorf("%w: invalid balance", ErrInvalidResponse)
 	}
 
-	return *balance, nil
+	return balance, nil
 }
 
 // ReadContract reads from the given contract and returns the response
-func (c *KoinosRPCClient) ReadContract(args *types.VariableBlob, contractID *types.ContractIDType, balanceOfEntry types.UInt32) (*types.ReadContractResponse, error) {
+func (c *KoinosRPCClient) ReadContract(args []byte, contractID []byte, balanceOfEntry uint32) (*chain.ReadContractResponse, error) {
 	// Build the contract request
-	params := types.NewReadContractRequest()
-	params.ContractID = *contractID
-	params.EntryPoint = balanceOfEntry
-	params.Args = *args
+	params := chain.ReadContractRequest{ContractId: contractID, EntryPoint: balanceOfEntry, Args: args}
 
 	// Make the rpc call
-	var cResp types.ReadContractResponse
+	var cResp chain.ReadContractResponse
 	err := c.Call(ReadContractCall, params, &cResp)
 	if err != nil {
 		return nil, err
@@ -145,13 +136,13 @@ func (c *KoinosRPCClient) ReadContract(args *types.VariableBlob, contractID *typ
 }
 
 // GetAccountNonce gets the nonce of a given account
-func (c *KoinosRPCClient) GetAccountNonce(address *types.AccountType) (types.UInt64, error) {
+func (c *KoinosRPCClient) GetAccountNonce(address string) (uint64, error) {
 	// Build the contract request
-	params := types.NewGetAccountNonceRequest()
-	params.Account = *address
+	params := chain.GetAccountNonceRequest{}
+	params.Account = []byte(address)
 
 	// Make the rpc call
-	var cResp types.GetAccountNonceResponse
+	var cResp chain.GetAccountNonceResponse
 	err := c.Call(GetAccountNonceCall, params, &cResp)
 	if err != nil {
 		return 0, err

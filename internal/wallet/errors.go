@@ -20,6 +20,9 @@ var (
 	// ErrInvalidParam is returned when a parameter is invalid.
 	ErrInvalidParam = errors.New("invalid value given for parameter")
 
+	// ErrInvalidResponse is returned when a response from the RPC endpoint is invalid
+	ErrInvalidResponse = errors.New("invalid response")
+
 	// ErrUnexpectedHashLength is returned when the passphrase hash length is incorrect
 	ErrUnexpectedHashLength = errors.New("unexpected hash length")
 
