@@ -449,7 +449,6 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
 	result.AddMessage(fmt.Sprintf("Address: %s", key.Address()))
-	result.AddMessage("Use the info command to see more information")
 
 	return result, nil
 }
@@ -513,7 +512,6 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
 	result.AddMessage(fmt.Sprintf("Address: %s", key.Address()))
-	result.AddMessage("Use the info command to see more information")
 
 	return result, nil
 }
@@ -526,12 +524,12 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 type AddressCommand struct {
 }
 
-// NewAddressCommand creates a new info command object
+// NewAddressCommand creates a new address command object
 func NewAddressCommand(inv *CommandParseResult) CLICommand {
 	return &AddressCommand{}
 }
 
-// Execute shows wallet info
+// Execute shows wallet address
 func (c *AddressCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
 		return nil, fmt.Errorf("%w: cannot show address", ErrWalletClosed)
@@ -551,12 +549,12 @@ func (c *AddressCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 type PrivateCommand struct {
 }
 
-// NewPrivateCommand creates a new info command object
+// NewPrivateCommand creates a new private command object
 func NewPrivateCommand(inv *CommandParseResult) CLICommand {
 	return &PrivateCommand{}
 }
 
-// Execute shows wallet info
+// Execute shows wallet private key
 func (c *PrivateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
 		return nil, fmt.Errorf("%w: cannot show private key", ErrWalletClosed)
