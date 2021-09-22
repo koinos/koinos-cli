@@ -98,6 +98,7 @@ func (cs *CommandSet) List(pretty bool) []string {
 func NewKoinosCommandSet() *CommandSet {
 	cs := NewCommandSet()
 
+	cs.AddCommand(NewCommandDeclaration("address", "Show the currently opened wallet's address", false, NewAddressCommand))
 	cs.AddCommand(NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewOptionalCommandArg("address", Address)))
 	cs.AddCommand(NewCommandDeclaration("connect", "Connect to an RPC endpoint", false, NewConnectCommand, *NewCommandArg("url", String)))
 	cs.AddCommand(NewCommandDeclaration("close", "Close the currently open wallet", false, NewCloseCommand))
@@ -106,11 +107,11 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("generate", "Generate and display a new private key", false, NewGenerateKeyCommand))
 	cs.AddCommand(NewCommandDeclaration("help", "Show help on a given command", false, NewHelpCommand, *NewCommandArg("command", CmdName)))
 	cs.AddCommand(NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", String), *NewCommandArg("filename", String), *NewOptionalCommandArg("password", String)))
-	cs.AddCommand(NewCommandDeclaration("info", "Show the currently opened wallet's address / key", false, NewInfoCommand))
 	cs.AddCommand(NewCommandDeclaration("list", "List available commands", false, NewListCommand))
 	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", String)))
 	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", String), *NewCommandArg("entry-point", String), *NewCommandArg("arguments", String)))
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand, *NewCommandArg("filename", String), *NewOptionalCommandArg("password", String)))
+	cs.AddCommand(NewCommandDeclaration("private", "Show the currently opened wallet's private key", false, NewPrivateCommand))
 	cs.AddCommand(NewCommandDeclaration("read", "Read from a smart contract", false, NewReadCommand, *NewCommandArg("contract-id", String), *NewCommandArg("entry-point", String), *NewCommandArg("arguments", String)))
 	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("amount", Amount), *NewCommandArg("address", Address)))
 	cs.AddCommand(NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
@@ -448,7 +449,6 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
 	result.AddMessage(fmt.Sprintf("Address: %s", key.Address()))
-	result.AddMessage("Use the info command to see more information")
 
 	return result, nil
 }
@@ -512,34 +512,56 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
 	result.AddMessage(fmt.Sprintf("Address: %s", key.Address()))
-	result.AddMessage("Use the info command to see more information")
 
 	return result, nil
 }
 
 // ----------------------------------------------------------------------------
-// Info Command
+// Address Command
 // ----------------------------------------------------------------------------
 
-// InfoCommand is a command that shows the currently opened wallet's address and private key
-type InfoCommand struct {
+// AddressCommand is a command that shows the currently opened wallet's address and private key
+type AddressCommand struct {
 }
 
-// NewInfoCommand creates a new info command object
-func NewInfoCommand(inv *CommandParseResult) CLICommand {
-	return &InfoCommand{}
+// NewAddressCommand creates a new address command object
+func NewAddressCommand(inv *CommandParseResult) CLICommand {
+	return &AddressCommand{}
 }
 
-// Execute shows wallet info
-func (c *InfoCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+// Execute shows wallet address
+func (c *AddressCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
-		return nil, fmt.Errorf("%w: cannot show info", ErrWalletClosed)
+		return nil, fmt.Errorf("%w: cannot show address", ErrWalletClosed)
 	}
 
 	result := NewExecutionResult()
-	result.AddMessage("Wallet information:")
-	result.AddMessage(fmt.Sprintf("Address: %s", ee.Key.Address()))
-	result.AddMessage(fmt.Sprintf("Private: %s", ee.Key.Private()))
+	result.AddMessage(fmt.Sprintf("Wallet address: %s", ee.Key.Address()))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Private Command
+// ----------------------------------------------------------------------------
+
+// PrivateCommand is a command that shows the currently opened wallet's address and private key
+type PrivateCommand struct {
+}
+
+// NewPrivateCommand creates a new private command object
+func NewPrivateCommand(inv *CommandParseResult) CLICommand {
+	return &PrivateCommand{}
+}
+
+// Execute shows wallet private key
+func (c *PrivateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot show private key", ErrWalletClosed)
+	}
+
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Private key: %s", ee.Key.Private()))
 
 	return result, nil
 }
