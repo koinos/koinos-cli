@@ -37,10 +37,10 @@ func NewKoinosKeysFromBytes(private []byte) (*KoinosKey, error) {
 }
 
 // Address displays the base58 address associated with this key set
-func (keys *KoinosKey) Address() string {
+func (keys *KoinosKey) AddressBytes() []byte {
 	_, pubkey := btcec.PrivKeyFromBytes(btcec.S256(), keys.PrivateBytes())
 	mainNetAddr, _ := btcutil.NewAddressPubKey(pubkey.SerializeCompressed(), &chaincfg.MainNetParams)
-	return mainNetAddr.EncodeAddress()
+	return base58.Decode(mainNetAddr.EncodeAddress())
 }
 
 // Private gets the private key in base58

@@ -101,7 +101,7 @@ func NewCommandParser(commands *CommandSet) *CommandParser {
 	parser.commandNameRE = regexp.MustCompile(`^[a-zA-Z0-9_]+`)
 	parser.skipRE = regexp.MustCompile(`^\s*`)
 	parser.terminatorRE = regexp.MustCompile(`^(;|$)`)
-	parser.addressRE = regexp.MustCompile(`^[1-9A-HJ-NP-Za-km-z]+`)
+	parser.addressRE = regexp.MustCompile(`^0x[0-9a-fA-F]+`)
 	parser.simpleStringRE = regexp.MustCompile(`^[^\s"\';]+`)
 	parser.amountRE = regexp.MustCompile(`^((\d+(\.\d*)?)|(\.\d+))`)
 

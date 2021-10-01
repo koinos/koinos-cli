@@ -93,7 +93,7 @@ type RPCClient interface {
 	// an error is returned. if it was an JSON-RPC error it can be casted
 	// to *RPCError.
 	//
-	CallFor(out interface{}, method string, params proto.Message) error
+	CallFor(out proto.Message, method string, params proto.Message) error
 
 	// CallBatch invokes a list of RPCRequests in a single batch request.
 	//
@@ -368,7 +368,7 @@ func (client *rpcClient) CallRaw(request *RPCRequest) (*RPCResponse, error) {
 	return client.doCall(request)
 }
 
-func (client *rpcClient) CallFor(out interface{}, method string, params proto.Message) error {
+func (client *rpcClient) CallFor(out proto.Message, method string, params proto.Message) error {
 	rpcResponse, err := client.Call(method, params)
 	if err != nil {
 		return err
@@ -642,13 +642,13 @@ func (RPCResponse *RPCResponse) GetString() (string, error) {
 // GetObject converts the rpc response to an arbitrary type.
 //
 // The function works as you would expect it from json.Unmarshal()
-func (RPCResponse *RPCResponse) GetObject(toType interface{}) error {
+func (RPCResponse *RPCResponse) GetObject(toType proto.Message) error {
 	js, err := json.Marshal(RPCResponse.Result)
 	if err != nil {
 		return err
 	}
 
-	err = json.Unmarshal(js, toType)
+	err = protojson.Unmarshal(js, toType)
 	if err != nil {
 		return err
 	}

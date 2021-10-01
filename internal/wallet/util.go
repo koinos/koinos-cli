@@ -3,8 +3,7 @@ package wallet
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/base64"
-	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"os"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
 	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
+	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/koinos/koinos-proto-golang/koinos/rpc/chain"
 	"github.com/minio/sio"
@@ -50,7 +50,7 @@ func SignTransaction(key []byte, tx *protocol.Transaction) error {
 
 // ContractStringToID converts a base64 contract id string to a contract id object
 func ContractStringToID(s string) ([]byte, error) {
-	return base64.StdEncoding.DecodeString(s[1:])
+	return hex.DecodeString(s[2:])
 }
 
 // SatoshiToDecimal converts the given UInt64 value to a decimals with the given precision
@@ -86,7 +86,7 @@ func NewKoinosRPCClient(url string) *KoinosRPCClient {
 }
 
 // Call wraps the rpc client call and handles some of the boilerplate
-func (c *KoinosRPCClient) Call(method string, params proto.Message, returnType interface{}) error {
+func (c *KoinosRPCClient) Call(method string, params proto.Message, returnType proto.Message) error {
 	// Make the rpc call
 	resp, err := c.client.Call(method, params)
 	if err != nil {
@@ -106,25 +106,34 @@ func (c *KoinosRPCClient) Call(method string, params proto.Message, returnType i
 }
 
 // GetAccountBalance gets the balance of a given account
-func (c *KoinosRPCClient) GetAccountBalance(address string, contractID []byte, balanceOfEntry uint32) (uint64, error) {
+func (c *KoinosRPCClient) GetAccountBalance(address []byte, contractID []byte, balanceOfEntry uint32) (uint64, error) {
 	// Make the rpc call
-	cResp, err := c.ReadContract([]byte(address), contractID, balanceOfEntry)
+	balanceOfArgs := &token.BalanceOfArgs{
+		Owner: address,
+	}
+	argBytes, err := proto.Marshal(balanceOfArgs)
 	if err != nil {
 		return 0, err
 	}
 
-	balance, i := binary.Uvarint(cResp.Result)
-	if i <= 0 {
-		return 0, fmt.Errorf("%w: invalid balance", ErrInvalidResponse)
+	cResp, err := c.ReadContract(argBytes, contractID, balanceOfEntry)
+	if err != nil {
+		return 0, err
 	}
 
-	return balance, nil
+	balanceOfReturn := &token.BalanceOfReturn{}
+	err = proto.Unmarshal(cResp.Result, balanceOfReturn)
+	if err != nil {
+		return 0, err
+	}
+
+	return balanceOfReturn.Value, nil
 }
 
 // ReadContract reads from the given contract and returns the response
-func (c *KoinosRPCClient) ReadContract(args []byte, contractID []byte, balanceOfEntry uint32) (*chain.ReadContractResponse, error) {
+func (c *KoinosRPCClient) ReadContract(args []byte, contractID []byte, entryPoint uint32) (*chain.ReadContractResponse, error) {
 	// Build the contract request
-	params := chain.ReadContractRequest{ContractId: contractID, EntryPoint: balanceOfEntry, Args: args}
+	params := chain.ReadContractRequest{ContractId: contractID, EntryPoint: entryPoint, Args: args}
 
 	// Make the rpc call
 	var cResp chain.ReadContractResponse
@@ -137,10 +146,11 @@ func (c *KoinosRPCClient) ReadContract(args []byte, contractID []byte, balanceOf
 }
 
 // GetAccountNonce gets the nonce of a given account
-func (c *KoinosRPCClient) GetAccountNonce(address string) (uint64, error) {
+func (c *KoinosRPCClient) GetAccountNonce(address []byte) (uint64, error) {
 	// Build the contract request
-	params := chain.GetAccountNonceRequest{}
-	params.Account = []byte(address)
+	params := chain.GetAccountNonceRequest{
+		Account: address,
+	}
 
 	// Make the rpc call
 	var cResp chain.GetAccountNonceResponse

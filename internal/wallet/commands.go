@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,8 +12,10 @@ import (
 	"strconv"
 
 	"golang.org/x/crypto/ripemd160"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/koinos/koinos-proto-golang/koinos/canonical"
+	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/koinos/koinos-proto-golang/koinos/rpc/chain"
 	util "github.com/koinos/koinos-util-golang"
@@ -28,9 +30,17 @@ const (
 	SubmitTransactionCall = "chain.submit_transaction"
 	KoinSymbol            = "tKOIN"
 	KoinPrecision         = 8
-	KoinContractID        = "Mkw96mR+Hh71IWwJoT/2lJXBDl5Q="
+	KoinContractID        = "0xd32014064fcc2e8d11440e1eab7fa8ff7ed14a60bd3424"
 	KoinBalanceOfEntry    = uint32(0x15619248)
 	KoinTransferEntry     = uint32(0x62efa292)
+)
+
+// Hardcoded Multihash constants.
+const (
+	RIPEMD_128 = 0x1052
+	RIPEMD_160 = 0x1053
+	RIPEMD_256 = 0x1054
+	RIPEMD_320 = 0x1055
 )
 
 // CommandSet represents a set of commands for the parser
@@ -147,7 +157,8 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 		return nil, fmt.Errorf("%w: cannot check balance", ErrOffline)
 	}
 
-	var address string
+	var address []byte
+	var err error
 
 	// Get current account balance if empty address
 	if c.AddressString == nil {
@@ -155,9 +166,12 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 			return nil, fmt.Errorf("%w: must give an address", ErrWalletClosed)
 		}
 
-		address = ee.Key.Address()
+		address = ee.Key.AddressBytes()
 	} else {
-		address = *c.AddressString
+		address, err = hex.DecodeString(*c.AddressString)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Setup command execution environment
@@ -305,7 +319,7 @@ func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironme
 
 	result := NewExecutionResult()
 	result.AddMessage("New key generated. This is only shown once, make sure to record this information.")
-	result.AddMessage(fmt.Sprintf("Address: %s", k.Address()))
+	result.AddMessage(fmt.Sprintf("Address: %s", hex.EncodeToString(k.AddressBytes())))
 	result.AddMessage(fmt.Sprintf("Private: %s", k.Private()))
 
 	return result, nil
@@ -337,7 +351,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	}
 
 	// Fetch the accounts nonce
-	myAddress := ee.Key.Address()
+	myAddress := ee.Key.AddressBytes()
 	nonce, err := ee.RPCClient.GetAccountNonce(myAddress)
 	if err != nil {
 		return nil, err
@@ -350,10 +364,14 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	}
 
 	ripemd160Hasher := ripemd160.New()
-	ripemd160Hasher.Write([]byte(ee.Key.Address()))
-	contractIDDigest := ripemd160Hasher.Sum(nil)
+	ripemd160Hasher.Write(ee.Key.AddressBytes())
+	contractIDDigest := ripemd160Hasher.Sum(make([]byte, 0))
+	mh, err := multihash.Encode(contractIDDigest, RIPEMD_160)
+	if err != nil {
+		return nil, err
+	}
 
-	uc := protocol.Operation_UploadContract{UploadContract: &protocol.UploadContractOperation{ContractId: contractIDDigest, Bytecode: wasmBytes}}
+	uc := protocol.Operation_UploadContract{UploadContract: &protocol.UploadContractOperation{ContractId: mh, Bytecode: wasmBytes}}
 	op := protocol.Operation{Op: &uc}
 
 	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: []*protocol.Operation{&op}, ResourceLimit: 1000000}
@@ -448,7 +466,7 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
-	result.AddMessage(fmt.Sprintf("Address: %s", key.Address()))
+	result.AddMessage(fmt.Sprintf("Address: %s", hex.EncodeToString(key.AddressBytes())))
 
 	return result, nil
 }
@@ -511,7 +529,7 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
-	result.AddMessage(fmt.Sprintf("Address: %s", key.Address()))
+	result.AddMessage(fmt.Sprintf("Address: %s", hex.EncodeToString(key.AddressBytes())))
 
 	return result, nil
 }
@@ -536,7 +554,7 @@ func (c *AddressCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	result := NewExecutionResult()
-	result.AddMessage(fmt.Sprintf("Wallet address: %s", ee.Key.Address()))
+	result.AddMessage(fmt.Sprintf("Wallet address: %s", hex.EncodeToString(ee.Key.AddressBytes())))
 
 	return result, nil
 }
@@ -627,7 +645,7 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	}
 
 	// Fetch the accounts nonce
-	nonce, err := ee.RPCClient.GetAccountNonce(ee.Key.Address())
+	nonce, err := ee.RPCClient.GetAccountNonce(ee.Key.AddressBytes())
 	if err != nil {
 		return nil, err
 	}
@@ -838,7 +856,7 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	}
 
 	// Fetch the account's balance
-	myAddress := ee.Key.Address()
+	myAddress := ee.Key.AddressBytes()
 	balance, err := ee.RPCClient.GetAccountBalance(myAddress, contractID, KoinBalanceOfEntry)
 	if err != nil {
 		return nil, err
@@ -859,14 +877,15 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, err
 	}
 
-	// Serialize and assign the args
-	args := make([]byte, 0)
-	args = append(args, myAddress[:]...)
-	args = append(args, c.Address[:]...)
-	tAmount := uint64(sAmount)
-	amountBuf := make([]byte, binary.MaxVarintLen64)
-	n := binary.PutUvarint(amountBuf, tAmount)
-	args = append(args, amountBuf[:n]...)
+	transferArgs := &token.TransferArgs{
+		From:  myAddress,
+		To:    []byte(c.Address),
+		Value: uint64(sAmount),
+	}
+	args, err := proto.Marshal(transferArgs)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create the operation
 	callContractOp := protocol.CallContractOperation{ContractId: contractID, EntryPoint: KoinTransferEntry, Args: args}
@@ -874,7 +893,7 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	op := protocol.Operation{Op: &cco}
 
 	// Create the transaction
-	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: []*protocol.Operation{&op}, ResourceLimit: 1000000}
+	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: []*protocol.Operation{&op}, ResourceLimit: 10000000}
 	activeBytes, err := canonical.Marshal(&active)
 	if err != nil {
 		return nil, err

@@ -8,7 +8,7 @@ require (
 	github.com/c-bata/go-prompt v0.2.6-0.20210301180729-8aae7fb1a6f9
 	github.com/ethereum/go-ethereum v1.10.8
 	github.com/joho/godotenv v1.3.0
-	github.com/koinos/koinos-proto-golang v0.0.0-20210919011007-d51316fca0ff
+	github.com/koinos/koinos-proto-golang v0.0.0-20211001200544-80b8dee87b36
 	github.com/koinos/koinos-util-golang v0.0.0-20210909225633-da2fb456bade
 	github.com/minio/sio v0.3.0
 	github.com/mr-tron/base58 v1.2.0
