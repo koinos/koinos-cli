@@ -48,8 +48,8 @@ func SignTransaction(key []byte, tx *protocol.Transaction) error {
 	return nil
 }
 
-// ContractStringToID converts a base64 contract id string to a contract id object
-func ContractStringToID(s string) ([]byte, error) {
+// HexStringToBytes decodes a hex string to a byte slice
+func HexStringToBytes(s string) ([]byte, error) {
 	return hex.DecodeString(s[2:])
 }
 

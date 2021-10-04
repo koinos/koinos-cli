@@ -175,7 +175,7 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	// Setup command execution environment
-	contractID, err := ContractStringToID(KoinContractID)
+	contractID, err := HexStringToBytes(KoinContractID)
 	if err != nil {
 		panic("Invalid contract ID")
 	}
@@ -650,7 +650,7 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		return nil, err
 	}
 
-	contractID, err := ContractStringToID(c.ContractID)
+	contractID, err := HexStringToBytes(c.ContractID)
 
 	if err != nil {
 		return nil, err
@@ -777,7 +777,7 @@ func NewReadCommand(inv *CommandParseResult) CLICommand {
 
 // Execute reads from a contract
 func (c *ReadCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	cid, err := ContractStringToID(c.ContractID)
+	cid, err := HexStringToBytes(c.ContractID)
 	if err != nil {
 		return nil, err
 	}
@@ -850,7 +850,7 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	}
 
 	// Setup command execution environment
-	contractID, err := ContractStringToID(KoinContractID)
+	contractID, err := HexStringToBytes(KoinContractID)
 	if err != nil {
 		panic("Invalid contract ID")
 	}
@@ -877,9 +877,14 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, err
 	}
 
+	toAddress, err := HexStringToBytes(c.Address)
+	if err != nil {
+		return nil, err
+	}
+
 	transferArgs := &token.TransferArgs{
 		From:  myAddress,
-		To:    []byte(c.Address),
+		To:    toAddress,
 		Value: uint64(sAmount),
 	}
 	args, err := proto.Marshal(transferArgs)
@@ -893,7 +898,7 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	op := protocol.Operation{Op: &cco}
 
 	// Create the transaction
-	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: []*protocol.Operation{&op}, ResourceLimit: 10000000}
+	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: []*protocol.Operation{&op}, ResourceLimit: 1000000}
 	activeBytes, err := canonical.Marshal(&active)
 	if err != nil {
 		return nil, err
