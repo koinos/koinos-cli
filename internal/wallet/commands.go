@@ -319,7 +319,7 @@ func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironme
 
 	result := NewExecutionResult()
 	result.AddMessage("New key generated. This is only shown once, make sure to record this information.")
-	result.AddMessage(fmt.Sprintf("Address: %s", hex.EncodeToString(k.AddressBytes())))
+	result.AddMessage(fmt.Sprintf("Address: %s", DisplayAddress(k.AddressBytes())))
 	result.AddMessage(fmt.Sprintf("Private: %s", k.Private()))
 
 	return result, nil
@@ -466,7 +466,7 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
-	result.AddMessage(fmt.Sprintf("Address: %s", hex.EncodeToString(key.AddressBytes())))
+	result.AddMessage(fmt.Sprintf("Address: %s", DisplayAddress(key.AddressBytes())))
 
 	return result, nil
 }
@@ -529,7 +529,7 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
-	result.AddMessage(fmt.Sprintf("Address: %s", hex.EncodeToString(key.AddressBytes())))
+	result.AddMessage(fmt.Sprintf("Address: %s", DisplayAddress(key.AddressBytes())))
 
 	return result, nil
 }
@@ -554,7 +554,7 @@ func (c *AddressCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	result := NewExecutionResult()
-	result.AddMessage(fmt.Sprintf("Wallet address: %s", hex.EncodeToString(ee.Key.AddressBytes())))
+	result.AddMessage(fmt.Sprintf("Wallet address: %s", DisplayAddress(ee.Key.AddressBytes())))
 
 	return result, nil
 }
