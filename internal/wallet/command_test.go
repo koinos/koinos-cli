@@ -1,7 +1,6 @@
 package wallet
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -25,13 +24,11 @@ var httpServer *httptest.Server
 
 // start the testhttp server and stop it when tests are finished
 func TestMain(m *testing.M) {
-	httpServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServer = httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		data, _ := ioutil.ReadAll(r.Body)
 		defer r.Body.Close()
 		// put request and body to channel for the client to investigate them
 		requestChan <- &RequestData{r, string(data)}
-
-		fmt.Fprintf(w, responseBody)
 	}))
 	defer httpServer.Close()
 
@@ -42,6 +39,6 @@ func TestBalance(t *testing.T) {
 	client := NewKoinosRPCClient(httpServer.URL)
 	client.GetAccountBalance([]byte("ABCDEFG"), []byte{1, 2, 3}, 678)
 	//client.client.CallRaw(request)
-	req := (<-requestChan).body
-	fmt.Printf(req)
+	//req := (<-requestChan).body
+	//fmt.Printf(req)
 }

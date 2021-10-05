@@ -37,10 +37,10 @@ const (
 
 // Hardcoded Multihash constants.
 const (
-	RIPEMD_128 = 0x1052
-	RIPEMD_160 = 0x1053
-	RIPEMD_256 = 0x1054
-	RIPEMD_320 = 0x1055
+	RIPEMD128 = 0x1052
+	RIPEMD160 = 0x1053
+	RIPEMD256 = 0x1054
+	RIPEMD320 = 0x1055
 )
 
 // CommandSet represents a set of commands for the parser
@@ -366,7 +366,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	ripemd160Hasher := ripemd160.New()
 	ripemd160Hasher.Write(ee.Key.AddressBytes())
 	contractIDDigest := ripemd160Hasher.Sum(make([]byte, 0))
-	mh, err := multihash.Encode(contractIDDigest, RIPEMD_160)
+	mh, err := multihash.Encode(contractIDDigest, RIPEMD160)
 	if err != nil {
 		return nil, err
 	}
