@@ -38,10 +38,10 @@ const (
 
 // Hardcoded Multihash constants.
 const (
-	RIPEMD_128 = 0x1052
-	RIPEMD_160 = 0x1053
-	RIPEMD_256 = 0x1054
-	RIPEMD_320 = 0x1055
+	RIPEMD128 = 0x1052
+	RIPEMD160 = 0x1053
+	RIPEMD256 = 0x1054
+	RIPEMD320 = 0x1055
 )
 
 // CommandSet represents a set of commands for the parser
@@ -320,7 +320,7 @@ func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironme
 
 	result := NewExecutionResult()
 	result.AddMessage("New key generated. This is only shown once, make sure to record this information.")
-	result.AddMessage(fmt.Sprintf("Address: %s", hex.EncodeToString(k.AddressBytes())))
+	result.AddMessage(fmt.Sprintf("Address: %s", DisplayAddress(k.AddressBytes())))
 	result.AddMessage(fmt.Sprintf("Private: %s", k.Private()))
 
 	return result, nil
@@ -367,7 +367,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	ripemd160Hasher := ripemd160.New()
 	ripemd160Hasher.Write(ee.Key.AddressBytes())
 	contractIDDigest := ripemd160Hasher.Sum(make([]byte, 0))
-	mh, err := multihash.Encode(contractIDDigest, RIPEMD_160)
+	mh, err := multihash.Encode(contractIDDigest, RIPEMD160)
 	if err != nil {
 		return nil, err
 	}
@@ -472,7 +472,7 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
-	result.AddMessage(fmt.Sprintf("Address: %s", hex.EncodeToString(key.AddressBytes())))
+	result.AddMessage(fmt.Sprintf("Address: %s", DisplayAddress(key.AddressBytes())))
 
 	return result, nil
 }
@@ -535,7 +535,7 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
-	result.AddMessage(fmt.Sprintf("Address: %s", hex.EncodeToString(key.AddressBytes())))
+	result.AddMessage(fmt.Sprintf("Address: %s", DisplayAddress(key.AddressBytes())))
 
 	return result, nil
 }
@@ -560,7 +560,7 @@ func (c *AddressCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	result := NewExecutionResult()
-	result.AddMessage(fmt.Sprintf("Wallet address: %s", hex.EncodeToString(ee.Key.AddressBytes())))
+	result.AddMessage(fmt.Sprintf("Wallet address: %s", DisplayAddress(ee.Key.AddressBytes())))
 
 	return result, nil
 }

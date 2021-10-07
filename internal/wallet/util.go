@@ -359,3 +359,8 @@ func GetPassword(password *string) (string, error) {
 
 	return result, nil
 }
+
+// DisplayAddress takes address bytes and returns a properly formatted human-readable string
+func DisplayAddress(addressBytes []byte) string {
+	return fmt.Sprintf("0x%s", hex.EncodeToString(addressBytes))
+}
