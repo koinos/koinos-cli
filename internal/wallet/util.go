@@ -108,7 +108,7 @@ func (c *KoinosRPCClient) Call(method string, params proto.Message, returnType p
 // GetAccountBalance gets the balance of a given account
 func (c *KoinosRPCClient) GetAccountBalance(address []byte, contractID []byte, balanceOfEntry uint32) (uint64, error) {
 	// Make the rpc call
-	balanceOfArgs := &token.BalanceOfArgs{
+	balanceOfArgs := &token.BalanceOfArguments{
 		Owner: address,
 	}
 	argBytes, err := proto.Marshal(balanceOfArgs)
@@ -121,7 +121,7 @@ func (c *KoinosRPCClient) GetAccountBalance(address []byte, contractID []byte, b
 		return 0, err
 	}
 
-	balanceOfReturn := &token.BalanceOfReturn{}
+	balanceOfReturn := &token.BalanceOfResult{}
 	err = proto.Unmarshal(cResp.Result, balanceOfReturn)
 	if err != nil {
 		return 0, err
@@ -143,6 +143,23 @@ func (c *KoinosRPCClient) ReadContract(args []byte, contractID []byte, entryPoin
 	}
 
 	return &cResp, nil
+}
+
+// GetAccountRc gets the rc of a given account
+func (c *KoinosRPCClient) GetAccountRc(address []byte) (uint64, error) {
+	// Build the contract request
+	params := chain.GetAccountRcRequest{
+		Account: address,
+	}
+
+	// Make the rpc call
+	var cResp chain.GetAccountRcResponse
+	err := c.Call(GetAccountRcCall, &params, &cResp)
+	if err != nil {
+		return 0, err
+	}
+
+	return cResp.Rc, nil
 }
 
 // GetAccountNonce gets the nonce of a given account
