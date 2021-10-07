@@ -183,7 +183,7 @@ type ParseResultMetrics struct {
 // Metrics is a function that returns a ParseResultMetrics object
 func (pr *ParseResults) Metrics() *ParseResultMetrics {
 	if len(pr.CommandResults) == 0 {
-		return &ParseResultMetrics{CurrentResultIndex: 0, CurrentArg: -1, CurrentParamType: CmdName}
+		return &ParseResultMetrics{CurrentResultIndex: 0, CurrentArg: -1, CurrentParamType: CmdNameArg}
 	}
 
 	index := len(pr.CommandResults) - 1
@@ -194,13 +194,13 @@ func (pr *ParseResults) Metrics() *ParseResultMetrics {
 	}
 
 	// Calculated the type of param
-	pType := CmdName
+	pType := CmdNameArg
 	if arg >= 0 {
 		// If there is a declaration, find the type of the param
 		if pr.CommandResults[index].Decl != nil {
 			pType = pr.CommandResults[index].Decl.Args[arg].ArgType
 		} else { // Otherwise it is an invalid command
-			pType = Nothing
+			pType = NoArg
 		}
 	}
 

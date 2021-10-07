@@ -80,7 +80,7 @@ func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {
 	invs, _ := kp.parser.Parse(d.Text)
 	metrics := invs.Metrics()
 
-	if metrics.CurrentParamType == wallet.CmdName {
+	if metrics.CurrentParamType == wallet.CmdNameArg {
 		return prompt.FilterHasPrefix(kp.commandSuggestions, d.GetWordBeforeCursor(), true)
 	}
 

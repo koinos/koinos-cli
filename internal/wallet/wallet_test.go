@@ -44,13 +44,16 @@ func makeTestParser() *CommandParser {
 	// Construct the command parser
 	cs := NewCommandSet()
 
-	cs.AddCommand(NewCommandDeclaration("test_address", "Test command which takes an address", false, nil, *NewCommandArg("address", Address)))
-	cs.AddCommand(NewCommandDeclaration("test_string", "Test command which takes a string", false, nil, *NewCommandArg("string", String)))
+	cs.AddCommand(NewCommandDeclaration("test_address", "Test command which takes an address", false, nil, *NewCommandArg("address", AddressArg)))
+	cs.AddCommand(NewCommandDeclaration("test_string", "Test command which takes a string", false, nil, *NewCommandArg("string", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("test_none", "Test command which takes no arguments", false, nil))
 	cs.AddCommand(NewCommandDeclaration("test_none2", "Another test command which takes no arguments", false, nil))
 	cs.AddCommand(NewCommandDeclaration("test_multi", "Test command which takes multiple arguments, and of different types", false, NewGenerateKeyCommand,
-		*NewCommandArg("arg0", Address), *NewCommandArg("arg1", String), *NewCommandArg("arg2", Amount), *NewCommandArg("arg0", String)))
-	cs.AddCommand(NewCommandDeclaration("optional", "Test command which takes optional arguments", false, nil, *NewCommandArg("arg0", String), *NewCommandArg("arg1", String), *NewOptionalCommandArg("arg2", String), *NewOptionalCommandArg("arg3", String)))
+		*NewCommandArg("arg0", AddressArg), *NewCommandArg("arg1", StringArg), *NewCommandArg("arg2", AmountArg), *NewCommandArg("arg0", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("optional", "Test command which takes optional arguments", false, nil, *NewCommandArg("arg0", StringArg),
+		*NewCommandArg("arg1", StringArg), *NewOptionalCommandArg("arg2", StringArg), *NewOptionalCommandArg("arg3", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("test_bool", "Test command which takes a boolean", false, nil, *NewCommandArg("string", StringArg),
+		*NewCommandArg("bool", BoolArg), *NewCommandArg("amount", AmountArg)))
 
 	parser := NewCommandParser(cs)
 
@@ -157,16 +160,36 @@ func TestOptionalArguments(t *testing.T) {
 	checkParseResults(t, parser, "optional abcd efgh ijkl mnop", nil, []string{"arg0", "arg1", "arg2", "arg3"}, []interface{}{"abcd", "efgh", "ijkl", "mnop"})
 }
 
+func TestParseBool(t *testing.T) {
+	// Construct the command parser
+	parser := makeTestParser()
+
+	// Test various false values
+	checkParseResults(t, parser, "test_bool abcd false 123.345", nil, []string{"string", "bool", "amount"}, []interface{}{"abcd", "false", "123.345"})
+	checkParseResults(t, parser, "test_bool abcd faLSe 123.345", nil, []string{"string", "bool", "amount"}, []interface{}{"abcd", "false", "123.345"})
+	checkParseResults(t, parser, "test_bool abcd False 123.345", nil, []string{"string", "bool", "amount"}, []interface{}{"abcd", "false", "123.345"})
+	checkParseResults(t, parser, "test_bool abcd FALSE 123.345", nil, []string{"string", "bool", "amount"}, []interface{}{"abcd", "false", "123.345"})
+	checkParseResults(t, parser, "test_bool abcd 0 123.345", nil, []string{"string", "bool", "amount"}, []interface{}{"abcd", "false", "123.345"})
+
+	// Test various true values
+	checkParseResults(t, parser, "test_bool abcd true 123.345", nil, []string{"string", "bool", "amount"}, []interface{}{"abcd", "true", "123.345"})
+	checkParseResults(t, parser, "test_bool abcd trUE 123.345", nil, []string{"string", "bool", "amount"}, []interface{}{"abcd", "true", "123.345"})
+	checkParseResults(t, parser, "test_bool abcd True 123.345", nil, []string{"string", "bool", "amount"}, []interface{}{"abcd", "true", "123.345"})
+	checkParseResults(t, parser, "test_bool abcd TRUE 123.345", nil, []string{"string", "bool", "amount"}, []interface{}{"abcd", "true", "123.345"})
+	checkParseResults(t, parser, "test_bool abcd 1 123.345", nil, []string{"string", "bool", "amount"}, []interface{}{"abcd", "true", "123.345"})
+
+	// Test invalid value
+	checkParseResults(t, parser, "test_bool abcd ghjkg 123.345", ErrInvalidParam, []string{"string", "bool", "amount"}, []interface{}{"abcd", nil, "123.345"})
+
+}
+
 func checkParseResults(t *testing.T, parser *CommandParser, cmd string, errType error, names []string, values []interface{}) {
 	res, err := parser.Parse(cmd)
 	if errType != nil {
-		if !errors.Is(err, errType) {
-			t.Error("Expected error", errType, ", got", err)
-		}
-
+		assert.ErrorIs(t, err, errType)
 		return
 	} else if err != nil {
-		t.Error(err)
+		assert.NoError(t, err)
 	}
 
 	for i, name := range names {
@@ -178,15 +201,11 @@ func checkParseResults(t *testing.T, parser *CommandParser, cmd string, errType 
 		}
 
 		if s == nil {
-			if res.CommandResults[0].Args[name] != nil {
-				t.Error("Expected nil, got", res.CommandResults[0].Args[name])
-			}
+			assert.Nil(t, res.CommandResults[0].Args[name])
 			return
 		}
 
-		if *res.CommandResults[0].Args[name] != *s {
-			t.Error("Expected command name", *s, "but got", *res.CommandResults[0].Args[name])
-		}
+		assert.Equal(t, *s, *res.CommandResults[0].Args[name])
 	}
 }
 
@@ -263,40 +282,40 @@ func TestParseMetrics(t *testing.T) {
 	parser := makeTestParser()
 
 	// Test parsing a half finished command
-	checkMetrics("test_mu", parser, t, true, 0, -1, CmdName)
+	checkMetrics("test_mu", parser, t, true, 0, -1, CmdNameArg)
 
 	// Test parsing a finished command
-	checkMetrics("test_multi", parser, t, true, 0, -1, CmdName)
+	checkMetrics("test_multi", parser, t, true, 0, -1, CmdNameArg)
 
 	// Test parsing a finished command with a space
-	checkMetrics("test_multi ", parser, t, true, 0, 0, Address)
+	checkMetrics("test_multi ", parser, t, true, 0, 0, AddressArg)
 
 	// Test parsing the rest of the arguments address string amount string
-	checkMetrics("test_multi 0x00ab1af48ae03", parser, t, true, 0, 0, Address)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9", parser, t, true, 0, 0, Address)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 ", parser, t, true, 0, 1, String)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword str", parser, t, true, 0, 1, String)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string'", parser, t, true, 0, 1, String)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' ", parser, t, true, 0, 2, Amount)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403", parser, t, true, 0, 2, Amount)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873", parser, t, true, 0, 2, Amount)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 ", parser, t, true, 0, 3, String)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str", parser, t, false, 0, 3, String)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str ", parser, t, false, 0, 3, String) // What should happen here?
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str;", parser, t, false, 1, -1, CmdName)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; ", parser, t, false, 1, -1, CmdName)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; tes", parser, t, true, 1, -1, CmdName)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string", parser, t, true, 1, -1, CmdName)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string ", parser, t, true, 1, 0, String)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string \"abc", parser, t, true, 1, 0, String)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\"", parser, t, false, 1, 0, String)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\";", parser, t, false, 2, -1, CmdName)
+	checkMetrics("test_multi 0x00ab1af48ae03", parser, t, true, 0, 0, AddressArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9", parser, t, true, 0, 0, AddressArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 ", parser, t, true, 0, 1, StringArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword str", parser, t, true, 0, 1, StringArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string'", parser, t, true, 0, 1, StringArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' ", parser, t, true, 0, 2, AmountArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403", parser, t, true, 0, 2, AmountArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873", parser, t, true, 0, 2, AmountArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 ", parser, t, true, 0, 3, StringArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str", parser, t, false, 0, 3, StringArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str ", parser, t, false, 0, 3, StringArg) // What should happen here?
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str;", parser, t, false, 1, -1, CmdNameArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; ", parser, t, false, 1, -1, CmdNameArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; tes", parser, t, true, 1, -1, CmdNameArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string", parser, t, true, 1, -1, CmdNameArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string ", parser, t, true, 1, 0, StringArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string \"abc", parser, t, true, 1, 0, StringArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\"", parser, t, false, 1, 0, StringArg)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\";", parser, t, false, 2, -1, CmdNameArg)
 
 	// Test parsing invalid command followed by spaces
-	checkMetrics("n  ", parser, t, true, 0, 0, Nothing)
-	checkMetrics("    n         ", parser, t, true, 0, 0, Nothing)
-	checkMetrics("nonsense ", parser, t, true, 0, 0, Nothing)
-	checkMetrics(" a  d dsf ", parser, t, true, 0, 0, Nothing)
+	checkMetrics("n  ", parser, t, true, 0, 0, NoArg)
+	checkMetrics("    n         ", parser, t, true, 0, 0, NoArg)
+	checkMetrics("nonsense ", parser, t, true, 0, 0, NoArg)
+	checkMetrics(" a  d dsf ", parser, t, true, 0, 0, NoArg)
 }
 
 func checkMetrics(input string, parser *CommandParser, t *testing.T, expectError bool, index int, arg int, pType CommandArgType) {

@@ -19,6 +19,7 @@ import (
 	"github.com/multiformats/go-multihash"
 	"github.com/shopspring/decimal"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 const (
@@ -346,4 +347,53 @@ func GetPassword(password *string) (string, error) {
 // DisplayAddress takes address bytes and returns a properly formatted human-readable string
 func DisplayAddress(addressBytes []byte) string {
 	return fmt.Sprintf("0x%s", hex.EncodeToString(addressBytes))
+}
+
+// ParseABIFields takes a message decriptor and returns a slice of command arguments
+func ParseABIFields(md protoreflect.MessageDescriptor) ([]*CommandArg, error) {
+	params := make([]*CommandArg, 0)
+	l := md.Fields().Len()
+	for i := 0; i < l; i++ {
+		fd := md.Fields().Get(i)
+		name := string(fd.Name())
+
+		// Translate protobuf type to parser argument type
+		var t CommandArgType
+		switch fd.Kind() {
+		case protoreflect.BoolKind:
+			t = BoolArg
+
+		case protoreflect.Int32Kind:
+			fallthrough
+		case protoreflect.Int64Kind:
+			t = IntArg
+
+		case protoreflect.Uint32Kind:
+			fallthrough
+		case protoreflect.Uint64Kind:
+			t = UIntArg
+
+		case protoreflect.StringKind:
+			t = StringArg
+
+		case protoreflect.BytesKind:
+			t = BytesArg
+
+		case protoreflect.MessageKind:
+			cmds, err := ParseABIFields(fd.Message())
+			if err != nil {
+				return nil, err
+			}
+			params = append(params, cmds...)
+			continue
+
+		default:
+			return nil, fmt.Errorf("%w: %s", ErrUnsupportedType, fd.Kind().String())
+		}
+
+		params = append(params, NewCommandArg(name, t))
+
+	}
+
+	return params, nil
 }
