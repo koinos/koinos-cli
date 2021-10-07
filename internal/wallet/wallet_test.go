@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSatoshiToDecimal(t *testing.T) {
@@ -60,7 +61,7 @@ func TestBasicParser(t *testing.T) {
 	parser := makeTestParser()
 
 	// Test parsing several commands
-	results, err := parser.Parse("test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk; test_none; test_none2")
+	results, err := parser.Parse("test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9; test_none; test_none2")
 	if err != nil {
 		t.Error(err)
 	}
@@ -129,7 +130,7 @@ func TestBadInput(t *testing.T) {
 	}
 
 	// Test valid command followed by empty commands
-	results, err = parser.Parse("test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk;  ;;  ; ;; test_none")
+	results, err = parser.Parse("test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9;  ;;  ; ;; test_none")
 	if err == nil {
 		t.Error("Expected error, got none")
 	}
@@ -193,29 +194,22 @@ func checkParseResults(t *testing.T, parser *CommandParser, cmd string, errType 
 func TestParserTermination(t *testing.T) {
 	parser := makeTestParser()
 
-	checkTerminators(t, parser, "test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", []TerminationStatus{Input})
-	checkTerminators(t, parser, "test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk;", []TerminationStatus{Command})
-	checkTerminators(t, parser, "  test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk   ", []TerminationStatus{Input})
-	checkTerminators(t, parser, "      test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk  ;   ", []TerminationStatus{Command})
-	checkTerminators(t, parser, "test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", []TerminationStatus{None})
-	checkTerminators(t, parser, "test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk; test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", []TerminationStatus{Command, Input})
-	checkTerminators(t, parser, "test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk; test_address 1iwBq2QAax2URVqU2h878hTs8DFFKADMk;", []TerminationStatus{Command, Command})
+	checkTerminators(t, parser, "test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9", []TerminationStatus{Input})
+	checkTerminators(t, parser, "test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9;", []TerminationStatus{Command})
+	checkTerminators(t, parser, "  test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9   ", []TerminationStatus{Input})
+	checkTerminators(t, parser, "      test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9  ;   ", []TerminationStatus{Command})
+	checkTerminators(t, parser, "test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9", []TerminationStatus{None})
+	checkTerminators(t, parser, "test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9; test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9", []TerminationStatus{Command, Input})
+	checkTerminators(t, parser, "test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9; test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9;", []TerminationStatus{Command, Command})
 }
 
 func checkTerminators(t *testing.T, parser *CommandParser, input string, terminators []TerminationStatus) {
 	results, err := parser.Parse(input)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if results.Len() != len(terminators) {
-		t.Error("Expected", len(terminators), "results, got", results.Len())
-	}
+	assert.NoError(t, err)
+	assert.Len(t, terminators, results.Len())
 
 	for i, result := range results.CommandResults {
-		if result.Termination != terminators[i] {
-			t.Error("Expected terminator", terminators[i], "got", result.Termination)
-		}
+		assert.Equal(t, terminators[i], result.Termination)
 	}
 }
 
@@ -225,50 +219,30 @@ func TestWalletFile(t *testing.T) {
 	// Storage of test bytes
 	file, err := ioutil.TempFile("", "wallet_test_*")
 	defer os.Remove(file.Name())
-
-	if err != nil {
-		t.Error(err.Error())
-	}
+	assert.NoError(t, err)
 
 	err = CreateWalletFile(file, "my_password", testKey)
-
-	if err != nil {
-		t.Error(err.Error())
-	}
+	assert.NoError(t, err)
 
 	file.Close()
 
 	// A successful retrieval of stored bytes
 	file, err = os.OpenFile(file.Name(), os.O_RDONLY, 0600)
-
-	if err != nil {
-		t.Error(err.Error())
-	}
+	assert.NoError(t, err)
 
 	result, err := ReadWalletFile(file, "my_password")
+	assert.NoError(t, err)
 
-	if err != nil {
-		t.Error(err.Error())
-	}
-
-	if !bytes.Equal(testKey, result) {
-		t.Error("retrieved private key from wallet file mismatch")
-	}
+	assert.True(t, bytes.Equal(result, testKey), "retrieved private key from wallet file mismatch")
 
 	file.Close()
 
 	// An usuccessful retrieval of stored bytes using wrong password
 	file, err = os.OpenFile(file.Name(), os.O_RDONLY, 0600)
-
-	if err != nil {
-		t.Error(err.Error())
-	}
+	assert.NoError(t, err)
 
 	_, err = ReadWalletFile(file, "not_my_password")
-
-	if err == nil {
-		t.Error("retrieved private key without correct passphrase")
-	}
+	assert.Error(t, err)
 
 	file.Close()
 
@@ -276,15 +250,10 @@ func TestWalletFile(t *testing.T) {
 	errfile, err := ioutil.TempFile("", "wallet_test_*")
 	defer os.Remove(errfile.Name())
 
-	if err != nil {
-		t.Error(err.Error())
-	}
+	assert.NoError(t, err)
 
 	err = CreateWalletFile(errfile, "", testKey)
-
-	if err != ErrEmptyPassphrase {
-		t.Error("an empty passphrase is not allowed")
-	}
+	assert.ErrorIs(t, err, ErrEmptyPassphrase, "An empty passphrase should be disallowed")
 
 	errfile.Close()
 }
@@ -303,25 +272,25 @@ func TestParseMetrics(t *testing.T) {
 	checkMetrics("test_multi ", parser, t, true, 0, 0, Address)
 
 	// Test parsing the rest of the arguments address string amount string
-	checkMetrics("test_multi 1iwBq2QA", parser, t, true, 0, 0, Address)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk", parser, t, true, 0, 0, Address)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk ", parser, t, true, 0, 1, String)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword str", parser, t, true, 0, 1, String)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string'", parser, t, true, 0, 1, String)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' ", parser, t, true, 0, 2, Amount)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403", parser, t, true, 0, 2, Amount)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873", parser, t, true, 0, 2, Amount)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 ", parser, t, true, 0, 3, String)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str", parser, t, false, 0, 3, String)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str ", parser, t, false, 0, 3, String) // What should happen here?
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str;", parser, t, false, 1, -1, CmdName)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; ", parser, t, false, 1, -1, CmdName)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; tes", parser, t, true, 1, -1, CmdName)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string", parser, t, true, 1, -1, CmdName)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string ", parser, t, true, 1, 0, String)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string \"abc", parser, t, true, 1, 0, String)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\"", parser, t, false, 1, 0, String)
-	checkMetrics("test_multi 1iwBq2QAax2URVqU2h878hTs8DFFKADMk 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\";", parser, t, false, 2, -1, CmdName)
+	checkMetrics("test_multi 0x00ab1af48ae03", parser, t, true, 0, 0, Address)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9", parser, t, true, 0, 0, Address)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 ", parser, t, true, 0, 1, String)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword str", parser, t, true, 0, 1, String)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string'", parser, t, true, 0, 1, String)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' ", parser, t, true, 0, 2, Amount)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403", parser, t, true, 0, 2, Amount)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873", parser, t, true, 0, 2, Amount)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 ", parser, t, true, 0, 3, String)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str", parser, t, false, 0, 3, String)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str ", parser, t, false, 0, 3, String) // What should happen here?
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str;", parser, t, false, 1, -1, CmdName)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; ", parser, t, false, 1, -1, CmdName)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; tes", parser, t, true, 1, -1, CmdName)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string", parser, t, true, 1, -1, CmdName)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string ", parser, t, true, 1, 0, String)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string \"abc", parser, t, true, 1, 0, String)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\"", parser, t, false, 1, 0, String)
+	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\";", parser, t, false, 2, -1, CmdName)
 
 	// Test parsing invalid command followed by spaces
 	checkMetrics("n  ", parser, t, true, 0, 0, Nothing)
@@ -332,23 +301,15 @@ func TestParseMetrics(t *testing.T) {
 
 func checkMetrics(input string, parser *CommandParser, t *testing.T, expectError bool, index int, arg int, pType CommandArgType) {
 	res, err := parser.Parse(input)
-	if err == nil && expectError {
-		t.Error("Expected error, got none")
-	} else if err != nil && !expectError {
-		t.Error(err.Error())
+	if expectError {
+		assert.Error(t, err)
+	} else {
+		assert.NoError(t, err)
 	}
 
 	metrics := res.Metrics()
 
-	if metrics.CurrentResultIndex != index {
-		t.Error("Expected current result index to be", index, "got", metrics.CurrentResultIndex)
-	}
-
-	if metrics.CurrentArg != arg {
-		t.Error("Expected current arg to be", arg, "got", metrics.CurrentArg)
-	}
-
-	if metrics.CurrentParamType != pType {
-		t.Error("Expected current param type to be", pType, "got", metrics.CurrentParamType)
-	}
+	assert.Equal(t, index, metrics.CurrentResultIndex)
+	assert.Equal(t, arg, metrics.CurrentArg)
+	assert.Equal(t, pType, metrics.CurrentParamType)
 }
