@@ -13,22 +13,6 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
-// ABI is the ABI of the contract
-type ABI struct {
-	Methods []*ABIMethod
-	Types   []byte
-}
-
-// ABIMethod represents an ABI method descriptor
-type ABIMethod struct {
-	Name        string `json:"name"`
-	Argument    string `json:"argument"`
-	Return      string `json:"return"`
-	EntryPoint  string `json:"entry_point"`
-	Description string `json:"description"`
-	ReadOnly    bool   `json:"read-only"`
-}
-
 // ----------------------------------------------------------------------------
 // Register Command
 // ----------------------------------------------------------------------------
@@ -47,6 +31,10 @@ func NewRegisterCommand(inv *CommandParseResult) CLICommand {
 
 // Execute closes the wallet
 func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if ee.Contracts.Contains(c.Name) {
+		return nil, fmt.Errorf("%w: contract %s already exists", ErrContract, c.Name)
+	}
+
 	jsonFile, err := os.Open(c.ABIFilename)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrInvalidABI, err)
@@ -72,11 +60,10 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	}
 
 	var protoFileOpts protodesc.FileOptions
-	//var protoFiles protoregistry.Files
 	files, err := protoFileOpts.NewFiles(&fds)
 
 	if files.NumFiles() != 1 {
-		return nil, fmt.Errorf("expected 1 descriptor, got %d", files.NumFiles())
+		return nil, fmt.Errorf("%w: expected 1 descriptor, got %d", ErrInvalidABI, files.NumFiles())
 	}
 
 	// Get the file descriptor
@@ -86,15 +73,25 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return true
 	})
 
+	// Register the contract
+	ee.Contracts.Add(c.Name, &abi)
+
 	// Iterate through the methods and construct the commands
 	for _, method := range abi.Methods {
 		d := fDesc.Messages().ByName(protoreflect.Name(method.Argument))
+		if d == nil {
+			return nil, fmt.Errorf("%w: could not find type %s", ErrInvalidABI, method.Argument)
+		}
+
 		params, err := ParseABIFields(d)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s", ErrInvalidABI, err)
 		}
 
-		fmt.Println(params)
+		commandName := fmt.Sprintf("%s.%s", c.Name, method.Name)
+		cmd := NewCommandDeclaration(commandName, method.EntryPoint, false, NewListCommand, params...)
+
+		ee.Parser.Commands.AddCommand(cmd)
 	}
 
 	return &ExecutionResult{}, nil

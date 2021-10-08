@@ -52,16 +52,16 @@ func main() {
 	commands := wallet.NewKoinosCommandSet()
 	parser := wallet.NewCommandParser(commands)
 
-	cmdEnv := wallet.ExecutionEnvironment{RPCClient: client, Parser: parser}
+	cmdEnv := wallet.NewExecutionEnvironment(client, parser)
 
 	// If the user submitted commands, execute them
 	if *executeCmd != "" {
-		results := wallet.ParseAndInterpret(parser, &cmdEnv, *executeCmd)
+		results := wallet.ParseAndInterpret(parser, cmdEnv, *executeCmd)
 		results.Print()
 		// Otherwise run the interactive shell
 	} else {
 		// Enter interactive mode
-		p := interactive.NewKoinosPrompt(parser, &cmdEnv)
+		p := interactive.NewKoinosPrompt(parser, cmdEnv)
 		p.Run()
 	}
 }

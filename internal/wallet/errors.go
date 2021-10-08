@@ -58,4 +58,7 @@ var (
 
 	// ErrUnsupportedType is returned when an unsupported type is passed
 	ErrUnsupportedType = errors.New("unsupported type")
+
+	// ErrContract is returned when a contract is already registered
+	ErrContract = errors.New("contract error")
 )

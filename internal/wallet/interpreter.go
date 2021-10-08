@@ -41,6 +41,15 @@ type ExecutionEnvironment struct {
 	RPCClient *KoinosRPCClient
 	Key       *KoinosKey
 	Parser    *CommandParser
+	Contracts Contracts
+}
+
+func NewExecutionEnvironment(rpcClient *KoinosRPCClient, parser *CommandParser) *ExecutionEnvironment {
+	return &ExecutionEnvironment{
+		RPCClient: rpcClient,
+		Parser:    parser,
+		Contracts: make(map[string]*ContractInfo),
+	}
 }
 
 // IsWalletOpen returns a bool representing whether or not there is an open wallet
