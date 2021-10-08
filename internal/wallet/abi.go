@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"fmt"
+	"strings"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -33,25 +34,59 @@ type ABIMethod struct {
 }
 
 type ContractInfo struct {
-	Name string
-	ABI  *ABI
+	Name    string
+	Address string // []byte?
+	ABI     *ABI
 }
 
 type Contracts map[string]*ContractInfo
+
+func (c Contracts) GetFromMethodName(methodName string) *ContractInfo {
+	s := strings.Split(methodName, ".")
+	if len(s) != 2 {
+		return nil
+	}
+
+	if !c.Contains(s[0]) {
+		return nil
+	}
+
+	return c[s[0]]
+}
+
+func (c Contracts) GetMethod(methodName string) *ABIMethod {
+	s := strings.Split(methodName, ".")
+	if len(s) != 2 {
+		return nil
+	}
+
+	if !c.Contains(s[0]) {
+		return nil
+	}
+
+	contract := c[s[0]]
+
+	if contract.ABI.GetMethod(s[1]) == nil {
+		return nil
+	}
+
+	return contract.ABI.GetMethod(s[1])
+}
 
 func (c Contracts) Contains(name string) bool {
 	_, ok := c[name]
 	return ok
 }
 
-func (c Contracts) Add(name string, abi *ABI) error {
+func (c Contracts) Add(name string, address string, abi *ABI) error {
 	if c.Contains(name) {
 		return fmt.Errorf("contract %s already exists", name)
 	}
 
 	c[name] = &ContractInfo{
-		Name: name,
-		ABI:  abi,
+		Name:    name,
+		ABI:     abi,
+		Address: address,
 	}
 
 	return nil

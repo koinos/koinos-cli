@@ -47,6 +47,9 @@ const (
 type CommandSet struct {
 	Commands     []*CommandDeclaration
 	Name2Command map[string]*CommandDeclaration
+
+	// Revision is incremented every time a command is added or removed, for simple versioning
+	Revision int
 }
 
 // NewCommandSet creates a new command set
@@ -62,6 +65,7 @@ func NewCommandSet() *CommandSet {
 func (cs *CommandSet) AddCommand(decl *CommandDeclaration) {
 	cs.Commands = append(cs.Commands, decl)
 	cs.Name2Command[decl.Name] = decl
+	cs.Revision++
 }
 
 // List returns an alphabetized list of commands. The pretty argument makes it return the commands in neat columns with the descriptions

@@ -74,7 +74,7 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	})
 
 	// Register the contract
-	ee.Contracts.Add(c.Name, &abi)
+	ee.Contracts.Add(c.Name, c.Address, &abi)
 
 	// Iterate through the methods and construct the commands
 	for _, method := range abi.Methods {
@@ -89,10 +89,68 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		}
 
 		commandName := fmt.Sprintf("%s.%s", c.Name, method.Name)
-		cmd := NewCommandDeclaration(commandName, method.EntryPoint, false, NewListCommand, params...)
+
+		// Create the command
+		var cmd *CommandDeclaration
+		if method.ReadOnly {
+			cmd = NewCommandDeclaration(commandName, method.Description, false, NewReadContractCommand, params...)
+		} else {
+			cmd = NewCommandDeclaration(commandName, method.Description, false, NewWriteContractCommand, params...)
+		}
 
 		ee.Parser.Commands.AddCommand(cmd)
 	}
 
-	return &ExecutionResult{}, nil
+	er := NewExecutionResult()
+	er.AddMessage(fmt.Sprintf("Contract '%s' at address %s registered.", c.Name, c.Address))
+	return er, nil
+}
+
+// ----------------------------------------------------------------------------
+// Read Contract Command
+// ----------------------------------------------------------------------------
+
+type ReadContractCommand struct {
+	ParseResult *CommandParseResult
+}
+
+// NewRegisterCommand creates a new close object
+func NewReadContractCommand(inv *CommandParseResult) CLICommand {
+	return &ReadContractCommand{ParseResult: inv}
+}
+
+func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	er := NewExecutionResult()
+	er.AddMessage(fmt.Sprintf("Read contract stub: %s", c.ParseResult.CommandName))
+	return er, nil
+}
+
+// ----------------------------------------------------------------------------
+// Write Contract Command
+// ----------------------------------------------------------------------------
+
+type WriteContractCommand struct {
+	ParseResult *CommandParseResult
+}
+
+// NewRegisterCommand creates a new close object
+func NewWriteContractCommand(inv *CommandParseResult) CLICommand {
+	return &WriteContractCommand{ParseResult: inv}
+}
+
+func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	er := NewExecutionResult()
+	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
+
+	er.AddMessage("Write contract stub")
+	er.AddMessage(fmt.Sprintf("Command: %s", c.ParseResult.CommandName))
+	er.AddMessage(fmt.Sprintf("Address: %s", contract.Address))
+	er.AddMessage("Arguments:")
+	for key, element := range c.ParseResult.Args {
+		er.AddMessage(fmt.Sprintf("    %s: %s", key, *element))
+	}
+
+	er.AddMessage(fmt.Sprintf("Method EntryPoint: %v", ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint))
+	//er.AddMessage(fmt.Sprintf("Entry Point: %d", ee.Contracts["koin"].ABI.GetMethod(c.ParseResult.CommandName).EntryPoint))
+	return er, nil
 }
