@@ -34,11 +34,3 @@ func TestMain(m *testing.M) {
 
 	os.Exit(m.Run())
 }
-
-func TestBalance(t *testing.T) {
-	client := NewKoinosRPCClient(httpServer.URL)
-	client.GetAccountBalance([]byte("ABCDEFG"), []byte{1, 2, 3}, 678)
-	//client.client.CallRaw(request)
-	//req := (<-requestChan).body
-	//fmt.Printf(req)
-}

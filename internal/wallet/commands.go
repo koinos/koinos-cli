@@ -27,6 +27,7 @@ import (
 const (
 	ReadContractCall      = "chain.read_contract"
 	GetAccountNonceCall   = "chain.get_account_nonce"
+	GetAccountRcCall      = "chain.get_account_rc"
 	SubmitTransactionCall = "chain.submit_transaction"
 	KoinSymbol            = "tKOIN"
 	KoinPrecision         = 8
@@ -379,7 +380,12 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	uc := protocol.Operation_UploadContract{UploadContract: &protocol.UploadContractOperation{ContractId: mh, Bytecode: wasmBytes}}
 	op := protocol.Operation{Op: &uc}
 
-	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: []*protocol.Operation{&op}, ResourceLimit: 1000000}
+	rcLimit, err := ee.RPCClient.GetAccountRc(ee.Key.AddressBytes())
+	if err != nil {
+		return nil, err
+	}
+
+	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: []*protocol.Operation{&op}, RcLimit: rcLimit}
 	activeBytes, err := canonical.Marshal(&active)
 	if err != nil {
 		return nil, err
@@ -672,8 +678,13 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	cco := protocol.Operation_CallContract{CallContract: &callContractOp}
 	op := protocol.Operation{Op: &cco}
 
+	rcLimit, err := ee.RPCClient.GetAccountRc(ee.Key.AddressBytes())
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the transaction
-	active := protocol.ActiveTransactionData{Operations: []*protocol.Operation{&op}, Nonce: nonce, ResourceLimit: 1000000}
+	active := protocol.ActiveTransactionData{Operations: []*protocol.Operation{&op}, Nonce: nonce, RcLimit: rcLimit}
 	activeBytes, err := canonical.Marshal(&active)
 	if err != nil {
 		return nil, err
@@ -887,7 +898,7 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, err
 	}
 
-	transferArgs := &token.TransferArgs{
+	transferArgs := &token.TransferArguments{
 		From:  myAddress,
 		To:    toAddress,
 		Value: uint64(sAmount),
@@ -902,8 +913,13 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	cco := protocol.Operation_CallContract{CallContract: &callContractOp}
 	op := protocol.Operation{Op: &cco}
 
+	rcLimit, err := ee.RPCClient.GetAccountRc(ee.Key.AddressBytes())
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the transaction
-	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: []*protocol.Operation{&op}, ResourceLimit: 1000000}
+	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: []*protocol.Operation{&op}, RcLimit: rcLimit}
 	activeBytes, err := canonical.Marshal(&active)
 	if err != nil {
 		return nil, err
