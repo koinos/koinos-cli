@@ -19,8 +19,7 @@ const (
 
 // Default options
 const (
-	rpcDefault     = ""
-	executeDefault = ""
+	rpcDefault = ""
 )
 
 func main() {
@@ -32,7 +31,7 @@ func main() {
 
 	// Setup command line options
 	rpcAddress := flag.StringP(rpcOption, "r", rpcDefault, "RPC server URL")
-	executeCmd := flag.StringP(executeOption, "x", executeDefault, "Command to execute")
+	executeCmd := flag.StringSliceP(executeOption, "x", nil, "Command to execute")
 	versionCmd := flag.BoolP(versionOption, "v", false, "Display the version")
 
 	flag.Parse()
@@ -55,9 +54,11 @@ func main() {
 	cmdEnv := wallet.NewExecutionEnvironment(client, parser)
 
 	// If the user submitted commands, execute them
-	if *executeCmd != "" {
-		results := wallet.ParseAndInterpret(parser, cmdEnv, *executeCmd)
-		results.Print()
+	if *executeCmd != nil {
+		for _, cmd := range *executeCmd {
+			results := wallet.ParseAndInterpret(parser, cmdEnv, cmd)
+			results.Print()
+		}
 		// Otherwise run the interactive shell
 	} else {
 		// Enter interactive mode

@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -74,7 +75,7 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	})
 
 	// Register the contract
-	ee.Contracts.Add(c.Name, c.Address, &abi)
+	ee.Contracts.Add(c.Name, c.Address, &abi, fDesc)
 
 	// Iterate through the methods and construct the commands
 	for _, method := range abi.Methods {
@@ -152,5 +153,15 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 
 	er.AddMessage(fmt.Sprintf("Method EntryPoint: %v", ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint))
 	//er.AddMessage(fmt.Sprintf("Entry Point: %d", ee.Contracts["koin"].ABI.GetMethod(c.ParseResult.CommandName).EntryPoint))
+
+	msg, err := ParseResultToMessage(c.ParseResult, ee.Contracts)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidABI, err)
+	}
+
+	b, err := protojson.Marshal(msg)
+
+	er.AddMessage(fmt.Sprintf("Message: %s", string(b)))
+
 	return er, nil
 }
