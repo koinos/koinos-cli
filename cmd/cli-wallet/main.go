@@ -12,9 +12,10 @@ import (
 
 // Commpand line parameter names
 const (
-	rpcOption     = "rpc"
-	executeOption = "execute"
-	versionOption = "version"
+	rpcOption              = "rpc"
+	executeOption          = "execute"
+	versionOption          = "version"
+	forceInteractiveOption = "force-interactive"
 )
 
 // Default options
@@ -33,6 +34,7 @@ func main() {
 	rpcAddress := flag.StringP(rpcOption, "r", rpcDefault, "RPC server URL")
 	executeCmd := flag.StringSliceP(executeOption, "x", nil, "Command to execute")
 	versionCmd := flag.BoolP(versionOption, "v", false, "Display the version")
+	forceInteractive := flag.BoolP(forceInteractiveOption, "i", false, "Forces interactive mode. Useful for forcing a prompt when using the excute option")
 
 	flag.Parse()
 
@@ -59,8 +61,10 @@ func main() {
 			results := wallet.ParseAndInterpret(parser, cmdEnv, cmd)
 			results.Print()
 		}
-		// Otherwise run the interactive shell
-	} else {
+	}
+
+	// Run interactive mode if no commands given, or if forced
+	if *forceInteractive || (*executeCmd == nil) {
 		// Enter interactive mode
 		p := interactive.NewKoinosPrompt(parser, cmdEnv)
 		p.Run()

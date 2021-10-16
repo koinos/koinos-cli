@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 
-	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/dynamicpb"
 )
 
 // ----------------------------------------------------------------------------
@@ -121,8 +123,63 @@ func NewReadContractCommand(inv *CommandParseResult) CLICommand {
 }
 
 func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
+
+	entryPoint, err := strconv.ParseInt(ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint[2:], 16, 32)
+	if err != nil {
+		return nil, err
+	}
+
+	// Form a protobuf message from the command input
+	msg, err := ParseResultToMessage(c.ParseResult, ee.Contracts)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidABI, err)
+	}
+
+	// Get the bytes of the message
+	argBytes, err := proto.Marshal(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the contractID
+	contractID, err := HexStringToBytes(contract.Address)
+	if err != nil {
+		panic("Invalid contract ID")
+	}
+
+	cResp, err := ee.RPCClient.ReadContract(argBytes, contractID, uint32(entryPoint))
+	if err != nil {
+		return nil, err
+	}
+
+	//balanceOfReturn := &token.BalanceOfResult{}
+	//err = proto.Unmarshal(cResp.Result, balanceOfReturn)
+	//if err != nil {
+	//	return 0, err
+	//}
+
+	// Get return message descriptor
+	md, err := ee.Contracts.GetMethodReturn(c.ParseResult.CommandName)
+	if err != nil {
+		return nil, err
+	}
+
+	dMsg := dynamicpb.NewMessage(md)
+	err = proto.Unmarshal(cResp.GetResult(), dMsg)
+	if err != nil {
+		return nil, err
+	}
+
 	er := NewExecutionResult()
-	er.AddMessage(fmt.Sprintf("Read contract stub: %s", c.ParseResult.CommandName))
+
+	b, err := prototext.Marshal(dMsg)
+	if err != nil {
+		return nil, err
+	}
+
+	er.AddMessage(string(b))
+
 	return er, nil
 }
 
@@ -140,28 +197,38 @@ func NewWriteContractCommand(inv *CommandParseResult) CLICommand {
 }
 
 func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	er := NewExecutionResult()
 	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
 
-	er.AddMessage("Write contract stub")
-	er.AddMessage(fmt.Sprintf("Command: %s", c.ParseResult.CommandName))
-	er.AddMessage(fmt.Sprintf("Address: %s", contract.Address))
-	er.AddMessage("Arguments:")
-	for key, element := range c.ParseResult.Args {
-		er.AddMessage(fmt.Sprintf("    %s: %s", key, *element))
+	entryPoint, err := strconv.ParseInt(ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint[2:], 16, 32)
+	if err != nil {
+		return nil, err
 	}
 
-	er.AddMessage(fmt.Sprintf("Method EntryPoint: %v", ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint))
-	//er.AddMessage(fmt.Sprintf("Entry Point: %d", ee.Contracts["koin"].ABI.GetMethod(c.ParseResult.CommandName).EntryPoint))
-
+	// Form a protobuf message from the command input
 	msg, err := ParseResultToMessage(c.ParseResult, ee.Contracts)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrInvalidABI, err)
 	}
 
-	b, err := protojson.Marshal(msg)
+	// Get the bytes of the message
+	argBytes, err := proto.Marshal(msg)
+	if err != nil {
+		return nil, err
+	}
 
-	er.AddMessage(fmt.Sprintf("Message: %s", string(b)))
+	// Get the contractID
+	contractID, err := HexStringToBytes(contract.Address)
+	if err != nil {
+		panic("Invalid contract ID")
+	}
+
+	cResp, err := ee.RPCClient.ReadContract(argBytes, contractID, uint32(entryPoint))
+	if err != nil {
+		return nil, err
+	}
+
+	er := NewExecutionResult()
+	er.AddMessage(fmt.Sprintf("%d", len(cResp.Result)))
 
 	return er, nil
 }
