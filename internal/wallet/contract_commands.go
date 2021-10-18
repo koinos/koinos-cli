@@ -153,12 +153,6 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 		return nil, err
 	}
 
-	//balanceOfReturn := &token.BalanceOfResult{}
-	//err = proto.Unmarshal(cResp.Result, balanceOfReturn)
-	//if err != nil {
-	//	return 0, err
-	//}
-
 	// Get return message descriptor
 	md, err := ee.Contracts.GetMethodReturn(c.ParseResult.CommandName)
 	if err != nil {
@@ -210,25 +204,19 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		return nil, fmt.Errorf("%w: %s", ErrInvalidABI, err)
 	}
 
-	// Get the bytes of the message
-	argBytes, err := proto.Marshal(msg)
-	if err != nil {
-		return nil, err
-	}
-
 	// Get the contractID
 	contractID, err := HexStringToBytes(contract.Address)
 	if err != nil {
 		panic("Invalid contract ID")
 	}
 
-	cResp, err := ee.RPCClient.ReadContract(argBytes, contractID, uint32(entryPoint))
+	_, err = ee.RPCClient.WriteMessageContract(msg, ee.Key, contractID, uint32(entryPoint))
 	if err != nil {
 		return nil, err
 	}
 
 	er := NewExecutionResult()
-	er.AddMessage(fmt.Sprintf("%d", len(cResp.Result)))
+	er.AddMessage(fmt.Sprintf("Transaction submitted to contract '%s' at address %s .", contract.Name, contract.Address))
 
 	return er, nil
 }

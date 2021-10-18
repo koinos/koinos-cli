@@ -146,12 +146,16 @@ func (c *KoinosRPCClient) ReadContract(args []byte, contractID []byte, entryPoin
 	return &cResp, nil
 }
 
-func (c *KoinosRPCClient) WriteContract(msg proto.Message, key *KoinosKey, contractID []byte, entryPoint uint32) (*chain.SubmitTransactionResponse, error) {
+func (c *KoinosRPCClient) WriteMessageContract(msg proto.Message, key *KoinosKey, contractID []byte, entryPoint uint32) (*chain.SubmitTransactionResponse, error) {
 	args, err := proto.Marshal(msg)
 	if err != nil {
 		return nil, err
 	}
 
+	return c.WriteContract(args, key, contractID, entryPoint)
+}
+
+func (c *KoinosRPCClient) WriteContract(args []byte, key *KoinosKey, contractID []byte, entryPoint uint32) (*chain.SubmitTransactionResponse, error) {
 	// Cache the public address
 	address := key.AddressBytes()
 

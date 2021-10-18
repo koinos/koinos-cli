@@ -653,12 +653,6 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		return nil, err
 	}
 
-	// Fetch the accounts nonce
-	nonce, err := ee.RPCClient.GetAccountNonce(ee.Key.AddressBytes())
-	if err != nil {
-		return nil, err
-	}
-
 	contractID, err := HexStringToBytes(c.ContractID)
 
 	if err != nil {
@@ -671,51 +665,7 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		return nil, err
 	}
 
-	// Create the operation
-	callContractOp := protocol.CallContractOperation{ContractId: contractID, EntryPoint: uint32(entryPoint), Args: argumentBytes}
-	cco := protocol.Operation_CallContract{CallContract: &callContractOp}
-	op := protocol.Operation{Op: &cco}
-
-	rcLimit, err := ee.RPCClient.GetAccountRc(ee.Key.AddressBytes())
-	if err != nil {
-		return nil, err
-	}
-
-	// Create the transaction
-	active := protocol.ActiveTransactionData{Operations: []*protocol.Operation{&op}, Nonce: nonce, RcLimit: rcLimit}
-	activeBytes, err := canonical.Marshal(&active)
-	if err != nil {
-		return nil, err
-	}
-
-	// Calculate the transaction ID
-	sha256Hasher := sha256.New()
-	sha256Hasher.Write(activeBytes)
-
-	tid, err := multihash.EncodeName(sha256Hasher.Sum(nil), "sha2-256")
-	if err != nil {
-		return nil, err
-	}
-
-	transaction := protocol.Transaction{Active: activeBytes, Id: tid}
-
-	// Sign the transaction
-	err = SignTransaction(ee.Key.PrivateBytes(), &transaction)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Submit the transaction
-	params := chain.SubmitTransactionRequest{}
-	params.Transaction = &transaction
-
-	// Make the rpc call
-	var cResp chain.SubmitTransactionResponse
-	err = ee.RPCClient.Call(SubmitTransactionCall, &params, &cResp)
-	if err != nil {
-		return nil, err
-	}
+	_, err = ee.RPCClient.WriteContract(argumentBytes, ee.Key, contractID, uint32(entryPoint))
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Calling contract %s at entry point: %s with arguments %s", c.ContractID, c.EntryPoint, c.Arguments))
@@ -897,7 +847,7 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	}
 
 	// Execute the transfer
-	_, err = ee.RPCClient.WriteContract(transferArgs, ee.Key, contractID, KoinTransferEntry)
+	_, err = ee.RPCClient.WriteMessageContract(transferArgs, ee.Key, contractID, KoinTransferEntry)
 	if err != nil {
 		return nil, err
 	}
