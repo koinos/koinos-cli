@@ -11,6 +11,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
 	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
+	"github.com/koinos/koinos-proto-golang/koinos/canonical"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/koinos/koinos-proto-golang/koinos/rpc/chain"
@@ -138,6 +139,69 @@ func (c *KoinosRPCClient) ReadContract(args []byte, contractID []byte, entryPoin
 	// Make the rpc call
 	var cResp chain.ReadContractResponse
 	err := c.Call(ReadContractCall, &params, &cResp)
+	if err != nil {
+		return nil, err
+	}
+
+	return &cResp, nil
+}
+
+func (c *KoinosRPCClient) WriteContract(msg proto.Message, key *KoinosKey, contractID []byte, entryPoint uint32) (*chain.SubmitTransactionResponse, error) {
+	args, err := proto.Marshal(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	// Cache the public address
+	address := key.AddressBytes()
+
+	// Fetch the account's nonce
+	nonce, err := c.GetAccountNonce(address)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the operation
+	callContractOp := protocol.CallContractOperation{ContractId: contractID, EntryPoint: entryPoint, Args: args}
+	cco := protocol.Operation_CallContract{CallContract: &callContractOp}
+	op := protocol.Operation{Op: &cco}
+
+	rcLimit, err := c.GetAccountRc(address)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the transaction
+	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: []*protocol.Operation{&op}, RcLimit: rcLimit}
+	activeBytes, err := canonical.Marshal(&active)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate the transaction ID
+	sha256Hasher := sha256.New()
+	sha256Hasher.Write(activeBytes)
+
+	tid, err := multihash.EncodeName(sha256Hasher.Sum(nil), "sha2-256")
+	if err != nil {
+		return nil, err
+	}
+	transaction := protocol.Transaction{Active: activeBytes, Id: tid}
+
+	// Sign the transaction
+	err = SignTransaction(key.PrivateBytes(), &transaction)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Submit the transaction
+	params := chain.SubmitTransactionRequest{}
+	params.Transaction = &transaction
+
+	// Make the rpc call
+	var cResp chain.SubmitTransactionResponse
+	err = c.Call(SubmitTransactionCall, &params, &cResp)
 	if err != nil {
 		return nil, err
 	}

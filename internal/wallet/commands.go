@@ -12,7 +12,6 @@ import (
 	"strconv"
 
 	"golang.org/x/crypto/ripemd160"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/koinos/koinos-proto-golang/koinos/canonical"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
@@ -887,12 +886,6 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, fmt.Errorf("%w: insufficient balance %s %s on opened wallet %s, cannot transfer %s %s", ErrInvalidAmount, dBalance, KoinSymbol, myAddress, dAmount, KoinSymbol)
 	}
 
-	// Fetch the account's nonce
-	nonce, err := ee.RPCClient.GetAccountNonce(myAddress)
-	if err != nil {
-		return nil, err
-	}
-
 	toAddress, err := HexStringToBytes(c.Address)
 	if err != nil {
 		return nil, err
@@ -903,52 +896,9 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		To:    toAddress,
 		Value: uint64(sAmount),
 	}
-	args, err := proto.Marshal(transferArgs)
-	if err != nil {
-		return nil, err
-	}
 
-	// Create the operation
-	callContractOp := protocol.CallContractOperation{ContractId: contractID, EntryPoint: KoinTransferEntry, Args: args}
-	cco := protocol.Operation_CallContract{CallContract: &callContractOp}
-	op := protocol.Operation{Op: &cco}
-
-	rcLimit, err := ee.RPCClient.GetAccountRc(ee.Key.AddressBytes())
-	if err != nil {
-		return nil, err
-	}
-
-	// Create the transaction
-	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: []*protocol.Operation{&op}, RcLimit: rcLimit}
-	activeBytes, err := canonical.Marshal(&active)
-	if err != nil {
-		return nil, err
-	}
-
-	// Calculate the transaction ID
-	sha256Hasher := sha256.New()
-	sha256Hasher.Write(activeBytes)
-
-	tid, err := multihash.EncodeName(sha256Hasher.Sum(nil), "sha2-256")
-	if err != nil {
-		return nil, err
-	}
-	transaction := protocol.Transaction{Active: activeBytes, Id: tid}
-
-	// Sign the transaction
-	err = SignTransaction(ee.Key.PrivateBytes(), &transaction)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Submit the transaction
-	params := chain.SubmitTransactionRequest{}
-	params.Transaction = &transaction
-
-	// Make the rpc call
-	var cResp chain.SubmitTransactionResponse
-	err = ee.RPCClient.Call(SubmitTransactionCall, &params, &cResp)
+	// Execute the transfer
+	_, err = ee.RPCClient.WriteContract(transferArgs, ee.Key, contractID, KoinTransferEntry)
 	if err != nil {
 		return nil, err
 	}
