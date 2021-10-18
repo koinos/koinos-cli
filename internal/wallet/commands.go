@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -173,7 +172,7 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 
 		address = ee.Key.AddressBytes()
 	} else {
-		address, err = hex.DecodeString(*c.AddressString)
+		address, err = HexStringToBytes(*c.AddressString)
 		if err != nil {
 			return nil, err
 		}
