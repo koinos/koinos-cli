@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/c-bata/go-prompt"
+	"github.com/koinos/koinos-cli-wallet/internal/util"
 	"github.com/koinos/koinos-cli-wallet/internal/wallet"
 )
 
@@ -104,7 +105,7 @@ func (kp *KoinosPrompt) executor(input string) {
 
 // Run runs interactive mode
 func (kp *KoinosPrompt) Run() {
-	fmt.Println(fmt.Sprintf("Koinos CLI Wallet %s", wallet.Version))
+	fmt.Println(fmt.Sprintf("Koinos CLI Wallet %s", util.Version))
 	fmt.Println("Type \"list\" for a list of commands, \"help <command>\" for help on a specific command.")
 	kp.gPrompt.Run()
 }

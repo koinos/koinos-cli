@@ -6,6 +6,8 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/koinos/koinos-cli-wallet/cmd/cli-wallet/interactive"
+	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
+	"github.com/koinos/koinos-cli-wallet/internal/util"
 	"github.com/koinos/koinos-cli-wallet/internal/wallet"
 	flag "github.com/spf13/pflag"
 )
@@ -39,14 +41,14 @@ func main() {
 	flag.Parse()
 
 	if *versionCmd {
-		fmt.Println(wallet.Version)
+		fmt.Println(util.Version)
 		os.Exit(0)
 	}
 
 	// Setup client
-	var client *wallet.KoinosRPCClient
+	var client *kjsonrpc.KoinosRPCClient
 	if *rpcAddress != "" {
-		client = wallet.NewKoinosRPCClient(*rpcAddress)
+		client = kjsonrpc.NewKoinosRPCClient(*rpcAddress)
 	}
 
 	// Construct the command parser

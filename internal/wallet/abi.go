@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/koinos/koinos-cli-wallet/internal/util"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
@@ -167,7 +168,7 @@ func ParseABIFields(md protoreflect.MessageDescriptor) ([]CommandArg, error) {
 			continue
 
 		default:
-			return nil, fmt.Errorf("%w: %s", ErrUnsupportedType, fd.Kind().String())
+			return nil, fmt.Errorf("%w: %s", util.ErrUnsupportedType, fd.Kind().String())
 		}
 
 		params = append(params, *NewCommandArg(name, t))
@@ -226,7 +227,7 @@ func DataToMessage(data map[string]*string, md protoreflect.MessageDescriptor) (
 			value = protoreflect.ValueOfString(inputValue)
 
 		case protoreflect.BytesKind:
-			b, err := HexStringToBytes(inputValue)
+			b, err := util.HexStringToBytes(inputValue)
 			if err != nil {
 				return nil, err
 			}
@@ -241,7 +242,7 @@ func DataToMessage(data map[string]*string, md protoreflect.MessageDescriptor) (
 			continue
 
 		default:
-			return nil, fmt.Errorf("%w: %s", ErrUnsupportedType, fd.Kind().String())
+			return nil, fmt.Errorf("%w: %s", util.ErrUnsupportedType, fd.Kind().String())
 		}
 
 		// Set the value on the message

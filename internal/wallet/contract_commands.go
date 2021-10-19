@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/koinos/koinos-cli-wallet/internal/util"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
@@ -35,38 +36,38 @@ func NewRegisterCommand(inv *CommandParseResult) CLICommand {
 // Execute closes the wallet
 func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if ee.Contracts.Contains(c.Name) {
-		return nil, fmt.Errorf("%w: contract %s already exists", ErrContract, c.Name)
+		return nil, fmt.Errorf("%w: contract %s already exists", util.ErrContract, c.Name)
 	}
 
 	jsonFile, err := os.Open(c.ABIFilename)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidABI, err)
+		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
 	}
 
 	defer jsonFile.Close()
 
 	jsonBytes, err := ioutil.ReadAll(jsonFile)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidABI, err)
+		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
 	}
 
 	var abi ABI
 	err = json.Unmarshal(jsonBytes, &abi)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidABI, err)
+		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
 	}
 
 	var fds descriptorpb.FileDescriptorSet
 	err = proto.Unmarshal(abi.Types, &fds)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidABI, err)
+		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
 	}
 
 	var protoFileOpts protodesc.FileOptions
 	files, err := protoFileOpts.NewFiles(&fds)
 
 	if files.NumFiles() != 1 {
-		return nil, fmt.Errorf("%w: expected 1 descriptor, got %d", ErrInvalidABI, files.NumFiles())
+		return nil, fmt.Errorf("%w: expected 1 descriptor, got %d", util.ErrInvalidABI, files.NumFiles())
 	}
 
 	// Get the file descriptor
@@ -83,12 +84,12 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	for _, method := range abi.Methods {
 		d := fDesc.Messages().ByName(protoreflect.Name(method.Argument))
 		if d == nil {
-			return nil, fmt.Errorf("%w: could not find type %s", ErrInvalidABI, method.Argument)
+			return nil, fmt.Errorf("%w: could not find type %s", util.ErrInvalidABI, method.Argument)
 		}
 
 		params, err := ParseABIFields(d)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %s", ErrInvalidABI, err)
+			return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
 		}
 
 		commandName := fmt.Sprintf("%s.%s", c.Name, method.Name)
@@ -133,7 +134,7 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 	// Form a protobuf message from the command input
 	msg, err := ParseResultToMessage(c.ParseResult, ee.Contracts)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidABI, err)
+		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
 	}
 
 	// Get the bytes of the message
@@ -143,7 +144,7 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 	}
 
 	// Get the contractID
-	contractID, err := HexStringToBytes(contract.Address)
+	contractID, err := util.HexStringToBytes(contract.Address)
 	if err != nil {
 		panic("Invalid contract ID")
 	}
@@ -201,11 +202,11 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 	// Form a protobuf message from the command input
 	msg, err := ParseResultToMessage(c.ParseResult, ee.Contracts)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidABI, err)
+		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
 	}
 
 	// Get the contractID
-	contractID, err := HexStringToBytes(contract.Address)
+	contractID, err := util.HexStringToBytes(contract.Address)
 	if err != nil {
 		panic("Invalid contract ID")
 	}

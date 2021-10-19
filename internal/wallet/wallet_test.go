@@ -7,12 +7,13 @@ import (
 	"os"
 	"testing"
 
+	"github.com/koinos/koinos-cli-wallet/internal/util"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSatoshiToDecimal(t *testing.T) {
-	v, err := SatoshiToDecimal(100000000, 8)
+	v, err := util.SatoshiToDecimal(100000000, 8)
 	if err != nil {
 		t.Error(err)
 	}
@@ -21,7 +22,7 @@ func TestSatoshiToDecimal(t *testing.T) {
 		t.Error("Expected 1.0, got", v)
 	}
 
-	v, err = SatoshiToDecimal(1000, 1)
+	v, err = util.SatoshiToDecimal(1000, 1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -30,7 +31,7 @@ func TestSatoshiToDecimal(t *testing.T) {
 		t.Error("Expected 100.0, got", v)
 	}
 
-	v, err = SatoshiToDecimal(12345678, 3)
+	v, err = util.SatoshiToDecimal(12345678, 3)
 	if err != nil {
 		t.Error(err)
 	}
@@ -78,8 +79,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error("Expected error, got none")
 	}
 
-	if !errors.Is(err, ErrUnknownCommand) {
-		t.Error("Expected error", ErrUnknownCommand, ", got", err)
+	if !errors.Is(err, util.ErrUnknownCommand) {
+		t.Error("Expected error", util.ErrUnknownCommand, ", got", err)
 	}
 
 	if results.CommandResults[0].CurrentArg != -1 {
@@ -91,8 +92,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error("Expected error, got none")
 	}
 
-	if !errors.Is(err, ErrUnknownCommand) {
-		t.Error("Expected error", ErrUnknownCommand, ", got", err)
+	if !errors.Is(err, util.ErrUnknownCommand) {
+		t.Error("Expected error", util.ErrUnknownCommand, ", got", err)
 	}
 
 	if results.CommandResults[0].CurrentArg != 0 {
@@ -138,8 +139,8 @@ func TestBadInput(t *testing.T) {
 		t.Error("Expected error, got none")
 	}
 
-	if !errors.Is(err, ErrEmptyCommandName) {
-		t.Error("Expected error", ErrEmptyCommandName, ", got", err)
+	if !errors.Is(err, util.ErrEmptyCommandName) {
+		t.Error("Expected error", util.ErrEmptyCommandName, ", got", err)
 	}
 
 	if results.Len() != 1 {
@@ -151,8 +152,8 @@ func TestOptionalArguments(t *testing.T) {
 	parser := makeTestParser()
 
 	// These should error since it is missing a required argument
-	checkParseResults(t, parser, "optional", ErrMissingParam, []string{}, []interface{}{})
-	checkParseResults(t, parser, "optional abcd", ErrMissingParam, []string{}, []interface{}{})
+	checkParseResults(t, parser, "optional", util.ErrMissingParam, []string{}, []interface{}{})
+	checkParseResults(t, parser, "optional abcd", util.ErrMissingParam, []string{}, []interface{}{})
 
 	// Check with proper optional arguments
 	checkParseResults(t, parser, "optional abcd efgh", nil, []string{"arg0", "arg1", "arg2", "arg3"}, []interface{}{"abcd", "efgh", nil, nil})
@@ -179,7 +180,7 @@ func TestParseBool(t *testing.T) {
 	checkParseResults(t, parser, "test_bool abcd 1 123.345", nil, []string{"string", "bool", "amount"}, []interface{}{"abcd", "true", "123.345"})
 
 	// Test invalid value
-	checkParseResults(t, parser, "test_bool abcd ghjkg 123.345", ErrInvalidParam, []string{"string", "bool", "amount"}, []interface{}{"abcd", nil, "123.345"})
+	checkParseResults(t, parser, "test_bool abcd ghjkg 123.345", util.ErrInvalidParam, []string{"string", "bool", "amount"}, []interface{}{"abcd", nil, "123.345"})
 
 }
 
@@ -240,7 +241,7 @@ func TestWalletFile(t *testing.T) {
 	defer os.Remove(file.Name())
 	assert.NoError(t, err)
 
-	err = CreateWalletFile(file, "my_password", testKey)
+	err = util.CreateWalletFile(file, "my_password", testKey)
 	assert.NoError(t, err)
 
 	file.Close()
@@ -249,7 +250,7 @@ func TestWalletFile(t *testing.T) {
 	file, err = os.OpenFile(file.Name(), os.O_RDONLY, 0600)
 	assert.NoError(t, err)
 
-	result, err := ReadWalletFile(file, "my_password")
+	result, err := util.ReadWalletFile(file, "my_password")
 	assert.NoError(t, err)
 
 	assert.True(t, bytes.Equal(result, testKey), "retrieved private key from wallet file mismatch")
@@ -260,7 +261,7 @@ func TestWalletFile(t *testing.T) {
 	file, err = os.OpenFile(file.Name(), os.O_RDONLY, 0600)
 	assert.NoError(t, err)
 
-	_, err = ReadWalletFile(file, "not_my_password")
+	_, err = util.ReadWalletFile(file, "not_my_password")
 	assert.Error(t, err)
 
 	file.Close()
@@ -271,8 +272,8 @@ func TestWalletFile(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	err = CreateWalletFile(errfile, "", testKey)
-	assert.ErrorIs(t, err, ErrEmptyPassphrase, "An empty passphrase should be disallowed")
+	err = util.CreateWalletFile(errfile, "", testKey)
+	assert.ErrorIs(t, err, util.ErrEmptyPassphrase, "An empty passphrase should be disallowed")
 
 	errfile.Close()
 }
