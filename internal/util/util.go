@@ -1,4 +1,4 @@
-package wallet
+package util
 
 import (
 	"bytes"
@@ -10,15 +10,11 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
-	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
-	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
-	"github.com/koinos/koinos-proto-golang/koinos/rpc/chain"
 	"github.com/minio/sio"
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multihash"
 	"github.com/shopspring/decimal"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -72,111 +68,6 @@ func DecimalToSatoshi(d *decimal.Decimal, precision int) (int64, error) {
 	}
 
 	return d.Mul(multiplier).BigInt().Int64(), nil
-}
-
-// KoinosRPCClient is a wrapper around the jsonrpc client
-type KoinosRPCClient struct {
-	client kjsonrpc.RPCClient
-}
-
-// NewKoinosRPCClient creates a new koinos rpc client
-func NewKoinosRPCClient(url string) *KoinosRPCClient {
-	client := kjsonrpc.NewClient(url)
-	return &KoinosRPCClient{client: client}
-}
-
-// Call wraps the rpc client call and handles some of the boilerplate
-func (c *KoinosRPCClient) Call(method string, params proto.Message, returnType proto.Message) error {
-	// Make the rpc call
-	resp, err := c.client.Call(method, params)
-	if err != nil {
-		return err
-	}
-	if resp.Error != nil {
-		return resp.Error
-	}
-
-	// Fetch the contract response
-	err = resp.GetObject(returnType)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// GetAccountBalance gets the balance of a given account
-func (c *KoinosRPCClient) GetAccountBalance(address []byte, contractID []byte, balanceOfEntry uint32) (uint64, error) {
-	// Make the rpc call
-	balanceOfArgs := &token.BalanceOfArguments{
-		Owner: address,
-	}
-	argBytes, err := proto.Marshal(balanceOfArgs)
-	if err != nil {
-		return 0, err
-	}
-
-	cResp, err := c.ReadContract(argBytes, contractID, balanceOfEntry)
-	if err != nil {
-		return 0, err
-	}
-
-	balanceOfReturn := &token.BalanceOfResult{}
-	err = proto.Unmarshal(cResp.Result, balanceOfReturn)
-	if err != nil {
-		return 0, err
-	}
-
-	return balanceOfReturn.Value, nil
-}
-
-// ReadContract reads from the given contract and returns the response
-func (c *KoinosRPCClient) ReadContract(args []byte, contractID []byte, entryPoint uint32) (*chain.ReadContractResponse, error) {
-	// Build the contract request
-	params := chain.ReadContractRequest{ContractId: contractID, EntryPoint: entryPoint, Args: args}
-
-	// Make the rpc call
-	var cResp chain.ReadContractResponse
-	err := c.Call(ReadContractCall, &params, &cResp)
-	if err != nil {
-		return nil, err
-	}
-
-	return &cResp, nil
-}
-
-// GetAccountRc gets the rc of a given account
-func (c *KoinosRPCClient) GetAccountRc(address []byte) (uint64, error) {
-	// Build the contract request
-	params := chain.GetAccountRcRequest{
-		Account: address,
-	}
-
-	// Make the rpc call
-	var cResp chain.GetAccountRcResponse
-	err := c.Call(GetAccountRcCall, &params, &cResp)
-	if err != nil {
-		return 0, err
-	}
-
-	return cResp.Rc, nil
-}
-
-// GetAccountNonce gets the nonce of a given account
-func (c *KoinosRPCClient) GetAccountNonce(address []byte) (uint64, error) {
-	// Build the contract request
-	params := chain.GetAccountNonceRequest{
-		Account: address,
-	}
-
-	// Make the rpc call
-	var cResp chain.GetAccountNonceResponse
-	err := c.Call(GetAccountNonceCall, &params, &cResp)
-	if err != nil {
-		return 0, err
-	}
-
-	return cResp.Nonce, nil
 }
 
 func walletConfig(password []byte) sio.Config {
@@ -237,25 +128,6 @@ func ReadWalletFile(file *os.File, passphrase string) ([]byte, error) {
 	_, err = sio.Decrypt(&destination, file, walletConfig(passwordHash))
 
 	return destination.Bytes(), err
-}
-
-// ParseAndInterpret is a helper function to parse and interpret the given command string
-func ParseAndInterpret(parser *CommandParser, ee *ExecutionEnvironment, input string) *InterpretResults {
-	result, err := parser.Parse(input)
-	if err != nil {
-		o := NewInterpretResults()
-		o.AddResult(err.Error())
-		metrics := result.Metrics()
-		// Display help for the command if it is a valid command
-		if result.CommandResults[metrics.CurrentResultIndex].Decl != nil {
-			o.AddResult("Usage: " + result.CommandResults[metrics.CurrentResultIndex].Decl.String())
-		} else {
-			o.AddResult("Type \"list\" for a list of commands.")
-		}
-		return o
-	}
-
-	return result.Interpret(ee)
 }
 
 const compressMagic byte = 0x01

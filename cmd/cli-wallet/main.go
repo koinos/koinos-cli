@@ -6,21 +6,23 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/koinos/koinos-cli-wallet/cmd/cli-wallet/interactive"
+	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
+	"github.com/koinos/koinos-cli-wallet/internal/util"
 	"github.com/koinos/koinos-cli-wallet/internal/wallet"
 	flag "github.com/spf13/pflag"
 )
 
 // Commpand line parameter names
 const (
-	rpcOption     = "rpc"
-	executeOption = "execute"
-	versionOption = "version"
+	rpcOption              = "rpc"
+	executeOption          = "execute"
+	versionOption          = "version"
+	forceInteractiveOption = "force-interactive"
 )
 
 // Default options
 const (
-	rpcDefault     = ""
-	executeDefault = ""
+	rpcDefault = ""
 )
 
 func main() {
@@ -32,36 +34,41 @@ func main() {
 
 	// Setup command line options
 	rpcAddress := flag.StringP(rpcOption, "r", rpcDefault, "RPC server URL")
-	executeCmd := flag.StringP(executeOption, "x", executeDefault, "Command to execute")
+	executeCmd := flag.StringSliceP(executeOption, "x", nil, "Command to execute")
 	versionCmd := flag.BoolP(versionOption, "v", false, "Display the version")
+	forceInteractive := flag.BoolP(forceInteractiveOption, "i", false, "Forces interactive mode. Useful for forcing a prompt when using the excute option")
 
 	flag.Parse()
 
 	if *versionCmd {
-		fmt.Println(wallet.Version)
+		fmt.Println(util.Version)
 		os.Exit(0)
 	}
 
 	// Setup client
-	var client *wallet.KoinosRPCClient
+	var client *kjsonrpc.KoinosRPCClient
 	if *rpcAddress != "" {
-		client = wallet.NewKoinosRPCClient(*rpcAddress)
+		client = kjsonrpc.NewKoinosRPCClient(*rpcAddress)
 	}
 
 	// Construct the command parser
 	commands := wallet.NewKoinosCommandSet()
 	parser := wallet.NewCommandParser(commands)
 
-	cmdEnv := wallet.ExecutionEnvironment{RPCClient: client, Parser: parser}
+	cmdEnv := wallet.NewExecutionEnvironment(client, parser)
 
 	// If the user submitted commands, execute them
-	if *executeCmd != "" {
-		results := wallet.ParseAndInterpret(parser, &cmdEnv, *executeCmd)
-		results.Print()
-		// Otherwise run the interactive shell
-	} else {
+	if *executeCmd != nil {
+		for _, cmd := range *executeCmd {
+			results := wallet.ParseAndInterpret(parser, cmdEnv, cmd)
+			results.Print()
+		}
+	}
+
+	// Run interactive mode if no commands given, or if forced
+	if *forceInteractive || (*executeCmd == nil) {
 		// Enter interactive mode
-		p := interactive.NewKoinosPrompt(parser, &cmdEnv)
+		p := interactive.NewKoinosPrompt(parser, cmdEnv)
 		p.Run()
 	}
 }

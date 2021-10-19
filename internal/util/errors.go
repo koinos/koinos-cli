@@ -1,4 +1,4 @@
-package wallet
+package util
 
 import (
 	"errors"
@@ -52,4 +52,13 @@ var (
 
 	// ErrBlankPassword is returned when the user supplies a blank password
 	ErrBlankPassword = errors.New("blank password")
+
+	// ErrInvalidABI is returned when an ABI is invalid
+	ErrInvalidABI = errors.New("invalid ABI")
+
+	// ErrUnsupportedType is returned when an unsupported type is passed
+	ErrUnsupportedType = errors.New("unsupported type")
+
+	// ErrContract is returned when a contract is already registered
+	ErrContract = errors.New("contract error")
 )

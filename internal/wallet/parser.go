@@ -3,6 +3,8 @@ package wallet
 import (
 	"fmt"
 	"regexp"
+
+	"github.com/koinos/koinos-cli-wallet/internal/util"
 )
 
 // TerminationStatus is an enum
@@ -20,13 +22,17 @@ type CommandArgType int
 
 // Types of arguments
 const (
-	Address CommandArgType = iota
-	String
-	Amount
-	CmdName
+	AddressArg CommandArgType = iota
+	StringArg
+	AmountArg
+	CmdNameArg
+	IntArg
+	UIntArg
+	BytesArg
+	BoolArg
 
 	// A parameter should never be declared as type nothing, this is only for parsing errors
-	Nothing
+	NoArg
 )
 
 // Characters used in parsing
@@ -90,6 +96,10 @@ type CommandParser struct {
 	addressRE      *regexp.Regexp
 	simpleStringRE *regexp.Regexp
 	amountRE       *regexp.Regexp
+	uintRE         *regexp.Regexp
+	intRE          *regexp.Regexp
+	bytesRE        *regexp.Regexp
+	boolRE         *regexp.Regexp
 }
 
 // NewCommandParser creates a new command parser
@@ -98,12 +108,16 @@ func NewCommandParser(commands *CommandSet) *CommandParser {
 		Commands: commands,
 	}
 
-	parser.commandNameRE = regexp.MustCompile(`^[a-zA-Z0-9_]+`)
+	parser.commandNameRE = regexp.MustCompile(`^([a-zA-Z0-9_]+\.)?[a-zA-Z0-9_]+`)
 	parser.skipRE = regexp.MustCompile(`^\s*`)
 	parser.terminatorRE = regexp.MustCompile(`^(;|$)`)
 	parser.addressRE = regexp.MustCompile(`^0x[0-9a-fA-F]+`)
 	parser.simpleStringRE = regexp.MustCompile(`^[^\s"\';]+`)
 	parser.amountRE = regexp.MustCompile(`^((\d+(\.\d*)?)|(\.\d+))`)
+	parser.uintRE = regexp.MustCompile(`^[+]?[0-9]+`)
+	parser.intRE = regexp.MustCompile(`^[+-]?[0-9]+`)
+	parser.bytesRE = regexp.MustCompile(`^0x[0-9a-fA-F]+`)
+	parser.boolRE = regexp.MustCompile(`^(?P<false>[Ff][Aa][Ll][Ss][Ee]|0)|(?P<true>[Tt][Rr][Uu][Ee]|1)`)
 
 	return parser
 }
@@ -153,7 +167,7 @@ func (p *CommandParser) parseNextCommand(input []byte) (*CommandParseResult, []b
 		inv.Decl = decl
 	} else {
 		p.parseSkip(input, inv, true)
-		return inv, nil, fmt.Errorf("%w", ErrUnknownCommand)
+		return inv, nil, fmt.Errorf("%w", util.ErrUnknownCommand)
 	}
 
 	input, err = p.parseArgs(input, inv)
@@ -173,7 +187,7 @@ func (p *CommandParser) parseNextCommand(input []byte) (*CommandParseResult, []b
 func (p *CommandParser) parseCommandName(input []byte) ([]byte, error) {
 	m := p.commandNameRE.Find(input)
 	if m == nil {
-		return nil, fmt.Errorf("%w", ErrEmptyCommandName)
+		return nil, fmt.Errorf("%w", util.ErrEmptyCommandName)
 	}
 
 	return m, nil
@@ -192,7 +206,7 @@ func (p *CommandParser) parseArgs(input []byte, inv *CommandParseResult) ([]byte
 				return input, nil
 			}
 
-			return input, fmt.Errorf("%w: %s", ErrMissingParam, arg.Name)
+			return input, fmt.Errorf("%w: %s", util.ErrMissingParam, arg.Name)
 		}
 
 		var match []byte
@@ -201,14 +215,22 @@ func (p *CommandParser) parseArgs(input []byte, inv *CommandParseResult) ([]byte
 
 		// Match the argument based on type
 		switch arg.ArgType {
-		case Address:
+		case AddressArg:
 			match, l, err = p.parseAddress(input)
-		case String:
+		case StringArg:
 			match, l, err = p.parseString(input)
-		case Amount:
+		case AmountArg:
 			match, l, err = p.parseAmount(input)
-		case CmdName:
+		case CmdNameArg:
 			match, l, err = p.parseString(input)
+		case UIntArg:
+			match, l, err = p.parseUInt(input)
+		case IntArg:
+			match, l, err = p.parseInt(input)
+		case BytesArg:
+			match, l, err = p.parseBytes(input)
+		case BoolArg:
+			match, l, err = p.parseBool(input)
 		}
 		input = input[l:] // Consume the match
 
@@ -230,17 +252,66 @@ func (p *CommandParser) parseAddress(input []byte) ([]byte, int, error) {
 	// Parse address
 	m := p.addressRE.Find(input)
 	if m == nil {
-		return nil, 0, fmt.Errorf("%w", ErrInvalidParam)
+		return nil, 0, fmt.Errorf("%w", util.ErrInvalidParam)
 	}
 
 	return m, len(m), nil
+}
+
+// Parse an address. Returns matched address consumed length, and error
+func (p *CommandParser) parseBytes(input []byte) ([]byte, int, error) {
+	// Parse bytes
+	m := p.bytesRE.Find(input)
+	if m == nil {
+		return nil, 0, fmt.Errorf("%w", util.ErrInvalidParam)
+	}
+
+	return m, len(m), nil
+}
+
+func (p *CommandParser) parseBool(input []byte) ([]byte, int, error) {
+	// Parse bool
+	m := p.boolRE.FindSubmatch(input)
+	if m == nil {
+		return nil, 0, fmt.Errorf("%w", util.ErrInvalidParam)
+	}
+
+	falseIndex := p.boolRE.SubexpIndex("false")
+	trueIndex := p.boolRE.SubexpIndex("true")
+	if len(m[falseIndex]) > 0 {
+		return []byte("false"), len(m[falseIndex]), nil
+	} else if len(m[trueIndex]) > 0 {
+		return []byte("true"), len(m[trueIndex]), nil
+	}
+
+	return nil, 0, fmt.Errorf("%w", util.ErrInvalidParam)
 }
 
 func (p *CommandParser) parseAmount(input []byte) ([]byte, int, error) {
 	// Parse amount
 	m := p.amountRE.Find(input)
 	if m == nil {
-		return nil, 0, fmt.Errorf("%w", ErrInvalidParam)
+		return nil, 0, fmt.Errorf("%w", util.ErrInvalidParam)
+	}
+
+	return m, len(m), nil
+}
+
+func (p *CommandParser) parseUInt(input []byte) ([]byte, int, error) {
+	// Parse uint
+	m := p.uintRE.Find(input)
+	if m == nil {
+		return nil, 0, fmt.Errorf("%w", util.ErrInvalidParam)
+	}
+
+	return m, len(m), nil
+}
+
+func (p *CommandParser) parseInt(input []byte) ([]byte, int, error) {
+	// Parse int
+	m := p.intRE.Find(input)
+	if m == nil {
+		return nil, 0, fmt.Errorf("%w", util.ErrInvalidParam)
 	}
 
 	return m, len(m), nil
@@ -250,7 +321,7 @@ func (p *CommandParser) parseAmount(input []byte) ([]byte, int, error) {
 func (p *CommandParser) parseString(input []byte) ([]byte, int, error) {
 	// Parse string
 	if len(input) == 0 {
-		return nil, 0, fmt.Errorf("%w", ErrMissingParam)
+		return nil, 0, fmt.Errorf("%w", util.ErrMissingParam)
 	}
 
 	if input[0] == '"' || input[0] == '\'' {
@@ -297,13 +368,13 @@ func (p *CommandParser) parseQuotedString(input []byte) ([]byte, int, error) {
 		output = append(output, c)
 	}
 
-	return nil, 0, fmt.Errorf("%w (missing closing quote)", ErrInvalidParam)
+	return nil, 0, fmt.Errorf("%w (missing closing quote)", util.ErrInvalidParam)
 }
 
 func (p *CommandParser) parseSimpleString(input []byte) ([]byte, int, error) {
 	m := p.simpleStringRE.Find(input)
 	if m == nil {
-		return nil, 0, fmt.Errorf("%w", ErrInvalidParam)
+		return nil, 0, fmt.Errorf("%w", util.ErrInvalidParam)
 	}
 
 	return m, len(m), nil

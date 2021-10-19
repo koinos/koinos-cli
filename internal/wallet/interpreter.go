@@ -3,6 +3,9 @@ package wallet
 import (
 	"context"
 	"fmt"
+
+	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
+	"github.com/koinos/koinos-cli-wallet/internal/util"
 )
 
 // Command execution code
@@ -38,9 +41,19 @@ func (er *ExecutionResult) Print() {
 
 // ExecutionEnvironment is a struct that holds the environment for command execution.
 type ExecutionEnvironment struct {
-	RPCClient *KoinosRPCClient
-	Key       *KoinosKey
+	RPCClient *kjsonrpc.KoinosRPCClient
+	Key       *util.KoinosKey
 	Parser    *CommandParser
+	Contracts Contracts
+}
+
+// NewExecutionEnvironment creates a new ExecutionEnvironment object
+func NewExecutionEnvironment(rpcClient *kjsonrpc.KoinosRPCClient, parser *CommandParser) *ExecutionEnvironment {
+	return &ExecutionEnvironment{
+		RPCClient: rpcClient,
+		Parser:    parser,
+		Contracts: make(map[string]*ContractInfo),
+	}
 }
 
 // IsWalletOpen returns a bool representing whether or not there is an open wallet
@@ -183,7 +196,7 @@ type ParseResultMetrics struct {
 // Metrics is a function that returns a ParseResultMetrics object
 func (pr *ParseResults) Metrics() *ParseResultMetrics {
 	if len(pr.CommandResults) == 0 {
-		return &ParseResultMetrics{CurrentResultIndex: 0, CurrentArg: -1, CurrentParamType: CmdName}
+		return &ParseResultMetrics{CurrentResultIndex: 0, CurrentArg: -1, CurrentParamType: CmdNameArg}
 	}
 
 	index := len(pr.CommandResults) - 1
@@ -194,15 +207,34 @@ func (pr *ParseResults) Metrics() *ParseResultMetrics {
 	}
 
 	// Calculated the type of param
-	pType := CmdName
+	pType := CmdNameArg
 	if arg >= 0 {
 		// If there is a declaration, find the type of the param
 		if pr.CommandResults[index].Decl != nil {
 			pType = pr.CommandResults[index].Decl.Args[arg].ArgType
 		} else { // Otherwise it is an invalid command
-			pType = Nothing
+			pType = NoArg
 		}
 	}
 
 	return &ParseResultMetrics{CurrentResultIndex: index, CurrentArg: arg, CurrentParamType: pType}
+}
+
+// ParseAndInterpret is a helper function to parse and interpret the given command string
+func ParseAndInterpret(parser *CommandParser, ee *ExecutionEnvironment, input string) *InterpretResults {
+	result, err := parser.Parse(input)
+	if err != nil {
+		o := NewInterpretResults()
+		o.AddResult(err.Error())
+		metrics := result.Metrics()
+		// Display help for the command if it is a valid command
+		if result.CommandResults[metrics.CurrentResultIndex].Decl != nil {
+			o.AddResult("Usage: " + result.CommandResults[metrics.CurrentResultIndex].Decl.String())
+		} else {
+			o.AddResult("Type \"list\" for a list of commands.")
+		}
+		return o
+	}
+
+	return result.Interpret(ee)
 }
