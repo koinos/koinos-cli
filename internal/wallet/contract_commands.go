@@ -114,15 +114,17 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 // Read Contract Command
 // ----------------------------------------------------------------------------
 
+// ReadContractCommand is a backend for generated commands that read from a contract
 type ReadContractCommand struct {
 	ParseResult *CommandParseResult
 }
 
-// NewRegisterCommand creates a new close object
+// NewReadContractCommand creates a new read contract command
 func NewReadContractCommand(inv *CommandParseResult) CLICommand {
 	return &ReadContractCommand{ParseResult: inv}
 }
 
+// Execute executes the read contract command
 func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
 
@@ -182,15 +184,17 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 // Write Contract Command
 // ----------------------------------------------------------------------------
 
+// WriteContractCommand is a backend for generated commands that write to a contract
 type WriteContractCommand struct {
 	ParseResult *CommandParseResult
 }
 
-// NewRegisterCommand creates a new close object
+// NewWriteContractCommand creates a new write contract command
 func NewWriteContractCommand(inv *CommandParseResult) CLICommand {
 	return &WriteContractCommand{ParseResult: inv}
 }
 
+// Execute executes the write contract command
 func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
 

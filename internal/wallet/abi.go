@@ -17,6 +17,7 @@ type ABI struct {
 	Types   []byte
 }
 
+// GetMethod returns the ABI method with the given name
 func (abi *ABI) GetMethod(name string) *ABIMethod {
 	for _, method := range abi.Methods {
 		if method.Name == name {
@@ -37,6 +38,7 @@ type ABIMethod struct {
 	ReadOnly    bool   `json:"read-only"`
 }
 
+// ContractInfo represents the information about a contract
 type ContractInfo struct {
 	Name           string
 	Address        string // []byte?
@@ -44,8 +46,10 @@ type ContractInfo struct {
 	FileDescriptor protoreflect.FileDescriptor
 }
 
+// Contracts is a map of contract names to ContractInfo
 type Contracts map[string]*ContractInfo
 
+// GetFromMethodName returns contract info from method name
 func (c Contracts) GetFromMethodName(methodName string) *ContractInfo {
 	s := strings.Split(methodName, ".")
 	if len(s) != 2 {
@@ -59,6 +63,7 @@ func (c Contracts) GetFromMethodName(methodName string) *ContractInfo {
 	return c[s[0]]
 }
 
+// GetMethod returns the ABI method with the given name
 func (c Contracts) GetMethod(methodName string) *ABIMethod {
 	s := strings.Split(methodName, ".")
 	if len(s) != 2 {
@@ -78,10 +83,12 @@ func (c Contracts) GetMethod(methodName string) *ABIMethod {
 	return contract.ABI.GetMethod(s[1])
 }
 
+// GetMethodArguments returns the message descriptor of the method arguments
 func (c Contracts) GetMethodArguments(methodName string) (protoreflect.MessageDescriptor, error) {
 	return c.getMethodData(methodName, true)
 }
 
+// GetMethodReturn returns the message descriptor of the method return
 func (c Contracts) GetMethodReturn(methodName string) (protoreflect.MessageDescriptor, error) {
 	return c.getMethodData(methodName, false)
 }
@@ -109,11 +116,13 @@ func (c Contracts) getMethodData(methodName string, getArguments bool) (protoref
 	return contract.FileDescriptor.Messages().ByName(protoreflect.Name(name)), nil
 }
 
+// Contains returns true if the contract exists
 func (c Contracts) Contains(name string) bool {
 	_, ok := c[name]
 	return ok
 }
 
+// Add adds a new contract
 func (c Contracts) Add(name string, address string, abi *ABI, fd protoreflect.FileDescriptor) error {
 	if c.Contains(name) {
 		return fmt.Errorf("contract %s already exists", name)
@@ -178,6 +187,7 @@ func ParseABIFields(md protoreflect.MessageDescriptor) ([]CommandArg, error) {
 	return params, nil
 }
 
+// DataToMessage takes a map of parsed command data and a message descriptor, and returns a message
 func DataToMessage(data map[string]*string, md protoreflect.MessageDescriptor) (proto.Message, error) {
 	msg := dynamicpb.NewMessage(md)
 	l := md.Fields().Len()
@@ -252,6 +262,7 @@ func DataToMessage(data map[string]*string, md protoreflect.MessageDescriptor) (
 	return msg, nil
 }
 
+// ParseResultToMessage takes a ParseResult and a message descriptor, and returns a message
 func ParseResultToMessage(cmd *CommandParseResult, contracts Contracts) (proto.Message, error) {
 	md, err := contracts.GetMethodArguments(cmd.CommandName)
 	if err != nil {

@@ -47,6 +47,7 @@ type ExecutionEnvironment struct {
 	Contracts Contracts
 }
 
+// NewExecutionEnvironment creates a new ExecutionEnvironment object
 func NewExecutionEnvironment(rpcClient *kjsonrpc.KoinosRPCClient, parser *CommandParser) *ExecutionEnvironment {
 	return &ExecutionEnvironment{
 		RPCClient: rpcClient,

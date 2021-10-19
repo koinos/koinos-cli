@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// These are the rpc calls that the wallet uses
 const (
 	ReadContractCall      = "chain.read_contract"
 	GetAccountNonceCall   = "chain.get_account_nonce"
@@ -90,6 +91,7 @@ func (c *KoinosRPCClient) ReadContract(args []byte, contractID []byte, entryPoin
 	return &cResp, nil
 }
 
+// WriteMessageContract writes to a contract with the given protobuf message as the arguments
 func (c *KoinosRPCClient) WriteMessageContract(msg proto.Message, key *util.KoinosKey, contractID []byte, entryPoint uint32) (*chain.SubmitTransactionResponse, error) {
 	args, err := proto.Marshal(msg)
 	if err != nil {
@@ -99,6 +101,7 @@ func (c *KoinosRPCClient) WriteMessageContract(msg proto.Message, key *util.Koin
 	return c.WriteContract(args, key, contractID, entryPoint)
 }
 
+// WriteContract writes to a contract with the given bytes as the arguments
 func (c *KoinosRPCClient) WriteContract(args []byte, key *util.KoinosKey, contractID []byte, entryPoint uint32) (*chain.SubmitTransactionResponse, error) {
 	// Cache the public address
 	address := key.AddressBytes()
