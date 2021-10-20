@@ -188,6 +188,7 @@ github.com/holiman/uint256 v1.2.0/go.mod h1:y4ga/t+u+Xwd7CpDgZESaRcWy0I7XMlTMA25
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/huin/goupnp v1.0.2/go.mod h1:0dxJBVBHqTMjIUMkESDTNgOOx/Mw5wYIfyFmdzSamkM=
 github.com/huin/goutil v0.0.0-20170803182201-1ca381bf3150/go.mod h1:PpLOETDnJ0o3iZrZfqZzyLl6l7F3c6L1oWn7OICBi6o=
+github.com/iancoleman/orderedmap v0.2.0/go.mod h1:N0Wam8K1arqPXNWjMo21EXnBPOPp36vB07FNRdD2geA=
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=
 github.com/influxdata/flux v0.65.1/go.mod h1:J754/zds0vvpfwuq7Gc2wRdVwEodfpCFM7mYlOw2LqY=
@@ -235,6 +236,8 @@ github.com/koinos/koinos-proto-golang v0.0.0-20211007215952-8fc54fd3a6f7 h1:fSbX
 github.com/koinos/koinos-proto-golang v0.0.0-20211007215952-8fc54fd3a6f7/go.mod h1:za0qDhkL4SFoDhKW0ZGde/t+SkIHlM1DtT4u9yz98mw=
 github.com/koinos/koinos-proto-golang v0.0.0-20211008192034-7c839c6feb4b h1:UWWOsg+pucKpyjSdDt4no5OfEmrsIuaGQiCzgEHSIMQ=
 github.com/koinos/koinos-proto-golang v0.0.0-20211008192034-7c839c6feb4b/go.mod h1:za0qDhkL4SFoDhKW0ZGde/t+SkIHlM1DtT4u9yz98mw=
+github.com/koinos/koinos-proto-golang v0.0.0-20211020230508-221d2594fa3e h1:aVU2p1he5A6iSSA8m7/48wwoCJa2IXjkAqeGY2rguwU=
+github.com/koinos/koinos-proto-golang v0.0.0-20211020230508-221d2594fa3e/go.mod h1:GTyWRBpQ2WGOOQf32Iv6BfNY3qqTS7VEFE84t/VdJZs=
 github.com/koinos/koinos-util-golang v0.0.0-20210909225633-da2fb456bade h1:qiTxIjQpu3xo4dm6QCp0EmN0PnhR/VsA3yyu5USMZA4=
 github.com/koinos/koinos-util-golang v0.0.0-20210909225633-da2fb456bade/go.mod h1:3NWXUf07ZUBOBYzU7r+aG34kA2bI0Y/kLXaZyF1Y7q4=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=

@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-proto-golang/koinos"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
@@ -152,14 +154,10 @@ func ParseABIFields(md protoreflect.MessageDescriptor) ([]CommandArg, error) {
 		case protoreflect.BoolKind:
 			t = BoolArg
 
-		case protoreflect.Int32Kind:
-			fallthrough
-		case protoreflect.Int64Kind:
+		case protoreflect.Int32Kind, protoreflect.Int64Kind:
 			t = IntArg
 
-		case protoreflect.Uint32Kind:
-			fallthrough
-		case protoreflect.Uint64Kind:
+		case protoreflect.Uint32Kind, protoreflect.Uint64Kind:
 			t = UIntArg
 
 		case protoreflect.StringKind:
@@ -167,6 +165,20 @@ func ParseABIFields(md protoreflect.MessageDescriptor) ([]CommandArg, error) {
 
 		case protoreflect.BytesKind:
 			t = BytesArg
+
+			opts := fd.Options()
+			if opts != nil {
+				fieldOpts := opts.(*descriptorpb.FieldOptions)
+				ext := koinos.E_KoinosBytesType.TypeDescriptor()
+				enum := fieldOpts.ProtoReflect().Get(ext).Enum()
+
+				switch koinos.BytesType(enum) {
+				case koinos.BytesType_HEX, koinos.BytesType_BLOCK_ID, koinos.BytesType_TRANSACTION_ID:
+					t = HexArg
+				case koinos.BytesType_BASE58, koinos.BytesType_CONTRACT_ID, koinos.BytesType_ADDRESS:
+					t = AddressArg
+				}
+			}
 
 		case protoreflect.MessageKind:
 			cmds, err := ParseABIFields(fd.Message())

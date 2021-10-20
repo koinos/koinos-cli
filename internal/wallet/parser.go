@@ -30,6 +30,7 @@ const (
 	UIntArg
 	BytesArg
 	BoolArg
+	HexArg
 
 	// A parameter should never be declared as type nothing, this is only for parsing errors
 	NoArg
@@ -100,6 +101,7 @@ type CommandParser struct {
 	intRE          *regexp.Regexp
 	bytesRE        *regexp.Regexp
 	boolRE         *regexp.Regexp
+	hexRE          *regexp.Regexp
 }
 
 // NewCommandParser creates a new command parser
@@ -116,8 +118,9 @@ func NewCommandParser(commands *CommandSet) *CommandParser {
 	parser.amountRE = regexp.MustCompile(`^((\d+(\.\d*)?)|(\.\d+))`)
 	parser.uintRE = regexp.MustCompile(`^[+]?[0-9]+`)
 	parser.intRE = regexp.MustCompile(`^[+-]?[0-9]+`)
-	parser.bytesRE = regexp.MustCompile(`^0x[0-9a-fA-F]+`)
+	parser.bytesRE = regexp.MustCompile(`^[A-Fa-f0-9\-_=+`)
 	parser.boolRE = regexp.MustCompile(`^(?P<false>[Ff][Aa][Ll][Ss][Ee]|0)|(?P<true>[Tt][Rr][Uu][Ee]|1)`)
+	parser.hexRE = regexp.MustCompile(`^0x[0-9a-fA-F]+`)
 
 	return parser
 }
@@ -231,6 +234,8 @@ func (p *CommandParser) parseArgs(input []byte, inv *CommandParseResult) ([]byte
 			match, l, err = p.parseBytes(input)
 		case BoolArg:
 			match, l, err = p.parseBool(input)
+		case HexArg:
+			match, l, err = p.parseHex(input)
 		}
 		input = input[l:] // Consume the match
 
@@ -412,4 +417,15 @@ func (p *CommandParser) parseSkip(input []byte, inv *CommandParseResult, incArgs
 	}
 
 	return input, term
+}
+
+// Parse a hex string. Returns matched string consumed length, and error
+func (p *CommandParser) parseHex(input []byte) ([]byte, int, error) {
+	// Parse hex strmg
+	m := p.addressRE.Find(input)
+	if m == nil {
+		return nil, 0, fmt.Errorf("%w", util.ErrInvalidParam)
+	}
+
+	return m, len(m), nil
 }
