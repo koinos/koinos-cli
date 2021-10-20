@@ -27,6 +27,7 @@ import (
 // Hardcoded Koin contract constants
 const (
 	KoinSymbol         = "tKOIN"
+	ManaSymbol         = "mana"
 	KoinPrecision      = 8
 	KoinContractID     = "0xd32014064fcc2e8d11440e1eab7fa8ff7ed14a60bd3424"
 	KoinBalanceOfEntry = uint32(0x15619248)
@@ -191,8 +192,21 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 		return nil, err
 	}
 
+	// Get Mana
+	mana, err := ee.RPCClient.GetAccountRc(address)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build the mana result
+	manaDec, err := util.SatoshiToDecimal(int64(mana), KoinPrecision)
+	if err != nil {
+		return nil, err
+	}
+
 	er := NewExecutionResult()
 	er.AddMessage(fmt.Sprintf("%v %s", dec, KoinSymbol))
+	er.AddMessage(fmt.Sprintf("Mana: %v %s", manaDec, ManaSymbol))
 
 	return er, nil
 }
