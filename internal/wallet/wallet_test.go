@@ -65,7 +65,7 @@ func TestBasicParser(t *testing.T) {
 	parser := makeTestParser()
 
 	// Test parsing several commands
-	results, err := parser.Parse("test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9; test_none; test_none2")
+	results, err := parser.Parse("test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg; test_none; test_none2")
 	if err != nil {
 		t.Error(err)
 	}
@@ -134,7 +134,7 @@ func TestBadInput(t *testing.T) {
 	}
 
 	// Test valid command followed by empty commands
-	results, err = parser.Parse("test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9;  ;;  ; ;; test_none")
+	results, err = parser.Parse("test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg;  ;;  ; ;; test_none")
 	if err == nil {
 		t.Error("Expected error, got none")
 	}
@@ -214,13 +214,13 @@ func checkParseResults(t *testing.T, parser *CommandParser, cmd string, errType 
 func TestParserTermination(t *testing.T) {
 	parser := makeTestParser()
 
-	checkTerminators(t, parser, "test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9", []TerminationStatus{Input})
-	checkTerminators(t, parser, "test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9;", []TerminationStatus{Command})
-	checkTerminators(t, parser, "  test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9   ", []TerminationStatus{Input})
-	checkTerminators(t, parser, "      test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9  ;   ", []TerminationStatus{Command})
-	checkTerminators(t, parser, "test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9", []TerminationStatus{None})
-	checkTerminators(t, parser, "test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9; test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9", []TerminationStatus{Command, Input})
-	checkTerminators(t, parser, "test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9; test_address 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9;", []TerminationStatus{Command, Command})
+	checkTerminators(t, parser, "test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg", []TerminationStatus{Input})
+	checkTerminators(t, parser, "test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg;", []TerminationStatus{Command})
+	checkTerminators(t, parser, "  test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg   ", []TerminationStatus{Input})
+	checkTerminators(t, parser, "      test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg  ;   ", []TerminationStatus{Command})
+	checkTerminators(t, parser, "test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg", []TerminationStatus{None})
+	checkTerminators(t, parser, "test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg; test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg", []TerminationStatus{Command, Input})
+	checkTerminators(t, parser, "test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg; test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg;", []TerminationStatus{Command, Command})
 }
 
 func checkTerminators(t *testing.T, parser *CommandParser, input string, terminators []TerminationStatus) {
@@ -292,25 +292,25 @@ func TestParseMetrics(t *testing.T) {
 	checkMetrics("test_multi ", parser, t, true, 0, 0, AddressArg)
 
 	// Test parsing the rest of the arguments address string amount string
-	checkMetrics("test_multi 0x00ab1af48ae03", parser, t, true, 0, 0, AddressArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9", parser, t, true, 0, 0, AddressArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 ", parser, t, true, 0, 1, StringArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword str", parser, t, true, 0, 1, StringArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string'", parser, t, true, 0, 1, StringArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' ", parser, t, true, 0, 2, AmountArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403", parser, t, true, 0, 2, AmountArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873", parser, t, true, 0, 2, AmountArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 ", parser, t, true, 0, 3, StringArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str", parser, t, false, 0, 3, StringArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str ", parser, t, false, 0, 3, StringArg) // What should happen here?
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str;", parser, t, false, 1, -1, CmdNameArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; ", parser, t, false, 1, -1, CmdNameArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; tes", parser, t, true, 1, -1, CmdNameArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string", parser, t, true, 1, -1, CmdNameArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string ", parser, t, true, 1, 0, StringArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string \"abc", parser, t, true, 1, 0, StringArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\"", parser, t, false, 1, 0, StringArg)
-	checkMetrics("test_multi 0x00ab1af48ae038ae0f1b7bc22f8262bc91be679eab94ccd2e9 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\";", parser, t, false, 2, -1, CmdNameArg)
+	checkMetrics("test_multi 16KsSj5mU", parser, t, true, 0, 0, AddressArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg", parser, t, true, 0, 0, AddressArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg ", parser, t, true, 0, 1, StringArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword str", parser, t, true, 0, 1, StringArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string'", parser, t, true, 0, 1, StringArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string' ", parser, t, true, 0, 2, AmountArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string' 50.403", parser, t, true, 0, 2, AmountArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string' 50.403873", parser, t, true, 0, 2, AmountArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string' 50.403873 ", parser, t, true, 0, 3, StringArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string' 50.403873 basic_str", parser, t, false, 0, 3, StringArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string' 50.403873 basic_str ", parser, t, false, 0, 3, StringArg) // What should happen here?
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string' 50.403873 basic_str;", parser, t, false, 1, -1, CmdNameArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string' 50.403873 basic_str; ", parser, t, false, 1, -1, CmdNameArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string' 50.403873 basic_str; tes", parser, t, true, 1, -1, CmdNameArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string' 50.403873 basic_str; test_string", parser, t, true, 1, -1, CmdNameArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string' 50.403873 basic_str; test_string ", parser, t, true, 1, 0, StringArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string' 50.403873 basic_str; test_string \"abc", parser, t, true, 1, 0, StringArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\"", parser, t, false, 1, 0, StringArg)
+	checkMetrics("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\";", parser, t, false, 2, -1, CmdNameArg)
 
 	// Test parsing invalid command followed by spaces
 	checkMetrics("n  ", parser, t, true, 0, 0, NoArg)
