@@ -118,7 +118,7 @@ func NewCommandParser(commands *CommandSet) *CommandParser {
 	parser.amountRE = regexp.MustCompile(`^((\d+(\.\d*)?)|(\.\d+))`)
 	parser.uintRE = regexp.MustCompile(`^[+]?[0-9]+`)
 	parser.intRE = regexp.MustCompile(`^[+-]?[0-9]+`)
-	parser.bytesRE = regexp.MustCompile(`^[A-Fa-f0-9\-_=+`)
+	parser.bytesRE = regexp.MustCompile(`^[A-Fa-f0-9\-_=]+`)
 	parser.boolRE = regexp.MustCompile(`^(?P<false>[Ff][Aa][Ll][Ss][Ee]|0)|(?P<true>[Tt][Rr][Uu][Ee]|1)`)
 	parser.hexRE = regexp.MustCompile(`^0x[0-9a-fA-F]+`)
 
