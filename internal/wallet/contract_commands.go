@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli-wallet/internal/util"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -57,39 +58,59 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
 	}
 
+	fileDescriptorSet := &descriptorpb.FileDescriptorSet{}
+	fieldProto := descriptorpb.FieldOptions{}
+	fileDescriptorSet.File = append(fileDescriptorSet.File, protodesc.ToFileDescriptorProto(fieldProto.ProtoReflect().Descriptor().ParentFile()))
+
 	var fds descriptorpb.FileDescriptorSet
 	err = proto.Unmarshal(abi.Types, &fds)
+	if err != nil {
+		fdProto := &descriptorpb.FileDescriptorProto{}
+		err := proto.Unmarshal(abi.Types, fdProto)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+		}
+
+		fileDescriptorSet.File = append(fileDescriptorSet.File, fdProto)
+	} else {
+		for _, fdProto := range fds.GetFile() {
+			fileDescriptorSet.File = append(fileDescriptorSet.File, fdProto)
+		}
+	}
+
+	var protoFileOpts protodesc.FileOptions
+	files, err := protoFileOpts.NewFiles(fileDescriptorSet)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
 	}
 
-	var protoFileOpts protodesc.FileOptions
-	files, err := protoFileOpts.NewFiles(&fds)
-
-	if files.NumFiles() != 1 {
-		return nil, fmt.Errorf("%w: expected 1 descriptor, got %d", util.ErrInvalidABI, files.NumFiles())
-	}
-
-	// Get the file descriptor
-	var fDesc protoreflect.FileDescriptor
-	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
-		fDesc = fd
-		return true
-	})
-
-	// Register the contract
-	ee.Contracts.Add(c.Name, c.Address, &abi, fDesc)
+	commands := []*CommandDeclaration{}
 
 	// Iterate through the methods and construct the commands
 	for _, method := range abi.Methods {
-		d := fDesc.Messages().ByName(protoreflect.Name(method.Argument))
-		if d == nil {
+		d, err := files.FindDescriptorByName(protoreflect.FullName(method.Argument))
+		if err != nil {
 			return nil, fmt.Errorf("%w: could not find type %s", util.ErrInvalidABI, method.Argument)
 		}
 
-		params, err := ParseABIFields(d)
+		md, ok := d.(protoreflect.MessageDescriptor)
+		if !ok {
+			return nil, fmt.Errorf("%w: %s is not a message", util.ErrInvalidABI, method.Argument)
+		}
+
+		params, err := ParseABIFields(md)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+		}
+
+		d, err = files.FindDescriptorByName(protoreflect.FullName(method.Return))
+		if err != nil {
+			return nil, fmt.Errorf("%w: could not find type %s", util.ErrInvalidABI, method.Argument)
+		}
+
+		md, ok = d.(protoreflect.MessageDescriptor)
+		if !ok {
+			return nil, fmt.Errorf("%w: %s is not a message", util.ErrInvalidABI, method.Argument)
 		}
 
 		commandName := fmt.Sprintf("%s.%s", c.Name, method.Name)
@@ -102,6 +123,13 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 			cmd = NewCommandDeclaration(commandName, method.Description, false, NewWriteContractCommand, params...)
 		}
 
+		commands = append(commands, cmd)
+	}
+
+	// Register the contract
+	ee.Contracts.Add(c.Name, c.Address, &abi, files)
+
+	for _, cmd := range commands {
 		ee.Parser.Commands.AddCommand(cmd)
 	}
 
@@ -146,10 +174,7 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 	}
 
 	// Get the contractID
-	contractID, err := util.HexStringToBytes(contract.Address)
-	if err != nil {
-		panic("Invalid contract ID")
-	}
+	contractID := base58.Decode(contract.Address)
 
 	cResp, err := ee.RPCClient.ReadContract(argBytes, contractID, uint32(entryPoint))
 	if err != nil {
@@ -210,10 +235,7 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 	}
 
 	// Get the contractID
-	contractID, err := util.HexStringToBytes(contract.Address)
-	if err != nil {
-		panic("Invalid contract ID")
-	}
+	contractID := base58.Decode(contract.Address)
 
 	_, err = ee.RPCClient.WriteMessageContract(msg, ee.Key, contractID, uint32(entryPoint))
 	if err != nil {

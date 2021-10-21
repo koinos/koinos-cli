@@ -1,13 +1,19 @@
 package wallet
 
 import (
+	"encoding/base64"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-proto-golang/koinos"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
@@ -40,10 +46,10 @@ type ABIMethod struct {
 
 // ContractInfo represents the information about a contract
 type ContractInfo struct {
-	Name           string
-	Address        string // []byte?
-	ABI            *ABI
-	FileDescriptor protoreflect.FileDescriptor
+	Name     string
+	Address  string // []byte?
+	ABI      *ABI
+	Registry *protoregistry.Files
 }
 
 // Contracts is a map of contract names to ContractInfo
@@ -113,7 +119,18 @@ func (c Contracts) getMethodData(methodName string, getArguments bool) (protoref
 		name = method.Return
 	}
 
-	return contract.FileDescriptor.Messages().ByName(protoreflect.Name(name)), nil
+	// This was checked when parsing the ABI, so we should have the error. Panicking because it is really bad
+	d, err := contract.Registry.FindDescriptorByName(protoreflect.FullName(name))
+	if err != nil {
+		panic(err)
+	}
+
+	md, ok := d.(protoreflect.MessageDescriptor)
+	if !ok {
+		panic(name + " is not a message")
+	}
+
+	return md, nil
 }
 
 // Contains returns true if the contract exists
@@ -123,16 +140,16 @@ func (c Contracts) Contains(name string) bool {
 }
 
 // Add adds a new contract
-func (c Contracts) Add(name string, address string, abi *ABI, fd protoreflect.FileDescriptor) error {
+func (c Contracts) Add(name string, address string, abi *ABI, files *protoregistry.Files) error {
 	if c.Contains(name) {
 		return fmt.Errorf("contract %s already exists", name)
 	}
 
 	c[name] = &ContractInfo{
-		Name:           name,
-		ABI:            abi,
-		Address:        address,
-		FileDescriptor: fd,
+		Name:     name,
+		ABI:      abi,
+		Address:  address,
+		Registry: files,
 	}
 
 	return nil
@@ -152,14 +169,10 @@ func ParseABIFields(md protoreflect.MessageDescriptor) ([]CommandArg, error) {
 		case protoreflect.BoolKind:
 			t = BoolArg
 
-		case protoreflect.Int32Kind:
-			fallthrough
-		case protoreflect.Int64Kind:
+		case protoreflect.Int32Kind, protoreflect.Int64Kind:
 			t = IntArg
 
-		case protoreflect.Uint32Kind:
-			fallthrough
-		case protoreflect.Uint64Kind:
+		case protoreflect.Uint32Kind, protoreflect.Uint64Kind:
 			t = UIntArg
 
 		case protoreflect.StringKind:
@@ -167,6 +180,20 @@ func ParseABIFields(md protoreflect.MessageDescriptor) ([]CommandArg, error) {
 
 		case protoreflect.BytesKind:
 			t = BytesArg
+
+			opts := fd.Options()
+			if opts != nil {
+				fieldOpts := opts.(*descriptorpb.FieldOptions)
+				ext := koinos.E_KoinosBytesType.TypeDescriptor()
+				enum := fieldOpts.ProtoReflect().Get(ext).Enum()
+
+				switch koinos.BytesType(enum) {
+				case koinos.BytesType_HEX, koinos.BytesType_BLOCK_ID, koinos.BytesType_TRANSACTION_ID:
+					t = HexArg
+				case koinos.BytesType_BASE58, koinos.BytesType_CONTRACT_ID, koinos.BytesType_ADDRESS:
+					t = AddressArg
+				}
+			}
 
 		case protoreflect.MessageKind:
 			cmds, err := ParseABIFields(fd.Message())
@@ -237,10 +264,36 @@ func DataToMessage(data map[string]*string, md protoreflect.MessageDescriptor) (
 			value = protoreflect.ValueOfString(inputValue)
 
 		case protoreflect.BytesKind:
-			b, err := util.HexStringToBytes(inputValue)
+			b := []byte{}
+			var err error
+
+			opts := fd.Options()
+			if opts != nil {
+				fieldOpts := opts.(*descriptorpb.FieldOptions)
+				ext := koinos.E_KoinosBytesType.TypeDescriptor()
+				enum := fieldOpts.ProtoReflect().Get(ext).Enum()
+
+				switch koinos.BytesType(enum) {
+				case koinos.BytesType_HEX, koinos.BytesType_BLOCK_ID, koinos.BytesType_TRANSACTION_ID:
+					b, err = util.HexStringToBytes(inputValue)
+				case koinos.BytesType_BASE58, koinos.BytesType_CONTRACT_ID, koinos.BytesType_ADDRESS:
+					b = base58.Decode(inputValue)
+					if len(b) == 0 && len(inputValue) != 0 {
+						err = errors.New("error decoding base58")
+					}
+				case koinos.BytesType_BASE64:
+					fallthrough
+				default:
+					b, err = base64.URLEncoding.DecodeString(inputValue)
+				}
+			} else {
+				b, err = base64.URLEncoding.DecodeString(inputValue)
+			}
+
 			if err != nil {
 				return nil, err
 			}
+
 			value = protoreflect.ValueOfBytes(b)
 
 		case protoreflect.MessageKind:

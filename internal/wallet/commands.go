@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,12 +13,12 @@ import (
 
 	"golang.org/x/crypto/ripemd160"
 
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
 	"github.com/koinos/koinos-proto-golang/koinos/canonical"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/koinos/koinos-proto-golang/koinos/rpc/chain"
-	kutil "github.com/koinos/koinos-util-golang"
 	"github.com/multiformats/go-multihash"
 	"github.com/shopspring/decimal"
 
@@ -29,7 +30,7 @@ const (
 	KoinSymbol         = "tKOIN"
 	ManaSymbol         = "mana"
 	KoinPrecision      = 8
-	KoinContractID     = "0xd32014064fcc2e8d11440e1eab7fa8ff7ed14a60bd3424"
+	KoinContractID     = "5MvF7o3GhJsoRfTZZbeGSe5WzVuVYtBV"
 	KoinBalanceOfEntry = uint32(0x15619248)
 	KoinTransferEntry  = uint32(0x62efa292)
 )
@@ -172,16 +173,16 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 
 		address = ee.Key.AddressBytes()
 	} else {
-		address, err = util.HexStringToBytes(*c.AddressString)
-		if err != nil {
-			return nil, err
+		address = base58.Decode(*c.AddressString)
+		if len(address) == 0 {
+			return nil, errors.New("could not parse address")
 		}
 	}
 
 	// Setup command execution environment
-	contractID, err := util.HexStringToBytes(KoinContractID)
-	if err != nil {
-		panic("Invalid contract ID")
+	contractID := base58.Decode(KoinContractID)
+	if len(contractID) == 0 {
+		panic("Invalid KOIN contract ID")
 	}
 
 	balance, err := ee.RPCClient.GetAccountBalance(address, contractID, KoinBalanceOfEntry)
@@ -336,7 +337,7 @@ func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironme
 
 	result := NewExecutionResult()
 	result.AddMessage("New key generated. This is only shown once, make sure to record this information.")
-	result.AddMessage(fmt.Sprintf("Address: %s", util.DisplayAddress(k.AddressBytes())))
+	result.AddMessage(fmt.Sprintf("Address: %s", base58.Encode(k.AddressBytes())))
 	result.AddMessage(fmt.Sprintf("Private: %s", k.Private()))
 
 	return result, nil
@@ -430,8 +431,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	}
 
 	er := NewExecutionResult()
-	mhs := kutil.MultihashString(contractIDDigest)
-	er.AddMessage(fmt.Sprintf("Contract submitted with ID: %s", mhs))
+	er.AddMessage(fmt.Sprintf("Contract submitted with ID: %s", base58.Encode(mh)))
 
 	return er, nil
 }
@@ -488,7 +488,7 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
-	result.AddMessage(fmt.Sprintf("Address: %s", util.DisplayAddress(key.AddressBytes())))
+	result.AddMessage(fmt.Sprintf("Address: %s", base58.Encode(key.AddressBytes())))
 
 	return result, nil
 }
@@ -551,7 +551,7 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Created and opened new wallet: %s", c.Filename))
-	result.AddMessage(fmt.Sprintf("Address: %s", util.DisplayAddress(key.AddressBytes())))
+	result.AddMessage(fmt.Sprintf("Address: %s", base58.Encode(key.AddressBytes())))
 
 	return result, nil
 }
@@ -576,7 +576,7 @@ func (c *AddressCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	result := NewExecutionResult()
-	result.AddMessage(fmt.Sprintf("Wallet address: %s", util.DisplayAddress(ee.Key.AddressBytes())))
+	result.AddMessage(fmt.Sprintf("Wallet address: %s", base58.Encode(ee.Key.AddressBytes())))
 
 	return result, nil
 }
@@ -666,10 +666,9 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		return nil, err
 	}
 
-	contractID, err := util.HexStringToBytes(c.ContractID)
-
-	if err != nil {
-		return nil, err
+	contractID := base58.Decode(c.ContractID)
+	if len(contractID) == 0 {
+		return nil, errors.New("could not parse contract id")
 	}
 
 	// Get the argument bytes
@@ -754,9 +753,9 @@ func NewReadCommand(inv *CommandParseResult) CLICommand {
 
 // Execute reads from a contract
 func (c *ReadCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	cid, err := util.HexStringToBytes(c.ContractID)
-	if err != nil {
-		return nil, err
+	cid := base58.Decode(c.ContractID)
+	if len(cid) == 0 {
+		return nil, errors.New("could not parse contract id")
 	}
 
 	// Parse the entry point (drop the 0x)
@@ -827,9 +826,9 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	}
 
 	// Setup command execution environment
-	contractID, err := util.HexStringToBytes(KoinContractID)
-	if err != nil {
-		panic("Invalid contract ID")
+	contractID := base58.Decode(KoinContractID)
+	if len(contractID) == 0 {
+		panic("Invalid KOIN contract ID")
 	}
 
 	// Fetch the account's balance
@@ -848,9 +847,9 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, fmt.Errorf("%w: insufficient balance %s %s on opened wallet %s, cannot transfer %s %s", util.ErrInvalidAmount, dBalance, KoinSymbol, myAddress, dAmount, KoinSymbol)
 	}
 
-	toAddress, err := util.HexStringToBytes(c.Address)
-	if err != nil {
-		return nil, err
+	toAddress := base58.Decode(c.Address)
+	if len(toAddress) == 0 {
+		return nil, errors.New("could not parse address")
 	}
 
 	transferArgs := &token.TransferArguments{
