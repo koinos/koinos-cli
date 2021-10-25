@@ -210,7 +210,7 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 
 	er := NewExecutionResult()
 	er.AddMessage(fmt.Sprintf("%v %s", dec, KoinSymbol))
-	er.AddMessage(fmt.Sprintf("Mana: %v %s", manaDec, ManaSymbol))
+	er.AddMessage(fmt.Sprintf("%v %s", manaDec, ManaSymbol))
 
 	return er, nil
 }
