@@ -16,6 +16,7 @@ require (
 	github.com/shopspring/decimal v1.2.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
+	github.com/ybbus/jsonrpc/v2 v2.1.6 // indirect
 	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97
 	google.golang.org/protobuf v1.27.1
 )
