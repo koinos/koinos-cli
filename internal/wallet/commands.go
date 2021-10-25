@@ -129,6 +129,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("read", "Read from a smart contract", false, NewReadCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("register", "Register a smart contract's commands", false, NewRegisterCommand, *NewCommandArg("name", StringArg), *NewCommandArg("address", AddressArg), *NewCommandArg("abi-filename", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("amount", AmountArg), *NewCommandArg("address", AddressArg)))
+	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	cs.AddCommand(NewCommandDeclaration("quit", "", true, NewExitCommand))
 
@@ -866,6 +867,59 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Transferring %s %s to %s", dAmount, KoinSymbol, c.Address))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// SetSystemCall Command
+// ----------------------------------------------------------------------------
+
+// SetSystemCallCommand is a command that sets a system call to a new contract and entry point
+type SetSystemCallCommand struct {
+	SystemCall string
+	ContractID string
+	EntryPoint string
+}
+
+// NewSetSystemCallCommand calls a contract method
+func NewSetSystemCallCommand(inv *CommandParseResult) CLICommand {
+	return &SetSystemCallCommand{
+		SystemCall: *inv.Args["system-call"],
+		ContractID: *inv.Args["contract-id"],
+		EntryPoint: *inv.Args["entry-point"],
+	}
+}
+
+// Execute a contract call
+func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot call contract", util.ErrWalletClosed)
+	}
+
+	systemCall, err := strconv.ParseUint(c.SystemCall, 10, 32)
+	if err != nil {
+		if sysCall, ok := protocol.SystemCallId_value[c.SystemCall]; ok {
+			systemCall = uint64(sysCall)
+		} else {
+			return nil, fmt.Errorf("no system call: %s", c.SystemCall)
+		}
+	}
+
+	entryPoint, err := strconv.ParseUint(c.EntryPoint[2:], 16, 32)
+	if err != nil {
+		return nil, err
+	}
+
+	contractID := base58.Decode(c.ContractID)
+	if len(contractID) == 0 {
+		return nil, errors.New("could not parse contract id")
+	}
+
+	_, err = ee.RPCClient.SetSystemCall(uint32(systemCall), ee.Key, contractID, uint32(entryPoint))
+
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Setting system call %s to contract %s at entry point %s", c.SystemCall, c.ContractID, c.EntryPoint))
 
 	return result, nil
 }

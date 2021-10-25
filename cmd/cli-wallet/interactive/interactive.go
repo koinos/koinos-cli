@@ -37,8 +37,8 @@ func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvi
 
 	// Setup status characters
 	if kp.unicodeSupport {
-		kp.onlineDisplay = "🟢"
-		kp.offlineDisplay = "🔴"
+		kp.onlineDisplay = ""
+		kp.offlineDisplay = "🚫"
 		kp.closeDisplay = "🔐"
 		kp.openDisplay = "🔓"
 	} else {
