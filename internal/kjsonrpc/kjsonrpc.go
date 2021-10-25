@@ -35,7 +35,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"google.golang.org/protobuf/encoding/protojson"
+	kjson "github.com/koinos/koinos-proto-golang/koinos/json"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -189,7 +189,7 @@ type RPCRequest struct {
 //
 // e.g. NewRequest("myMethod", "Alex", 35, true)
 func NewRequest(method string, params proto.Message) *RPCRequest {
-	jp, err := protojson.Marshal(params)
+	jp, err := kjson.Marshal(params)
 	if err != nil {
 		panic(err)
 	}
@@ -349,7 +349,7 @@ func NewClientWithOpts(endpoint string, opts *RPCClientOpts) RPCClient {
 }
 
 func (client *rpcClient) Call(method string, params proto.Message) (*RPCResponse, error) {
-	jp, err := protojson.Marshal(params)
+	jp, err := kjson.Marshal(params)
 	if err != nil {
 		return nil, err
 	}
@@ -648,7 +648,7 @@ func (RPCResponse *RPCResponse) GetObject(toType proto.Message) error {
 		return err
 	}
 
-	err = protojson.Unmarshal(js, toType)
+	err = kjson.Unmarshal(js, toType)
 	if err != nil {
 		return err
 	}
