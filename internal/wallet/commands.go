@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 
 	"golang.org/x/crypto/ripemd160"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
@@ -132,6 +134,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("register", "Register a smart contract's commands", false, NewRegisterCommand, *NewCommandArg("name", StringArg), *NewCommandArg("address", AddressArg), *NewCommandArg("abi-filename", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("amount", AmountArg), *NewCommandArg("address", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("session", "Create or manage a transaction session (begin, submit, or cancel)", false, NewSessionCommand, *NewCommandArg("command", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	cs.AddCommand(NewCommandDeclaration("quit", "", true, NewExitCommand))
 
@@ -680,10 +683,30 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		return nil, err
 	}
 
-	_, err = ee.RPCClient.WriteContract(argumentBytes, ee.Key, contractID, uint32(entryPoint))
+	op := &protocol.Operation{
+		Op: &protocol.Operation_CallContract{
+			CallContract: &protocol.CallContractOperation{
+				ContractId: contractID,
+				EntryPoint: uint32(entryPoint),
+				Args:       argumentBytes,
+			},
+		},
+	}
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Calling contract %s at entry point: %s with arguments %s", c.ContractID, c.EntryPoint, c.Arguments))
+
+	err = ee.Session.AddOp(op)
+	if err == nil {
+		result.AddMessage("Adding operation to transaction session")
+	}
+	if err != nil {
+		id, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		if err != nil {
+			return nil, err
+		}
+		result.AddMessage(fmt.Sprintf("Submitted transaction with id %s", hex.EncodeToString(id)))
+	}
 
 	return result, nil
 }
@@ -861,14 +884,35 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		Value: uint64(sAmount),
 	}
 
-	// Execute the transfer
-	_, err = ee.RPCClient.WriteMessageContract(transferArgs, ee.Key, contractID, KoinTransferEntry)
+	args, err := proto.Marshal(transferArgs)
 	if err != nil {
 		return nil, err
 	}
 
+	op := &protocol.Operation{
+		Op: &protocol.Operation_CallContract{
+			CallContract: &protocol.CallContractOperation{
+				ContractId: contractID,
+				EntryPoint: KoinTransferEntry,
+				Args:       args,
+			},
+		},
+	}
+
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Transferring %s %s to %s", dAmount, KoinSymbol, c.Address))
+
+	err = ee.Session.AddOp(op)
+	if err == nil {
+		result.AddMessage("Adding operation to transaction session")
+	}
+	if err != nil {
+		id, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		if err != nil {
+			return nil, err
+		}
+		result.AddMessage(fmt.Sprintf("Submitted transaction with id %s", hex.EncodeToString(id)))
+	}
 
 	return result, nil
 }
@@ -918,10 +962,98 @@ func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		return nil, errors.New("could not parse contract id")
 	}
 
-	_, err = ee.RPCClient.SetSystemCall(uint32(systemCall), ee.Key, contractID, uint32(entryPoint))
+	op := &protocol.Operation{
+		Op: &protocol.Operation_SetSystemCall{
+			SetSystemCall: &protocol.SetSystemCallOperation{
+				CallId: uint32(systemCall),
+				Target: &protocol.SystemCallTarget{
+					Target: &protocol.SystemCallTarget_SystemCallBundle{
+						SystemCallBundle: &protocol.ContractCallBundle{
+							ContractId: contractID,
+							EntryPoint: uint32(entryPoint),
+						},
+					},
+				},
+			},
+		},
+	}
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Setting system call %s to contract %s at entry point %s", c.SystemCall, c.ContractID, c.EntryPoint))
+
+	err = ee.Session.AddOp(op)
+	if err == nil {
+		result.AddMessage("Adding operation to transaction session")
+	}
+	if err != nil {
+		id, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		if err != nil {
+			return nil, err
+		}
+		result.AddMessage(fmt.Sprintf("Submitted transaction with id %s", hex.EncodeToString(id)))
+	}
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Session Command
+// ----------------------------------------------------------------------------
+
+// SessionCommand is a command that sets a system call to a new contract and entry point
+type SessionCommand struct {
+	Command string
+}
+
+// NewSessionCommand calls a contract method
+func NewSessionCommand(inv *CommandParseResult) CLICommand {
+	return &SessionCommand{
+		Command: *inv.Args["command"],
+	}
+}
+
+// Execute a contract call
+func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot manage session", util.ErrWalletClosed)
+	}
+
+	result := NewExecutionResult()
+
+	switch c.Command {
+	case "begin":
+		err := ee.Session.BeginSession()
+		if err != nil {
+			return nil, fmt.Errorf("cannot begin transaction session, %w", err)
+		}
+		result.AddMessage("Began transaction session")
+	case "submit":
+		ops, err := ee.Session.GetOps()
+		if err != nil {
+			return nil, fmt.Errorf("cannot submit transaction session, %w", err)
+		}
+
+		if len(ops) > 0 {
+			id, err := ee.RPCClient.SubmitTransaction(ops, ee.Key)
+			if err != nil {
+				return nil, fmt.Errorf("error submitting transaction, %w", err)
+			}
+
+			result.AddMessage(fmt.Sprintf("Submitted transaction with id %s (%v operations)", hex.EncodeToString(id), len(ops)))
+		} else {
+			result.AddMessage("Cancelling transaction because session has 0 operations")
+		}
+
+		ee.Session.EndSession()
+	case "cancel":
+		err := ee.Session.EndSession()
+		if err != nil {
+			return nil, fmt.Errorf("cannot cancel transaction session, %w", err)
+		}
+		result.AddMessage("Cancelled transaction session")
+	default:
+		return nil, fmt.Errorf("unknown command %s, options are (begin, submit, cancel)", c.Command)
+	}
 
 	return result, nil
 }

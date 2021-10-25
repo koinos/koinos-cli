@@ -24,6 +24,7 @@ type KoinosPrompt struct {
 	offlineDisplay string
 	openDisplay    string
 	closeDisplay   string
+	sessionDisplay string
 }
 
 // NewKoinosPrompt creates a new interactive prompt object
@@ -38,14 +39,16 @@ func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvi
 	// Setup status characters
 	if kp.unicodeSupport {
 		kp.onlineDisplay = ""
-		kp.offlineDisplay = "🚫"
-		kp.closeDisplay = "🔐"
-		kp.openDisplay = "🔓"
+		kp.offlineDisplay = "🚫 "
+		kp.closeDisplay = "🔐 "
+		kp.openDisplay = "🔓 "
+		kp.sessionDisplay = "📄 "
 	} else {
-		kp.onlineDisplay = "(online)"
-		kp.offlineDisplay = "(offline)"
-		kp.closeDisplay = "(locked)"
-		kp.openDisplay = "(unlocked)"
+		kp.onlineDisplay = "(online) "
+		kp.offlineDisplay = "(offline) "
+		kp.closeDisplay = "(locked) "
+		kp.openDisplay = "(unlocked) "
+		kp.sessionDisplay = "(session) "
 	}
 
 	return kp
@@ -78,7 +81,12 @@ func (kp *KoinosPrompt) changeLivePrefix() (string, bool) {
 		walletStatus = kp.openDisplay
 	}
 
-	return fmt.Sprintf("%s %s > ", onlineStatus, walletStatus), true
+	sessionStatus := ""
+	if kp.execEnv.Session.IsValid() {
+		sessionStatus = kp.sessionDisplay
+	}
+
+	return fmt.Sprintf("%s%s%s> ", onlineStatus, walletStatus, sessionStatus), true
 }
 
 func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {

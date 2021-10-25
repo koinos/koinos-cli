@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
@@ -237,13 +239,35 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 	// Get the contractID
 	contractID := base58.Decode(contract.Address)
 
-	_, err = ee.RPCClient.WriteMessageContract(msg, ee.Key, contractID, uint32(entryPoint))
+	args, err := proto.Marshal(msg)
 	if err != nil {
 		return nil, err
 	}
 
+	op := &protocol.Operation{
+		Op: &protocol.Operation_CallContract{
+			CallContract: &protocol.CallContractOperation{
+				ContractId: contractID,
+				EntryPoint: uint32(entryPoint),
+				Args:       args,
+			},
+		},
+	}
+
 	er := NewExecutionResult()
 	er.AddMessage(fmt.Sprintf("Transaction submitted to contract '%s' at address %s .", contract.Name, contract.Address))
+
+	err = ee.Session.AddOp(op)
+	if err == nil {
+		er.AddMessage("Adding operation to transaction session")
+	}
+	if err != nil {
+		id, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		if err != nil {
+			return nil, err
+		}
+		er.AddMessage(fmt.Sprintf("Submitted transaction with id %s", hex.EncodeToString(id)))
+	}
 
 	return er, nil
 }
