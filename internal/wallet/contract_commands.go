@@ -156,7 +156,7 @@ func NewReadContractCommand(inv *CommandParseResult) CLICommand {
 func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
 
-	entryPoint, err := strconv.ParseInt(ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint[2:], 16, 32)
+	entryPoint, err := strconv.ParseUint(ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint[2:], 16, 32)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +223,7 @@ func NewWriteContractCommand(inv *CommandParseResult) CLICommand {
 func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
 
-	entryPoint, err := strconv.ParseInt(ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint[2:], 16, 32)
+	entryPoint, err := strconv.ParseUint(ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint[2:], 16, 32)
 	if err != nil {
 		return nil, err
 	}
