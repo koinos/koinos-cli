@@ -221,6 +221,10 @@ func NewWriteContractCommand(inv *CommandParseResult) CLICommand {
 
 // Execute executes the write contract command
 func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot transfer", util.ErrWalletClosed)
+	}
+
 	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
 
 	entryPoint, err := strconv.ParseInt(ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint[2:], 16, 32)
