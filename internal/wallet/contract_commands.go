@@ -222,7 +222,7 @@ func NewWriteContractCommand(inv *CommandParseResult) CLICommand {
 // Execute executes the write contract command
 func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
-		return nil, fmt.Errorf("%w: cannot transfer", util.ErrWalletClosed)
+		return nil, fmt.Errorf("%w: cannot execute method", util.ErrWalletClosed)
 	}
 
 	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
