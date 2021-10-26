@@ -154,6 +154,10 @@ func NewReadContractCommand(inv *CommandParseResult) CLICommand {
 
 // Execute executes the read contract command
 func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot execute method", util.ErrOffline)
+	}
+
 	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
 
 	entryPoint, err := strconv.ParseUint(ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint[2:], 16, 32)
@@ -223,6 +227,10 @@ func NewWriteContractCommand(inv *CommandParseResult) CLICommand {
 func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
 		return nil, fmt.Errorf("%w: cannot execute method", util.ErrWalletClosed)
+	}
+
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot execute method", util.ErrOffline)
 	}
 
 	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
