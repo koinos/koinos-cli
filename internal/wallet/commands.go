@@ -899,6 +899,10 @@ func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		return nil, fmt.Errorf("%w: cannot call contract", util.ErrWalletClosed)
 	}
 
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot call contract", util.ErrOffline)
+	}
+
 	systemCall, err := strconv.ParseUint(c.SystemCall, 10, 32)
 	if err != nil {
 		if sysCall, ok := protocol.SystemCallId_value[c.SystemCall]; ok {
