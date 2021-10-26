@@ -210,7 +210,7 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 
 	er := NewExecutionResult()
 	er.AddMessage(fmt.Sprintf("%v %s", dec, KoinSymbol))
-	er.AddMessage(fmt.Sprintf("Mana: %v %s", manaDec, ManaSymbol))
+	er.AddMessage(fmt.Sprintf("%v %s", manaDec, ManaSymbol))
 
 	return er, nil
 }
@@ -911,6 +911,10 @@ func NewSetSystemCallCommand(inv *CommandParseResult) CLICommand {
 func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
 		return nil, fmt.Errorf("%w: cannot call contract", util.ErrWalletClosed)
+	}
+
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot call contract", util.ErrOffline)
 	}
 
 	systemCall, err := strconv.ParseUint(c.SystemCall, 10, 32)
