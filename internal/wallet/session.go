@@ -12,8 +12,13 @@ var (
 	ErrSesionInProgress = errors.New("session in progress")
 )
 
+type OperationRequest struct {
+	Op         *protocol.Operation
+	LogMessage string
+}
+
 type TransactionSession struct {
-	ops []*protocol.Operation
+	ops []OperationRequest
 }
 
 func (ts *TransactionSession) BeginSession() error {
@@ -21,7 +26,7 @@ func (ts *TransactionSession) BeginSession() error {
 		return ErrSesionInProgress
 	}
 
-	ts.ops = make([]*protocol.Operation, 0)
+	ts.ops = make([]OperationRequest, 0)
 	return nil
 }
 
@@ -34,16 +39,16 @@ func (ts *TransactionSession) EndSession() error {
 	return nil
 }
 
-func (ts *TransactionSession) AddOp(op *protocol.Operation) error {
+func (ts *TransactionSession) AddOperation(op *protocol.Operation, logMessage string) error {
 	if ts.ops == nil {
 		return ErrNoSession
 	}
 
-	ts.ops = append(ts.ops, op)
+	ts.ops = append(ts.ops, OperationRequest{Op: op, LogMessage: logMessage})
 	return nil
 }
 
-func (ts *TransactionSession) GetOps() ([]*protocol.Operation, error) {
+func (ts *TransactionSession) GetOperations() ([]OperationRequest, error) {
 	if ts.ops == nil {
 		return nil, ErrNoSession
 	}

@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 
 	"github.com/koinos/koinos-cli-wallet/internal/util"
+	kjson "github.com/koinos/koinos-proto-golang/encoding/json"
 	"github.com/koinos/koinos-proto-golang/koinos/canonical"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
-	kjson "github.com/koinos/koinos-proto-golang/koinos/json"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/koinos/koinos-proto-golang/koinos/rpc/chain"
 	"github.com/multiformats/go-multihash"

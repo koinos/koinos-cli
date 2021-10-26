@@ -11,6 +11,7 @@ import (
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-proto-golang/encoding/text"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -254,10 +255,14 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		},
 	}
 
+	textMsg, _ := text.Marshal(msg)
+
 	er := NewExecutionResult()
 	er.AddMessage(fmt.Sprintf("Transaction submitted to contract '%s' at address %s .", contract.Name, contract.Address))
 
-	err = ee.Session.AddOp(op)
+	logMessage := fmt.Sprintf("Call %s with arguments %s", c.ParseResult.CommandName, textMsg)
+
+	err = ee.Session.AddOperation(op, logMessage)
 	if err == nil {
 		er.AddMessage("Adding operation to transaction session")
 	}
