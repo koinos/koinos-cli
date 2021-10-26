@@ -209,6 +209,7 @@ func (c *KoinosRPCClient) GetAccountNonce(address []byte) (uint64, error) {
 	return cResp.Nonce, nil
 }
 
+// SetSystemCall sets a system call
 func (c *KoinosRPCClient) SetSystemCall(callID uint32, key *util.KoinosKey, contractID []byte, entryPoint uint32) (*chain.SubmitTransactionResponse, error) {
 	// Cache the public address
 	address := key.AddressBytes()
