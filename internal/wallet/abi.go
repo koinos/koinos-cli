@@ -19,16 +19,14 @@ import (
 
 // ABI is the ABI of the contract
 type ABI struct {
-	Methods []*ABIMethod
+	Methods map[string]*ABIMethod
 	Types   []byte
 }
 
 // GetMethod returns the ABI method with the given name
 func (abi *ABI) GetMethod(name string) *ABIMethod {
-	for _, method := range abi.Methods {
-		if method.Name == name {
-			return method
-		}
+	if method, ok := abi.Methods[name]; ok {
+		return method
 	}
 
 	return nil
@@ -36,7 +34,6 @@ func (abi *ABI) GetMethod(name string) *ABIMethod {
 
 // ABIMethod represents an ABI method descriptor
 type ABIMethod struct {
-	Name        string `json:"name"`
 	Argument    string `json:"argument"`
 	Return      string `json:"return"`
 	EntryPoint  string `json:"entry_point"`

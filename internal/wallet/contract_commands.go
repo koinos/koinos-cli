@@ -87,7 +87,7 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	commands := []*CommandDeclaration{}
 
 	// Iterate through the methods and construct the commands
-	for _, method := range abi.Methods {
+	for name, method := range abi.Methods {
 		d, err := files.FindDescriptorByName(protoreflect.FullName(method.Argument))
 		if err != nil {
 			return nil, fmt.Errorf("%w: could not find type %s", util.ErrInvalidABI, method.Argument)
@@ -113,7 +113,7 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 			return nil, fmt.Errorf("%w: %s is not a message", util.ErrInvalidABI, method.Argument)
 		}
 
-		commandName := fmt.Sprintf("%s.%s", c.Name, method.Name)
+		commandName := fmt.Sprintf("%s.%s", c.Name, name)
 
 		// Create the command
 		var cmd *CommandDeclaration
