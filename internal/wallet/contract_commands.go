@@ -137,7 +137,7 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	}
 
 	er := NewExecutionResult()
-	er.AddMessage(fmt.Sprintf("Contract '%s' at address %s registered.", c.Name, c.Address))
+	er.AddMessage(fmt.Sprintf("Contract '%s' at address %s registered", c.Name, c.Address))
 	return er, nil
 }
 
@@ -270,9 +270,9 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 	textMsg, _ := text.Marshal(msg)
 
 	er := NewExecutionResult()
-	er.AddMessage(fmt.Sprintf("Transaction submitted to contract '%s' at address %s .", contract.Name, contract.Address))
+	er.AddMessage(fmt.Sprintf("Calling %s with arguments '%s'", c.ParseResult.CommandName, textMsg))
 
-	logMessage := fmt.Sprintf("Call %s with arguments %s", c.ParseResult.CommandName, textMsg)
+	logMessage := fmt.Sprintf("Call %s with arguments '%s'", c.ParseResult.CommandName, textMsg)
 
 	err = ee.Session.AddOperation(op, logMessage)
 	if err == nil {

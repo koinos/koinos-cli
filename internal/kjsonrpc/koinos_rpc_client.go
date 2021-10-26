@@ -140,6 +140,7 @@ func (c *KoinosRPCClient) GetAccountNonce(address []byte) (uint64, error) {
 	return cResp.Nonce, nil
 }
 
+// SubmitTransaction creates and submits a transaction from a list of operations
 func (c *KoinosRPCClient) SubmitTransaction(ops []*protocol.Operation, key *util.KoinosKey) ([]byte, error) {
 	// Cache the public address
 	address := key.AddressBytes()

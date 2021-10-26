@@ -7,29 +7,35 @@ import (
 )
 
 var (
+	// ErrNoSession no session is in progress
 	ErrNoSession = errors.New("no session in progress")
 
+	// ErrSesionInProgress session is in progress
 	ErrSesionInProgress = errors.New("session in progress")
 )
 
-type OperationRequest struct {
+// PendingOperation is an operation in a TransactionSession
+type PendingOperation struct {
 	Op         *protocol.Operation
 	LogMessage string
 }
 
+// TransactionSession allows for adding multiple operations to a single transaction
 type TransactionSession struct {
-	ops []OperationRequest
+	ops []PendingOperation
 }
 
+// BeginSession if none is in progress
 func (ts *TransactionSession) BeginSession() error {
 	if ts.ops != nil {
 		return ErrSesionInProgress
 	}
 
-	ts.ops = make([]OperationRequest, 0)
+	ts.ops = make([]PendingOperation, 0)
 	return nil
 }
 
+// EndSession if one is in progress
 func (ts *TransactionSession) EndSession() error {
 	if ts.ops == nil {
 		return ErrNoSession
@@ -39,16 +45,18 @@ func (ts *TransactionSession) EndSession() error {
 	return nil
 }
 
+// AddOperation to session
 func (ts *TransactionSession) AddOperation(op *protocol.Operation, logMessage string) error {
 	if ts.ops == nil {
 		return ErrNoSession
 	}
 
-	ts.ops = append(ts.ops, OperationRequest{Op: op, LogMessage: logMessage})
+	ts.ops = append(ts.ops, PendingOperation{Op: op, LogMessage: logMessage})
 	return nil
 }
 
-func (ts *TransactionSession) GetOperations() ([]OperationRequest, error) {
+// GetOperations in current session
+func (ts *TransactionSession) GetOperations() ([]PendingOperation, error) {
 	if ts.ops == nil {
 		return nil, ErrNoSession
 	}
@@ -56,6 +64,7 @@ func (ts *TransactionSession) GetOperations() ([]OperationRequest, error) {
 	return ts.ops, nil
 }
 
+// IsValid if session is in progress
 func (ts *TransactionSession) IsValid() bool {
 	return ts.ops != nil
 }

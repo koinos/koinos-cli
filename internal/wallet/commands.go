@@ -339,7 +339,7 @@ func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironme
 	}
 
 	result := NewExecutionResult()
-	result.AddMessage("New key generated. This is only shown once, make sure to record this information.")
+	result.AddMessage("New key generated\nThis is only shown once, make sure to record this information\n---")
 	result.AddMessage(fmt.Sprintf("Address: %s", base58.Encode(k.AddressBytes())))
 	result.AddMessage(fmt.Sprintf("Private: %s", k.Private()))
 
