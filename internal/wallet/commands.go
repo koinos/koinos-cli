@@ -387,7 +387,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	er := NewExecutionResult()
 	er.AddMessage(fmt.Sprintf("Contract uploaded with address %s", base58.Encode(ee.Key.AddressBytes())))
 
-	err = ee.Session.AddOperation(op, fmt.Sprintf("Upload contract with address %s", base58.Encode(mh)))
+	err = ee.Session.AddOperation(op, fmt.Sprintf("Upload contract with address %s", base58.Encode(ee.Key.AddressBytes())))
 	if err == nil {
 		er.AddMessage("Adding operation to transaction session")
 	}
