@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 
 	"github.com/koinos/koinos-cli-wallet/internal/util"
+	kjson "github.com/koinos/koinos-proto-golang/encoding/json"
 	"github.com/koinos/koinos-proto-golang/koinos/canonical"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
-	kjson "github.com/koinos/koinos-proto-golang/koinos/json"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/koinos/koinos-proto-golang/koinos/rpc/chain"
 	"github.com/multiformats/go-multihash"
@@ -106,75 +106,6 @@ func (c *KoinosRPCClient) ReadContract(args []byte, contractID []byte, entryPoin
 	return &cResp, nil
 }
 
-// WriteMessageContract writes to a contract with the given protobuf message as the arguments
-func (c *KoinosRPCClient) WriteMessageContract(msg proto.Message, key *util.KoinosKey, contractID []byte, entryPoint uint32) (*chain.SubmitTransactionResponse, error) {
-	args, err := proto.Marshal(msg)
-	if err != nil {
-		return nil, err
-	}
-
-	return c.WriteContract(args, key, contractID, entryPoint)
-}
-
-// WriteContract writes to a contract with the given bytes as the arguments
-func (c *KoinosRPCClient) WriteContract(args []byte, key *util.KoinosKey, contractID []byte, entryPoint uint32) (*chain.SubmitTransactionResponse, error) {
-	// Cache the public address
-	address := key.AddressBytes()
-
-	// Fetch the account's nonce
-	nonce, err := c.GetAccountNonce(address)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create the operation
-	callContractOp := protocol.CallContractOperation{ContractId: contractID, EntryPoint: entryPoint, Args: args}
-	cco := protocol.Operation_CallContract{CallContract: &callContractOp}
-	op := protocol.Operation{Op: &cco}
-
-	rcLimit, err := c.GetAccountRc(address)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create the transaction
-	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: []*protocol.Operation{&op}, RcLimit: rcLimit}
-	activeBytes, err := canonical.Marshal(&active)
-	if err != nil {
-		return nil, err
-	}
-
-	// Calculate the transaction ID
-	sha256Hasher := sha256.New()
-	sha256Hasher.Write(activeBytes)
-
-	tid, err := multihash.EncodeName(sha256Hasher.Sum(nil), "sha2-256")
-	if err != nil {
-		return nil, err
-	}
-	transaction := protocol.Transaction{Active: activeBytes, Id: tid}
-
-	// Sign the transaction
-	err = util.SignTransaction(key.PrivateBytes(), &transaction)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Submit the transaction
-	params := chain.SubmitTransactionRequest{}
-	params.Transaction = &transaction
-
-	// Make the rpc call
-	var cResp chain.SubmitTransactionResponse
-	err = c.Call(SubmitTransactionCall, &params, &cResp)
-	if err != nil {
-		return nil, err
-	}
-
-	return &cResp, nil
-}
-
 // GetAccountRc gets the rc of a given account
 func (c *KoinosRPCClient) GetAccountRc(address []byte) (uint64, error) {
 	// Build the contract request
@@ -209,8 +140,8 @@ func (c *KoinosRPCClient) GetAccountNonce(address []byte) (uint64, error) {
 	return cResp.Nonce, nil
 }
 
-// SetSystemCall sets a system call
-func (c *KoinosRPCClient) SetSystemCall(callID uint32, key *util.KoinosKey, contractID []byte, entryPoint uint32) (*chain.SubmitTransactionResponse, error) {
+// SubmitTransaction creates and submits a transaction from a list of operations
+func (c *KoinosRPCClient) SubmitTransaction(ops []*protocol.Operation, key *util.KoinosKey) ([]byte, error) {
 	// Cache the public address
 	address := key.AddressBytes()
 
@@ -220,30 +151,13 @@ func (c *KoinosRPCClient) SetSystemCall(callID uint32, key *util.KoinosKey, cont
 		return nil, err
 	}
 
-	// Create the operation
-	op := protocol.Operation{
-		Op: &protocol.Operation_SetSystemCall{
-			SetSystemCall: &protocol.SetSystemCallOperation{
-				CallId: callID,
-				Target: &protocol.SystemCallTarget{
-					Target: &protocol.SystemCallTarget_SystemCallBundle{
-						SystemCallBundle: &protocol.ContractCallBundle{
-							ContractId: contractID,
-							EntryPoint: entryPoint,
-						},
-					},
-				},
-			},
-		},
-	}
-
 	rcLimit, err := c.GetAccountRc(address)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create the transaction
-	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: []*protocol.Operation{&op}, RcLimit: rcLimit}
+	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: ops, RcLimit: rcLimit}
 	activeBytes, err := canonical.Marshal(&active)
 	if err != nil {
 		return nil, err
@@ -277,5 +191,5 @@ func (c *KoinosRPCClient) SetSystemCall(callID uint32, key *util.KoinosKey, cont
 		return nil, err
 	}
 
-	return &cResp, nil
+	return transaction.Id, nil
 }

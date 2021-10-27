@@ -45,6 +45,7 @@ type ExecutionEnvironment struct {
 	Key       *util.KoinosKey
 	Parser    *CommandParser
 	Contracts Contracts
+	Session   *TransactionSession
 }
 
 // NewExecutionEnvironment creates a new ExecutionEnvironment object
@@ -53,6 +54,7 @@ func NewExecutionEnvironment(rpcClient *kjsonrpc.KoinosRPCClient, parser *Comman
 		RPCClient: rpcClient,
 		Parser:    parser,
 		Contracts: make(map[string]*ContractInfo),
+		Session:   &TransactionSession{},
 	}
 }
 
