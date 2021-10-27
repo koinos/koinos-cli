@@ -1002,6 +1002,14 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 		}
 		result.AddMessage("Began transaction session")
 	case "submit":
+		if !ee.IsWalletOpen() {
+			return nil, fmt.Errorf("%w: cannot submit session", util.ErrWalletClosed)
+		}
+
+		if !ee.IsOnline() {
+			return nil, fmt.Errorf("%w: cannot submit session", util.ErrOffline)
+		}
+
 		reqs, err := ee.Session.GetOperations()
 		if err != nil {
 			return nil, fmt.Errorf("cannot submit transaction session, %w", err)
