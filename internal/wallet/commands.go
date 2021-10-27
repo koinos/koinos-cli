@@ -11,8 +11,6 @@ import (
 	"sort"
 	"strconv"
 
-	"golang.org/x/crypto/ripemd160"
-
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
 	"github.com/koinos/koinos-proto-golang/koinos/canonical"
@@ -384,15 +382,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 		return nil, err
 	}
 
-	ripemd160Hasher := ripemd160.New()
-	ripemd160Hasher.Write(ee.Key.AddressBytes())
-	contractIDDigest := ripemd160Hasher.Sum(make([]byte, 0))
-	mh, err := multihash.Encode(contractIDDigest, RIPEMD160)
-	if err != nil {
-		return nil, err
-	}
-
-	uc := protocol.Operation_UploadContract{UploadContract: &protocol.UploadContractOperation{ContractId: mh, Bytecode: wasmBytes}}
+	uc := protocol.Operation_UploadContract{UploadContract: &protocol.UploadContractOperation{ContractId: myAddress, Bytecode: wasmBytes}}
 	op := protocol.Operation{Op: &uc}
 
 	rcLimit, err := ee.RPCClient.GetAccountRc(ee.Key.AddressBytes())
@@ -434,7 +424,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	}
 
 	er := NewExecutionResult()
-	er.AddMessage(fmt.Sprintf("Contract submitted with ID: %s", base58.Encode(mh)))
+	er.AddMessage(fmt.Sprintf("Contract submitted with ID: %s", base58.Encode(myAddress)))
 
 	return er, nil
 }
