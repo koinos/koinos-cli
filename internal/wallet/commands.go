@@ -424,7 +424,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	}
 
 	er := NewExecutionResult()
-	er.AddMessage(fmt.Sprintf("Contract submitted with ID: %s", base58.Encode(mh)))
+	er.AddMessage(fmt.Sprintf("Contract submitted with ID: %s", base58.Encode(myAddress)))
 
 	return er, nil
 }
