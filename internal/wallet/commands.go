@@ -11,9 +11,12 @@ import (
 	"sort"
 	"strconv"
 
+<<<<<<< HEAD
 	"golang.org/x/crypto/ripemd160"
 	"google.golang.org/protobuf/proto"
 
+=======
+>>>>>>> master
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
@@ -377,25 +380,18 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 		return nil, err
 	}
 
-	ripemd160Hasher := ripemd160.New()
-	ripemd160Hasher.Write(ee.Key.AddressBytes())
-	contractIDDigest := ripemd160Hasher.Sum(make([]byte, 0))
-	mh, err := multihash.Encode(contractIDDigest, RIPEMD160)
-	if err != nil {
-		return nil, err
-	}
 
 	op := &protocol.Operation{
 		Op: &protocol.Operation_UploadContract{
 			UploadContract: &protocol.UploadContractOperation{
-				ContractId: mh,
+				ContractId: ee.Key.AddressBytes(),
 				Bytecode:   wasmBytes,
 			},
 		},
 	}
 
 	er := NewExecutionResult()
-	er.AddMessage(fmt.Sprintf("Contract uploaded with address %s", base58.Encode(mh)))
+	er.AddMessage(fmt.Sprintf("Contract uploaded with address %s", base58.Encode(ee.Key.AddressBytes())))
 
 	err = ee.Session.AddOperation(op, fmt.Sprintf("Upload contract with address %s", base58.Encode(mh)))
 	if err == nil {
