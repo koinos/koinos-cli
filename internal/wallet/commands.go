@@ -11,17 +11,12 @@ import (
 	"sort"
 	"strconv"
 
-<<<<<<< HEAD
-	"golang.org/x/crypto/ripemd160"
 	"google.golang.org/protobuf/proto"
 
-=======
->>>>>>> master
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
-	"github.com/multiformats/go-multihash"
 	"github.com/shopspring/decimal"
 
 	"github.com/koinos/koinos-cli-wallet/internal/util"
@@ -379,7 +374,6 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	if err != nil {
 		return nil, err
 	}
-
 
 	op := &protocol.Operation{
 		Op: &protocol.Operation_UploadContract{
