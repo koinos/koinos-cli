@@ -1,4 +1,4 @@
-package wallet
+package cli
 
 import (
 	"context"
@@ -11,8 +11,8 @@ import (
 // Command execution code
 // Actual command implementations are in commands.go
 
-// CLICommand is the interface that all commands must implement
-type CLICommand interface {
+// Command is the interface that all commands must implement
+type Command interface {
 	Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error)
 }
 
@@ -72,7 +72,7 @@ func (ee *ExecutionEnvironment) IsOnline() bool {
 type CommandDeclaration struct {
 	Name          string
 	Description   string
-	Instantiation func(*CommandParseResult) CLICommand
+	Instantiation func(*CommandParseResult) Command
 	Args          []CommandArg
 	Hidden        bool // If true, the command is not shown in the help
 }
@@ -88,7 +88,7 @@ func (d *CommandDeclaration) String() string {
 
 // NewCommandDeclaration create a new command declaration
 func NewCommandDeclaration(name string, description string, hidden bool,
-	instantiation func(*CommandParseResult) CLICommand, args ...CommandArg) *CommandDeclaration {
+	instantiation func(*CommandParseResult) Command, args ...CommandArg) *CommandDeclaration {
 	// Ensure optionals are only at the end
 	req := true
 	for _, arg := range args {
@@ -209,7 +209,7 @@ func (pr *ParseResults) Metrics() *ParseResultMetrics {
 
 	index := len(pr.CommandResults) - 1
 	arg := pr.CommandResults[index].CurrentArg
-	if pr.CommandResults[index].Termination == Command {
+	if pr.CommandResults[index].Termination == CommandTermination {
 		index++
 		arg = -1
 	}

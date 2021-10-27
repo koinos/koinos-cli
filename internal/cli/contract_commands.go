@@ -1,4 +1,4 @@
-package wallet
+package cli
 
 import (
 	"context"
@@ -33,7 +33,7 @@ type RegisterCommand struct {
 }
 
 // NewRegisterCommand creates a new close object
-func NewRegisterCommand(inv *CommandParseResult) CLICommand {
+func NewRegisterCommand(inv *CommandParseResult) Command {
 	return &RegisterCommand{Name: *inv.Args["name"], Address: *inv.Args["address"], ABIFilename: *inv.Args["abi-filename"]}
 }
 
@@ -151,7 +151,7 @@ type ReadContractCommand struct {
 }
 
 // NewReadContractCommand creates a new read contract command
-func NewReadContractCommand(inv *CommandParseResult) CLICommand {
+func NewReadContractCommand(inv *CommandParseResult) Command {
 	return &ReadContractCommand{ParseResult: inv}
 }
 
@@ -222,7 +222,7 @@ type WriteContractCommand struct {
 }
 
 // NewWriteContractCommand creates a new write contract command
-func NewWriteContractCommand(inv *CommandParseResult) CLICommand {
+func NewWriteContractCommand(inv *CommandParseResult) Command {
 	return &WriteContractCommand{ParseResult: inv}
 }
 

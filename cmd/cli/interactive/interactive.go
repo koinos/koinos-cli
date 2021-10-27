@@ -6,14 +6,14 @@ import (
 	"strings"
 
 	"github.com/c-bata/go-prompt"
+	"github.com/koinos/koinos-cli-wallet/internal/cli"
 	"github.com/koinos/koinos-cli-wallet/internal/util"
-	"github.com/koinos/koinos-cli-wallet/internal/wallet"
 )
 
 // KoinosPrompt is an object to manage interactive mode
 type KoinosPrompt struct {
-	parser             *wallet.CommandParser
-	execEnv            *wallet.ExecutionEnvironment
+	parser             *cli.CommandParser
+	execEnv            *cli.ExecutionEnvironment
 	gPrompt            *prompt.Prompt
 	commandSuggestions []prompt.Suggest
 	unicodeSupport     bool
@@ -28,7 +28,7 @@ type KoinosPrompt struct {
 }
 
 // NewKoinosPrompt creates a new interactive prompt object
-func NewKoinosPrompt(parser *wallet.CommandParser, execEnv *wallet.ExecutionEnvironment) *KoinosPrompt {
+func NewKoinosPrompt(parser *cli.CommandParser, execEnv *cli.ExecutionEnvironment) *KoinosPrompt {
 	kp := &KoinosPrompt{parser: parser, execEnv: execEnv, latestRevision: -1}
 	kp.gPrompt = prompt.New(kp.executor, kp.completer, prompt.OptionLivePrefix(kp.changeLivePrefix))
 
@@ -99,7 +99,7 @@ func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {
 		kp.generateSuggestions()
 	}
 
-	if metrics.CurrentParamType == wallet.CmdNameArg {
+	if metrics.CurrentParamType == cli.CmdNameArg {
 		return prompt.FilterHasPrefix(kp.commandSuggestions, d.GetWordBeforeCursor(), true)
 	}
 
@@ -107,13 +107,13 @@ func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {
 }
 
 func (kp *KoinosPrompt) executor(input string) {
-	results := wallet.ParseAndInterpret(kp.parser, kp.execEnv, input)
+	results := cli.ParseAndInterpret(kp.parser, kp.execEnv, input)
 	results.Print()
 }
 
 // Run runs interactive mode
 func (kp *KoinosPrompt) Run() {
-	fmt.Println(fmt.Sprintf("Koinos CLI Wallet %s", util.Version))
+	fmt.Println(fmt.Sprintf("Koinos CLI %s", util.Version))
 	fmt.Println("Type \"list\" for a list of commands, \"help <command>\" for help on a specific command.")
 	kp.gPrompt.Run()
 }

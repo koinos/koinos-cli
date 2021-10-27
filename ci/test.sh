@@ -3,7 +3,7 @@
 set -e
 set -x
 
-go test -v github.com/koinos/koinos-cli-wallet/internal/wallet -coverprofile=./build/wallet.out -coverpkg=./koinos/wallet
-gcov2lcov -infile=./build/wallet.out -outfile=./build/wallet.info
+go test -v github.com/koinos/koinos-cli/internal/cli -coverprofile=./build/cli.out -coverpkg=./koinos/cli
+gcov2lcov -infile=./build/cli.out -outfile=./build/cli.info
 
 golint -set_exit_status ./...
