@@ -78,13 +78,7 @@ type CommandDeclaration struct {
 func (d *CommandDeclaration) String() string {
 	s := d.Name
 	for _, arg := range d.Args {
-		val := ""
-		if arg.Optional {
-			val = " [" + arg.Name + "]"
-		} else {
-			val = " <" + arg.Name + ">"
-		}
-		s += val
+		s += fmt.Sprintf(" %s", arg.String())
 	}
 
 	return s
@@ -137,6 +131,18 @@ func NewOptionalCommandArg(name string, argType CommandArgType) *CommandArg {
 		ArgType:  argType,
 		Optional: true,
 	}
+}
+
+func (arg *CommandArg) String() string {
+	filling := fmt.Sprintf("%s:%s", arg.Name, arg.ArgType.String())
+	var val string
+	if arg.Optional {
+		val = "[" + filling + "]"
+	} else {
+		val = "<" + filling + ">"
+	}
+
+	return val
 }
 
 // InterpretResults is a struct that holds the results of a multi-command interpretation

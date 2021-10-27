@@ -113,7 +113,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs := NewCommandSet()
 
 	cs.AddCommand(NewCommandDeclaration("address", "Show the currently opened wallet's address", false, NewAddressCommand))
-	cs.AddCommand(NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewOptionalCommandArg("address", AddressArg)))
+	cs.AddCommand(NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewOptionalCommandArg("owner", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("connect", "Connect to an RPC endpoint", false, NewConnectCommand, *NewCommandArg("url", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("close", "Close the currently open wallet", false, NewCloseCommand))
 	cs.AddCommand(NewCommandDeclaration("lock", "Close the currently open wallet", true, NewCloseCommand))
@@ -130,7 +130,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("private", "Show the currently opened wallet's private key", false, NewPrivateCommand))
 	cs.AddCommand(NewCommandDeclaration("read", "Read from a smart contract", false, NewReadCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("register", "Register a smart contract's commands", false, NewRegisterCommand, *NewCommandArg("name", StringArg), *NewCommandArg("address", AddressArg), *NewCommandArg("abi-filename", StringArg)))
-	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("amount", AmountArg), *NewCommandArg("address", AddressArg)))
+	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("value", AmountArg), *NewCommandArg("to", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	cs.AddCommand(NewCommandDeclaration("quit", "", true, NewExitCommand))
@@ -155,7 +155,7 @@ type BalanceCommand struct {
 
 // NewBalanceCommand creates a new balance object
 func NewBalanceCommand(inv *CommandParseResult) CLICommand {
-	addressString := inv.Args["address"]
+	addressString := inv.Args["owner"]
 	return &BalanceCommand{AddressString: addressString}
 }
 
@@ -796,8 +796,8 @@ type TransferCommand struct {
 
 // NewTransferCommand creates a new close object
 func NewTransferCommand(inv *CommandParseResult) CLICommand {
-	addressString := inv.Args["address"]
-	return &TransferCommand{Address: *addressString, Amount: *inv.Args["amount"]}
+	addressString := inv.Args["to"]
+	return &TransferCommand{Address: *addressString, Amount: *inv.Args["value"]}
 }
 
 // Execute transfers token

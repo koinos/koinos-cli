@@ -36,6 +36,34 @@ const (
 	NoArg
 )
 
+func (c *CommandArgType) String() string {
+	switch *c {
+	case AddressArg:
+		return "address"
+	case StringArg:
+		return "string"
+	case AmountArg:
+		return "amount"
+	case CmdNameArg:
+		return "command"
+	case IntArg:
+		return "int"
+	case UIntArg:
+		return "uint"
+	case BytesArg:
+		return "bytes"
+	case BoolArg:
+		return "bool"
+	case HexArg:
+		return "hex"
+	case NoArg:
+		return "none"
+
+	default:
+		return "unknown"
+	}
+}
+
 // Characters used in parsing
 const (
 	CommandTerminator = ';'
