@@ -12,6 +12,7 @@ import (
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli/internal/util"
 	"github.com/koinos/koinos-proto-golang/encoding/text"
+	"github.com/koinos/koinos-proto-golang/koinos"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -61,9 +62,23 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
 	}
 
-	fileDescriptorSet := &descriptorpb.FileDescriptorSet{}
-	fieldProto := descriptorpb.FieldOptions{}
-	fileDescriptorSet.File = append(fileDescriptorSet.File, protodesc.ToFileDescriptorProto(fieldProto.ProtoReflect().Descriptor().ParentFile()))
+	fileMap := make(map[string]*descriptorpb.FileDescriptorProto)
+
+	// Add FieldOptions to protoregistry
+	fieldProtoFile := protodesc.ToFileDescriptorProto((&descriptorpb.FieldOptions{}).ProtoReflect().Descriptor().ParentFile())
+	fileMap[*fieldProtoFile.Name] = fieldProtoFile
+
+	optionsFile := protodesc.ToFileDescriptorProto((koinos.BytesType(0)).Descriptor().ParentFile())
+	fileMap[*optionsFile.Name] = optionsFile
+
+	commonFile := protodesc.ToFileDescriptorProto((&koinos.BlockTopology{}).ProtoReflect().Descriptor().ParentFile())
+	fileMap[*commonFile.Name] = commonFile
+
+	protocolFile := protodesc.ToFileDescriptorProto((&protocol.Block{}).ProtoReflect().Descriptor().ParentFile())
+	fileMap[*protocolFile.Name] = protocolFile
+
+	chainFile := protodesc.ToFileDescriptorProto((&koinos.BlockTopology{}).ProtoReflect().Descriptor().ParentFile())
+	fileMap[*chainFile.Name] = chainFile
 
 	var fds descriptorpb.FileDescriptorSet
 	err = proto.Unmarshal(abi.Types, &fds)
@@ -74,14 +89,20 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 			return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
 		}
 
-		fileDescriptorSet.File = append(fileDescriptorSet.File, fdProto)
+		fileMap[*fdProto.Name] = fdProto
 	} else {
 		for _, fdProto := range fds.GetFile() {
-			fileDescriptorSet.File = append(fileDescriptorSet.File, fdProto)
+			fileMap[*fdProto.Name] = fdProto
 		}
 	}
 
 	var protoFileOpts protodesc.FileOptions
+	fileDescriptorSet := &descriptorpb.FileDescriptorSet{}
+
+	for _, v := range fileMap {
+		fileDescriptorSet.File = append(fileDescriptorSet.File, v)
+	}
+
 	files, err := protoFileOpts.NewFiles(fileDescriptorSet)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
