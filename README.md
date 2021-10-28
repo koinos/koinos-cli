@@ -8,15 +8,17 @@ When running the wallet, it will start in interactive mode. Press tab or type `l
 
 `help <command-name>` will show a help message for the given command.
 
-Some commands require a node rpc endpoint. This can be specified either when starting the wallet with '--rpc' command line switch, or with the `connect` command from within the wallet. Both take an endpoint url.
+Some commands require a node RPC endpoint. This can be specified either when starting the cli with '--rpc' command line switch, or with the `connect` command from within the cli. Both take an endpoint url.
 
-A circle top the left of the prompt will show red or green depending on whether or not you have specified an RPC endpoint.
+There is a public RPC server that may be used for testing at this address: `http://192.241.131.189:8080`
+
+If there is a red symbol to the left of the prompt, it indicates that you are not connected to an RPC endpoint.
 
 `exit` or `quit` will quit the wallet.
 
-## Wallet creation / management
+## Wallet Creation & Management
 
-The lock symbol to the left of the prompt show whether or not you have a wallet open. Some commands require an open wallet.
+The lock symbol to the left of the prompt indicates whether or not you have a wallet open. Some commands require an open wallet.
 
 To create a new wallet, use the command `create <filename> <password>`. The new wallet will then be created in the given file, and automatically opened.
 
@@ -53,7 +55,3 @@ Commands can be executed without using interactive mode. The `--execute` command
 To build the wallet from source, you will need Go version 1.15 or higher.
 
 From the root of the repository, simply run the command `go build -o koinos-cli-wallet cmd/cli-wallet/main.go`
-
-## Public RPC server
-
-There is a public RPC server that may be used for testing at this address: http://192.241.131.189:8080
