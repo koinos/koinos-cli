@@ -2,7 +2,7 @@
 
 Command-line interface (cli) for the Koinos blockchain
 
-## Basic Usage:
+## Basic Usage
 
 When running the cli, it will start in interactive mode. Press tab or type `list` to see a list of possible commands.
 
@@ -45,6 +45,20 @@ To upload a smart contract, use the command `upload <filename>`. The file given 
 To read from a smart contract, use the command `read <contract-id> <entry-point> <arguments>`. Entry-point should be a hex value such as 0x0D, as defined in the contract. Arguments should be a base64 string representing the binary arguments the entry-point requires.
 
 To call a smart contract, use the command `call <contract-id> <entry-point> <arguments>`. The parameters here are given the same way as in the read command described above.
+
+## Transaction Sessions
+
+Sometimes it is important to ensure multiple operations are included in the same block in a specific order. To accomplish this with the CLI, you use a session.
+
+To begin a session, use the command `session begin`. A paper icon will appear to the left of the prompt while a session is active.
+
+Any command that interacts with the chain will now be added to the current session.
+
+To view the current session, use `session view`.
+
+To cancel the current session, use `session cancel`.
+
+When you are done adding commands to the session, `session submit` will send the attached commands as a single transaction to the blockchain.
 
 ## Non-interactive mode
 
