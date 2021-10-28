@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-cli/internal/util"
 )
 
 // TerminationStatus is an enum

@@ -1,4 +1,4 @@
-module github.com/koinos/koinos-cli-wallet
+module github.com/koinos/koinos-cli
 
 go 1.15
 

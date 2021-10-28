@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-cli/internal/util"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )

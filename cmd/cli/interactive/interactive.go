@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/c-bata/go-prompt"
-	"github.com/koinos/koinos-cli-wallet/internal/cli"
-	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-cli/internal/cli"
+	"github.com/koinos/koinos-cli/internal/util"
 )
 
 // KoinosPrompt is an object to manage interactive mode

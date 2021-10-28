@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
-	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-cli/internal/kjsonrpc"
+	"github.com/koinos/koinos-cli/internal/util"
 )
 
 // Command execution code

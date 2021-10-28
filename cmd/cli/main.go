@@ -5,10 +5,10 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/koinos/koinos-cli-wallet/cmd/cli/interactive"
-	"github.com/koinos/koinos-cli-wallet/internal/cli"
-	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
-	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-cli/cmd/cli/interactive"
+	"github.com/koinos/koinos-cli/internal/cli"
+	"github.com/koinos/koinos-cli/internal/kjsonrpc"
+	"github.com/koinos/koinos-cli/internal/util"
 	flag "github.com/spf13/pflag"
 )
 

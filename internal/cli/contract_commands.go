@@ -10,7 +10,7 @@ import (
 	"strconv"
 
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-cli/internal/util"
 	"github.com/koinos/koinos-proto-golang/encoding/text"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"google.golang.org/protobuf/encoding/prototext"

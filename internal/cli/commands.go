@@ -14,12 +14,12 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
+	"github.com/koinos/koinos-cli/internal/kjsonrpc"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/shopspring/decimal"
 
-	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-cli/internal/util"
 )
 
 // Hardcoded Koin contract constants
