@@ -27,7 +27,7 @@ const (
 	KoinSymbol         = "tKOIN"
 	ManaSymbol         = "mana"
 	KoinPrecision      = 8
-	KoinContractID     = "5MvF7o3GhJsoRfTZZbeGSe5WzVuVYtBV"
+	KoinContractID     = "19JntSm8pSNETT9aHTwAUHC5RMoaSmgZPJ"
 	KoinBalanceOfEntry = uint32(0x15619248)
 	KoinTransferEntry  = uint32(0x62efa292)
 )
