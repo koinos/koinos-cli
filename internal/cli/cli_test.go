@@ -1,4 +1,4 @@
-package wallet
+package cli
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-cli/internal/util"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )
@@ -214,13 +214,13 @@ func checkParseResults(t *testing.T, parser *CommandParser, cmd string, errType 
 func TestParserTermination(t *testing.T) {
 	parser := makeTestParser()
 
-	checkTerminators(t, parser, "test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg", []TerminationStatus{Input})
-	checkTerminators(t, parser, "test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg;", []TerminationStatus{Command})
-	checkTerminators(t, parser, "  test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg   ", []TerminationStatus{Input})
-	checkTerminators(t, parser, "      test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg  ;   ", []TerminationStatus{Command})
-	checkTerminators(t, parser, "test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg", []TerminationStatus{None})
-	checkTerminators(t, parser, "test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg; test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg", []TerminationStatus{Command, Input})
-	checkTerminators(t, parser, "test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg; test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg;", []TerminationStatus{Command, Command})
+	checkTerminators(t, parser, "test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg", []TerminationStatus{InputTermination})
+	checkTerminators(t, parser, "test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg;", []TerminationStatus{CommandTermination})
+	checkTerminators(t, parser, "  test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg   ", []TerminationStatus{InputTermination})
+	checkTerminators(t, parser, "      test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg  ;   ", []TerminationStatus{CommandTermination})
+	checkTerminators(t, parser, "test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg", []TerminationStatus{NoTermination})
+	checkTerminators(t, parser, "test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg; test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg", []TerminationStatus{CommandTermination, InputTermination})
+	checkTerminators(t, parser, "test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg; test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg;", []TerminationStatus{CommandTermination, CommandTermination})
 }
 
 func checkTerminators(t *testing.T, parser *CommandParser, input string, terminators []TerminationStatus) {

@@ -1,4 +1,4 @@
-package wallet
+package cli
 
 import (
 	"context"
@@ -11,17 +11,15 @@ import (
 	"sort"
 	"strconv"
 
-	"golang.org/x/crypto/ripemd160"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
+	"github.com/koinos/koinos-cli/internal/kjsonrpc"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
-	"github.com/multiformats/go-multihash"
 	"github.com/shopspring/decimal"
 
-	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-cli/internal/util"
 )
 
 // Hardcoded Koin contract constants
@@ -29,7 +27,7 @@ const (
 	KoinSymbol         = "tKOIN"
 	ManaSymbol         = "mana"
 	KoinPrecision      = 8
-	KoinContractID     = "5MvF7o3GhJsoRfTZZbeGSe5WzVuVYtBV"
+	KoinContractID     = "19JntSm8pSNETT9aHTwAUHC5RMoaSmgZPJ"
 	KoinBalanceOfEntry = uint32(0x15619248)
 	KoinTransferEntry  = uint32(0x62efa292)
 )
@@ -112,7 +110,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs := NewCommandSet()
 
 	cs.AddCommand(NewCommandDeclaration("address", "Show the currently opened wallet's address", false, NewAddressCommand))
-	cs.AddCommand(NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewOptionalCommandArg("address", AddressArg)))
+	cs.AddCommand(NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewOptionalCommandArg("owner", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("connect", "Connect to an RPC endpoint", false, NewConnectCommand, *NewCommandArg("url", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("close", "Close the currently open wallet", false, NewCloseCommand))
 	cs.AddCommand(NewCommandDeclaration("lock", "Close the currently open wallet", true, NewCloseCommand))
@@ -129,7 +127,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("private", "Show the currently opened wallet's private key", false, NewPrivateCommand))
 	cs.AddCommand(NewCommandDeclaration("read", "Read from a smart contract", false, NewReadCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("register", "Register a smart contract's commands", false, NewRegisterCommand, *NewCommandArg("name", StringArg), *NewCommandArg("address", AddressArg), *NewCommandArg("abi-filename", StringArg)))
-	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("amount", AmountArg), *NewCommandArg("address", AddressArg)))
+	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("value", AmountArg), *NewCommandArg("to", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("session", "Create or manage a transaction session (begin, submit, cancel, or view)", false, NewSessionCommand, *NewCommandArg("command", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
@@ -154,8 +152,8 @@ type BalanceCommand struct {
 }
 
 // NewBalanceCommand creates a new balance object
-func NewBalanceCommand(inv *CommandParseResult) CLICommand {
-	addressString := inv.Args["address"]
+func NewBalanceCommand(inv *CommandParseResult) Command {
+	addressString := inv.Args["owner"]
 	return &BalanceCommand{AddressString: addressString}
 }
 
@@ -224,7 +222,7 @@ type CloseCommand struct {
 }
 
 // NewCloseCommand creates a new close object
-func NewCloseCommand(inv *CommandParseResult) CLICommand {
+func NewCloseCommand(inv *CommandParseResult) Command {
 	return &CloseCommand{}
 }
 
@@ -253,7 +251,7 @@ type ConnectCommand struct {
 }
 
 // NewConnectCommand creates a new connect object
-func NewConnectCommand(inv *CommandParseResult) CLICommand {
+func NewConnectCommand(inv *CommandParseResult) Command {
 	return &ConnectCommand{URL: *inv.Args["url"]}
 }
 
@@ -280,7 +278,7 @@ type DisconnectCommand struct {
 }
 
 // NewDisconnectCommand creates a new disconnect object
-func NewDisconnectCommand(inv *CommandParseResult) CLICommand {
+func NewDisconnectCommand(inv *CommandParseResult) Command {
 	return &DisconnectCommand{}
 }
 
@@ -303,16 +301,16 @@ func (c *DisconnectCommand) Execute(ctx context.Context, ee *ExecutionEnvironmen
 // Exit Command
 // ----------------------------------------------------------------------------
 
-// ExitCommand is a command that exits the wallet
+// ExitCommand is a command that exits the CLI
 type ExitCommand struct {
 }
 
 // NewExitCommand creates a new exit object
-func NewExitCommand(inv *CommandParseResult) CLICommand {
+func NewExitCommand(inv *CommandParseResult) Command {
 	return &ExitCommand{}
 }
 
-// Execute exits the wallet
+// Execute exits the CLI
 func (c *ExitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	os.Exit(0)
 	return nil, nil
@@ -322,16 +320,16 @@ func (c *ExitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 // Generate Key Command
 // ----------------------------------------------------------------------------
 
-// GenerateKeyCommand is a command that exits the wallet
+// GenerateKeyCommand is a command that generates anonymous keys
 type GenerateKeyCommand struct {
 }
 
 // NewGenerateKeyCommand creates a new exit object
-func NewGenerateKeyCommand(inv *CommandParseResult) CLICommand {
+func NewGenerateKeyCommand(inv *CommandParseResult) Command {
 	return &GenerateKeyCommand{}
 }
 
-// Execute exits the wallet
+// Execute generates anonymous keys
 func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	k, err := util.GenerateKoinosKey()
 	if err != nil {
@@ -356,7 +354,7 @@ type UploadContractCommand struct {
 }
 
 // NewUploadContractCommand creates an upload contract object
-func NewUploadContractCommand(inv *CommandParseResult) CLICommand {
+func NewUploadContractCommand(inv *CommandParseResult) Command {
 	return &UploadContractCommand{Filename: *inv.Args["filename"]}
 }
 
@@ -377,27 +375,19 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 		return nil, err
 	}
 
-	ripemd160Hasher := ripemd160.New()
-	ripemd160Hasher.Write(ee.Key.AddressBytes())
-	contractIDDigest := ripemd160Hasher.Sum(make([]byte, 0))
-	mh, err := multihash.Encode(contractIDDigest, RIPEMD160)
-	if err != nil {
-		return nil, err
-	}
-
 	op := &protocol.Operation{
 		Op: &protocol.Operation_UploadContract{
 			UploadContract: &protocol.UploadContractOperation{
-				ContractId: mh,
+				ContractId: ee.Key.AddressBytes(),
 				Bytecode:   wasmBytes,
 			},
 		},
 	}
 
 	er := NewExecutionResult()
-	er.AddMessage(fmt.Sprintf("Contract uploaded with address %s", base58.Encode(mh)))
+	er.AddMessage(fmt.Sprintf("Contract uploaded with address %s", base58.Encode(ee.Key.AddressBytes())))
 
-	err = ee.Session.AddOperation(op, fmt.Sprintf("Upload contract with address %s", base58.Encode(mh)))
+	err = ee.Session.AddOperation(op, fmt.Sprintf("Upload contract with address %s", base58.Encode(ee.Key.AddressBytes())))
 	if err == nil {
 		er.AddMessage("Adding operation to transaction session")
 	}
@@ -423,7 +413,7 @@ type CreateCommand struct {
 }
 
 // NewCreateCommand creates a new create object
-func NewCreateCommand(inv *CommandParseResult) CLICommand {
+func NewCreateCommand(inv *CommandParseResult) Command {
 	return &CreateCommand{Filename: *inv.Args["filename"], Password: inv.Args["password"]}
 }
 
@@ -481,7 +471,7 @@ type ImportCommand struct {
 }
 
 // NewImportCommand creates a new import object
-func NewImportCommand(inv *CommandParseResult) CLICommand {
+func NewImportCommand(inv *CommandParseResult) Command {
 	return &ImportCommand{Filename: *inv.Args["filename"], Password: inv.Args["password"], PrivateKey: *inv.Args["private-key"]}
 }
 
@@ -541,7 +531,7 @@ type AddressCommand struct {
 }
 
 // NewAddressCommand creates a new address command object
-func NewAddressCommand(inv *CommandParseResult) CLICommand {
+func NewAddressCommand(inv *CommandParseResult) Command {
 	return &AddressCommand{}
 }
 
@@ -566,7 +556,7 @@ type PrivateCommand struct {
 }
 
 // NewPrivateCommand creates a new private command object
-func NewPrivateCommand(inv *CommandParseResult) CLICommand {
+func NewPrivateCommand(inv *CommandParseResult) Command {
 	return &PrivateCommand{}
 }
 
@@ -592,7 +582,7 @@ type HelpCommand struct {
 }
 
 // NewHelpCommand creates a new help command object
-func NewHelpCommand(inv *CommandParseResult) CLICommand {
+func NewHelpCommand(inv *CommandParseResult) Command {
 	return &HelpCommand{Command: *inv.Args["command"]}
 }
 
@@ -623,7 +613,7 @@ type CallCommand struct {
 }
 
 // NewCallCommand calls a contract method
-func NewCallCommand(inv *CommandParseResult) CLICommand {
+func NewCallCommand(inv *CommandParseResult) Command {
 	return &CallCommand{
 		ContractID: *inv.Args["contract-id"],
 		EntryPoint: *inv.Args["entry-point"],
@@ -692,7 +682,7 @@ type OpenCommand struct {
 }
 
 // NewOpenCommand creates a new open command object
-func NewOpenCommand(inv *CommandParseResult) CLICommand {
+func NewOpenCommand(inv *CommandParseResult) Command {
 	return &OpenCommand{Filename: *inv.Args["filename"], Password: inv.Args["password"]}
 }
 
@@ -743,7 +733,7 @@ type ReadCommand struct {
 }
 
 // NewReadCommand creates a new read command object
-func NewReadCommand(inv *CommandParseResult) CLICommand {
+func NewReadCommand(inv *CommandParseResult) Command {
 	return &ReadCommand{ContractID: *inv.Args["contract-id"], EntryPoint: *inv.Args["entry-point"], Arguments: *inv.Args["arguments"]}
 }
 
@@ -788,9 +778,9 @@ type TransferCommand struct {
 }
 
 // NewTransferCommand creates a new close object
-func NewTransferCommand(inv *CommandParseResult) CLICommand {
-	addressString := inv.Args["address"]
-	return &TransferCommand{Address: *addressString, Amount: *inv.Args["amount"]}
+func NewTransferCommand(inv *CommandParseResult) Command {
+	addressString := inv.Args["to"]
+	return &TransferCommand{Address: *addressString, Amount: *inv.Args["value"]}
 }
 
 // Execute transfers token
@@ -899,7 +889,7 @@ type SetSystemCallCommand struct {
 }
 
 // NewSetSystemCallCommand calls a contract method
-func NewSetSystemCallCommand(inv *CommandParseResult) CLICommand {
+func NewSetSystemCallCommand(inv *CommandParseResult) Command {
 	return &SetSystemCallCommand{
 		SystemCall: *inv.Args["system-call"],
 		ContractID: *inv.Args["contract-id"],
@@ -980,7 +970,7 @@ type SessionCommand struct {
 }
 
 // NewSessionCommand calls a contract method
-func NewSessionCommand(inv *CommandParseResult) CLICommand {
+func NewSessionCommand(inv *CommandParseResult) Command {
 	return &SessionCommand{
 		Command: *inv.Args["command"],
 	}
@@ -1064,7 +1054,7 @@ type ListCommand struct {
 }
 
 // NewListCommand creates a new list command object
-func NewListCommand(inv *CommandParseResult) CLICommand {
+func NewListCommand(inv *CommandParseResult) Command {
 	return &ListCommand{}
 }
 

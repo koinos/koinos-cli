@@ -1,18 +1,18 @@
-package wallet
+package cli
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
-	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-cli/internal/kjsonrpc"
+	"github.com/koinos/koinos-cli/internal/util"
 )
 
 // Command execution code
 // Actual command implementations are in commands.go
 
-// CLICommand is the interface that all commands must implement
-type CLICommand interface {
+// Command is the interface that all commands must implement
+type Command interface {
 	Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error)
 }
 
@@ -72,7 +72,7 @@ func (ee *ExecutionEnvironment) IsOnline() bool {
 type CommandDeclaration struct {
 	Name          string
 	Description   string
-	Instantiation func(*CommandParseResult) CLICommand
+	Instantiation func(*CommandParseResult) Command
 	Args          []CommandArg
 	Hidden        bool // If true, the command is not shown in the help
 }
@@ -80,13 +80,7 @@ type CommandDeclaration struct {
 func (d *CommandDeclaration) String() string {
 	s := d.Name
 	for _, arg := range d.Args {
-		val := ""
-		if arg.Optional {
-			val = " [" + arg.Name + "]"
-		} else {
-			val = " <" + arg.Name + ">"
-		}
-		s += val
+		s += fmt.Sprintf(" %s", arg.String())
 	}
 
 	return s
@@ -94,7 +88,7 @@ func (d *CommandDeclaration) String() string {
 
 // NewCommandDeclaration create a new command declaration
 func NewCommandDeclaration(name string, description string, hidden bool,
-	instantiation func(*CommandParseResult) CLICommand, args ...CommandArg) *CommandDeclaration {
+	instantiation func(*CommandParseResult) Command, args ...CommandArg) *CommandDeclaration {
 	// Ensure optionals are only at the end
 	req := true
 	for _, arg := range args {
@@ -139,6 +133,18 @@ func NewOptionalCommandArg(name string, argType CommandArgType) *CommandArg {
 		ArgType:  argType,
 		Optional: true,
 	}
+}
+
+func (arg *CommandArg) String() string {
+	filling := fmt.Sprintf("%s:%s", arg.Name, arg.ArgType.String())
+	var val string
+	if arg.Optional {
+		val = "[" + filling + "]"
+	} else {
+		val = "<" + filling + ">"
+	}
+
+	return val
 }
 
 // InterpretResults is a struct that holds the results of a multi-command interpretation
@@ -203,7 +209,7 @@ func (pr *ParseResults) Metrics() *ParseResultMetrics {
 
 	index := len(pr.CommandResults) - 1
 	arg := pr.CommandResults[index].CurrentArg
-	if pr.CommandResults[index].Termination == Command {
+	if pr.CommandResults[index].Termination == CommandTermination {
 		index++
 		arg = -1
 	}

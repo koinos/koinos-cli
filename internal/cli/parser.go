@@ -1,10 +1,10 @@
-package wallet
+package cli
 
 import (
 	"fmt"
 	"regexp"
 
-	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-cli/internal/util"
 )
 
 // TerminationStatus is an enum
@@ -12,9 +12,9 @@ type TerminationStatus int
 
 // Types of termination
 const (
-	None TerminationStatus = iota
-	Input
-	Command
+	NoTermination TerminationStatus = iota
+	InputTermination
+	CommandTermination
 )
 
 // CommandArgType is an enum that defines the types of arguments a command can take
@@ -35,6 +35,34 @@ const (
 	// A parameter should never be declared as type nothing, this is only for parsing errors
 	NoArg
 )
+
+func (c *CommandArgType) String() string {
+	switch *c {
+	case AddressArg:
+		return "address"
+	case StringArg:
+		return "string"
+	case AmountArg:
+		return "amount"
+	case CmdNameArg:
+		return "command"
+	case IntArg:
+		return "int"
+	case UIntArg:
+		return "uint"
+	case BytesArg:
+		return "bytes"
+	case BoolArg:
+		return "bool"
+	case HexArg:
+		return "hex"
+	case NoArg:
+		return "none"
+
+	default:
+		return "unknown"
+	}
+}
 
 // Characters used in parsing
 const (
@@ -62,7 +90,7 @@ func NewCommandParseResult(name string) *CommandParseResult {
 }
 
 // Instantiate creates a new command object from the invocation object
-func (inv *CommandParseResult) Instantiate() CLICommand {
+func (inv *CommandParseResult) Instantiate() Command {
 	return inv.Decl.Instantiation(inv)
 }
 
@@ -147,7 +175,7 @@ func (p *CommandParser) Parse(commands string) (*ParseResults, error) {
 		}
 
 		// If latest command has no terminator or is the last command, halt parsing
-		if inv.Termination == None || inv.Termination == Input {
+		if inv.Termination == NoTermination || inv.Termination == InputTermination {
 			break
 		}
 	}
@@ -203,7 +231,7 @@ func (p *CommandParser) parseArgs(input []byte, inv *CommandParseResult) ([]byte
 		// Skip whitespace
 		var t TerminationStatus
 		input, t = p.parseSkip(input, inv, true)
-		if t != None {
+		if t != NoTermination {
 			if arg.Optional {
 				inv.Args[arg.Name] = nil
 				return input, nil
@@ -387,7 +415,7 @@ func (p *CommandParser) parseSimpleString(input []byte) ([]byte, int, error) {
 
 // Returns the rest of the string, a bool that is true if it encountered a terminator, and a bool that is true if that terminator was a command terminator
 func (p *CommandParser) parseSkip(input []byte, inv *CommandParseResult, incArgs bool) ([]byte, TerminationStatus) {
-	term := None
+	term := NoTermination
 	skipped := false
 
 	m := p.skipRE.Find(input)
@@ -400,9 +428,9 @@ func (p *CommandParser) parseSkip(input []byte, inv *CommandParseResult, incArgs
 		t := p.terminatorRE.Find(input)
 		input = input[len(t):]
 		if len(t) > 0 && t[0] == CommandTerminator {
-			term = Command
+			term = CommandTermination
 		} else {
-			term = Input
+			term = InputTermination
 		}
 	}
 
