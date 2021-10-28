@@ -5,10 +5,10 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/koinos/koinos-cli-wallet/cmd/cli-wallet/interactive"
-	"github.com/koinos/koinos-cli-wallet/internal/kjsonrpc"
-	"github.com/koinos/koinos-cli-wallet/internal/util"
-	"github.com/koinos/koinos-cli-wallet/internal/wallet"
+	"github.com/koinos/koinos-cli/cmd/cli/interactive"
+	"github.com/koinos/koinos-cli/internal/cli"
+	"github.com/koinos/koinos-cli/internal/kjsonrpc"
+	"github.com/koinos/koinos-cli/internal/util"
 	flag "github.com/spf13/pflag"
 )
 
@@ -52,15 +52,15 @@ func main() {
 	}
 
 	// Construct the command parser
-	commands := wallet.NewKoinosCommandSet()
-	parser := wallet.NewCommandParser(commands)
+	commands := cli.NewKoinosCommandSet()
+	parser := cli.NewCommandParser(commands)
 
-	cmdEnv := wallet.NewExecutionEnvironment(client, parser)
+	cmdEnv := cli.NewExecutionEnvironment(client, parser)
 
 	// If the user submitted commands, execute them
 	if *executeCmd != nil {
 		for _, cmd := range *executeCmd {
-			results := wallet.ParseAndInterpret(parser, cmdEnv, cmd)
+			results := cli.ParseAndInterpret(parser, cmdEnv, cmd)
 			results.Print()
 		}
 	}

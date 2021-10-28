@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 
-	"github.com/koinos/koinos-cli-wallet/internal/util"
+	"github.com/koinos/koinos-cli/internal/util"
 	kjson "github.com/koinos/koinos-proto-golang/encoding/json"
 	"github.com/koinos/koinos-proto-golang/koinos/canonical"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"

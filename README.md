@@ -1,10 +1,10 @@
-# Koinos CLI Wallet
+# Koinos CLI
 
-Command-line wallet for the Koinos blockchain
+Command-line interface (cli) for the Koinos blockchain
 
 ## Basic Usage:
 
-When running the wallet, it will start in interactive mode. Press tab or type `list` to see a list of possible commands.
+When running the cli, it will start in interactive mode. Press tab or type `list` to see a list of possible commands.
 
 `help <command-name>` will show a help message for the given command.
 
@@ -14,7 +14,7 @@ There is a public RPC server that may be used for testing at this address: `http
 
 If there is a red symbol to the left of the prompt, it indicates that you are not connected to an RPC endpoint.
 
-`exit` or `quit` will quit the wallet.
+`exit` or `quit` will quit the cli.
 
 ## Wallet Creation & Management
 
@@ -34,13 +34,13 @@ Any of the commands which take a password may be called with it omitted. In this
 
 To check the balance of a given public address, use the commands `balance <address>`.
 
-To transfer tKOIN from the open wallet, use the commands `transfer <amount> <address>`.
+To transfer tKOIN from the currently open wallet, use the commands `transfer <amount> <address>`.
 
 ## Smart contract management
 
 Note: Smart contract management will change in the future to be much easier to work with.
 
-To upload a smart contract, use the command `upload <filename>`. The file given should be a compiled wasm smart contract. The contract id will be the public address of the currently opened wallet.
+To upload a smart contract, use the command `upload <filename>`. The file given should be a compiled wasm smart contract. The contract id will be the public address of the currently open wallet.
 
 To read from a smart contract, use the command `read <contract-id> <entry-point> <arguments>`. Entry-point should be a hex value such as 0x0D, as defined in the contract. Arguments should be a base64 string representing the binary arguments the entry-point requires.
 
@@ -52,6 +52,7 @@ Commands can be executed without using interactive mode. The `--execute` command
 
 ## Building from source
 
-To build the wallet from source, you will need Go version 1.15 or higher.
+To build the cli from source, you will need Go version 1.15 or higher.
 
-From the root of the repository, simply run the command `go build -o koinos-cli-wallet cmd/cli-wallet/main.go`
+From the root of the repository, simply run the command `go build -o koinos-cli cmd/cli/main.go`
+
