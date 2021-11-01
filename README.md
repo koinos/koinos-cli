@@ -1,14 +1,14 @@
 # Koinos CLI
 
-Command-line interface (cli) for the Koinos blockchain
+Command line interface (CLI) for the Koinos Blockchain.
 
 ## Basic Usage
 
-When running the cli, it will start in interactive mode. Press tab or type `list` to see a list of possible commands.
+When running the CLI, it will start in interactive mode. Press tab or type `list` to see a list of possible commands.
 
 `help <command-name>` will show a help message for the given command.
 
-Some commands require a node RPC endpoint. This can be specified either when starting the cli with '--rpc' command line switch, or with the `connect` command from within the cli. Both take an endpoint url.
+Some commands require a node RPC endpoint. This can be specified either when starting the CLI with '--rpc' command line switch, or with the `connect` command from within the cli. Both take an endpoint url.
 
 There is a public RPC server that may be used for testing at this address: `http://192.241.131.189:8080`
 
