@@ -2,13 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [v0.2.0]
 
 ### Added
 
 - Optional parameters
 - .env file handling
 - error handling when attempting to transfer too low an amount
+- session
+- abi generated commands
 
 ### Changed
 
