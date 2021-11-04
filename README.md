@@ -19,16 +19,16 @@ Some commands require a node RPC endpoint. This can be specified either when sta
 Here is an example of launching from the command line with an RPC:
 
 ```console
-$ koinos-cli --rpc http://192.241.131.189:8080
+$ koinos-cli --rpc http://api.koinos.io:8080/
 ```
 
 And here is an example of the connect command:
 ```
-🚫 🔐 > connect http://192.241.131.189:8080
-Connected to endpoint http://192.241.131.189:8080
+🚫 🔐 > connect http://api.koinos.io:8080/
+Connected to endpoint http://api.koinos.io:8080/
 ```
 
-There is a public RPC server that may be used for testing at this address: `http://192.241.131.189:8080`
+There is a public RPC server that may be used for testing at this address: `http://api.koinos.io:8080/`
 
 If there is a red symbol to the left of the prompt, it indicates that you are not connected to an RPC endpoint.
 
