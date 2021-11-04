@@ -141,8 +141,8 @@ func TestNonsensicalInput(t *testing.T) {
 		t.Error("Expected error, got none")
 	}
 
-	if !errors.Is(err, util.ErrEmptyCommandName) {
-		t.Error("Expected error", util.ErrEmptyCommandName, ", got", err)
+	if !errors.Is(err, util.ErrInvalidCommandName) {
+		t.Error("Expected error", util.ErrInvalidCommandName, ", got", err)
 	}
 
 	if results.Len() != 1 {
