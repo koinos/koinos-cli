@@ -159,7 +159,7 @@ func (p *CommandParser) Parse(commands string) (*ParseResults, error) {
 	input := []byte(commands)
 	invs := NewParseResults()
 
-	input, _ = p.parseSkip(input, nil, false)
+	input, _, _ = p.parseSkip(input, nil, false)
 
 	// Loop until we've consumed all input
 	for len(input) > 0 {
@@ -208,7 +208,7 @@ func (p *CommandParser) parseNextCommand(input []byte) (*CommandParseResult, []b
 
 	// Skip space and check termination
 	var t TerminationStatus
-	input, t = p.parseSkip(input, inv, false)
+	input, t, _ = p.parseSkip(input, inv, false)
 	inv.Termination = t
 
 	return inv, input, nil
@@ -218,7 +218,7 @@ func (p *CommandParser) parseNextCommand(input []byte) (*CommandParseResult, []b
 func (p *CommandParser) parseCommandName(input []byte) ([]byte, error) {
 	m := p.commandNameRE.Find(input)
 	if m == nil {
-		return nil, fmt.Errorf("%w", util.ErrEmptyCommandName)
+		return nil, fmt.Errorf("%w: %s", util.ErrInvalidCommandName, string(input))
 	}
 
 	return m, nil
@@ -227,10 +227,11 @@ func (p *CommandParser) parseCommandName(input []byte) ([]byte, error) {
 // Parse a command's arguments. Returns unconsumed input
 func (p *CommandParser) parseArgs(input []byte, inv *CommandParseResult) ([]byte, error) {
 	// Loop through expected arguments
-	for _, arg := range inv.Decl.Args {
+	for i, arg := range inv.Decl.Args {
 		// Skip whitespace
 		var t TerminationStatus
-		input, t = p.parseSkip(input, inv, true)
+		var skip bool
+		input, t, skip = p.parseSkip(input, inv, true)
 		if t != NoTermination {
 			if arg.Optional {
 				inv.Args[arg.Name] = nil
@@ -238,6 +239,11 @@ func (p *CommandParser) parseArgs(input []byte, inv *CommandParseResult) ([]byte
 			}
 
 			return input, fmt.Errorf("%w: %s", util.ErrMissingParam, arg.Name)
+		}
+
+		// If there was no skip here, then parameters have been melded together
+		if !skip {
+			return input, fmt.Errorf("%w: %s", util.ErrInvalidParam, inv.Decl.Args[i-1].Name)
 		}
 
 		var match []byte
@@ -414,7 +420,7 @@ func (p *CommandParser) parseSimpleString(input []byte) ([]byte, int, error) {
 }
 
 // Returns the rest of the string, a bool that is true if it encountered a terminator, and a bool that is true if that terminator was a command terminator
-func (p *CommandParser) parseSkip(input []byte, inv *CommandParseResult, incArgs bool) ([]byte, TerminationStatus) {
+func (p *CommandParser) parseSkip(input []byte, inv *CommandParseResult, incArgs bool) ([]byte, TerminationStatus, bool) {
 	term := NoTermination
 	skipped := false
 
@@ -444,7 +450,7 @@ func (p *CommandParser) parseSkip(input []byte, inv *CommandParseResult, incArgs
 		inv.CurrentArg++
 	}
 
-	return input, term
+	return input, term, skipped
 }
 
 // Parse a hex string. Returns matched string consumed length, and error

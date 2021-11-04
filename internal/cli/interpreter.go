@@ -236,7 +236,7 @@ func ParseAndInterpret(parser *CommandParser, ee *ExecutionEnvironment, input st
 		o.AddResult(err.Error())
 		metrics := result.Metrics()
 		// Display help for the command if it is a valid command
-		if result.CommandResults[metrics.CurrentResultIndex].Decl != nil {
+		if len(result.CommandResults) > 0 && result.CommandResults[metrics.CurrentResultIndex].Decl != nil {
 			o.AddResult("Usage: " + result.CommandResults[metrics.CurrentResultIndex].Decl.String())
 		} else {
 			o.AddResult("Type \"list\" for a list of commands.")

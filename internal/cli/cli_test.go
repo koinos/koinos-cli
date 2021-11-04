@@ -55,6 +55,8 @@ func makeTestParser() *CommandParser {
 		*NewCommandArg("arg1", StringArg), *NewOptionalCommandArg("arg2", StringArg), *NewOptionalCommandArg("arg3", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("test_bool", "Test command which takes a boolean", false, nil, *NewCommandArg("string", StringArg),
 		*NewCommandArg("bool", BoolArg), *NewCommandArg("amount", AmountArg)))
+	cs.AddCommand(NewCommandDeclaration("test_transfer", "Test command which looks like transfer", false, nil, *NewCommandArg("amount", AmountArg),
+		*NewCommandArg("amount", AddressArg)))
 
 	parser := NewCommandParser(cs)
 
@@ -120,7 +122,7 @@ func TestBasicParser(t *testing.T) {
 	}
 }
 
-func TestBadInput(t *testing.T) {
+func TestNonsensicalInput(t *testing.T) {
 	parser := makeTestParser()
 
 	// Test nonsensical string of empty commands
@@ -139,8 +141,8 @@ func TestBadInput(t *testing.T) {
 		t.Error("Expected error, got none")
 	}
 
-	if !errors.Is(err, util.ErrEmptyCommandName) {
-		t.Error("Expected error", util.ErrEmptyCommandName, ", got", err)
+	if !errors.Is(err, util.ErrInvalidCommandName) {
+		t.Error("Expected error", util.ErrInvalidCommandName, ", got", err)
 	}
 
 	if results.Len() != 1 {
@@ -231,6 +233,13 @@ func checkTerminators(t *testing.T, parser *CommandParser, input string, termina
 	for i, result := range results.CommandResults {
 		assert.Equal(t, terminators[i], result.Termination)
 	}
+}
+
+func TestArgumentSplitting(t *testing.T) {
+	parser := makeTestParser()
+
+	checkMetrics("test_transfer 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 1.4", parser, t, true, 0, 0, AmountArg)
+	checkMetrics("test_transfer 1.4 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg", parser, t, false, 0, 1, AddressArg)
 }
 
 func TestWalletFile(t *testing.T) {
