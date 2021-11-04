@@ -218,7 +218,7 @@ func (p *CommandParser) parseNextCommand(input []byte) (*CommandParseResult, []b
 func (p *CommandParser) parseCommandName(input []byte) ([]byte, error) {
 	m := p.commandNameRE.Find(input)
 	if m == nil {
-		return nil, fmt.Errorf("%w", util.ErrEmptyCommandName)
+		return nil, fmt.Errorf("%w: %s", util.ErrInvalidCommandName, string(input))
 	}
 
 	return m, nil
