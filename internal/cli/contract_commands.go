@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -233,6 +234,59 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 	}
 
 	er := NewExecutionResult()
+
+	l := md.Fields().Len()
+	for i := 0; i < l; i++ {
+		fd := md.Fields().Get(i)
+		value := dMsg.Get(fd)
+
+		switch fd.Kind() {
+		case protoreflect.BytesKind:
+			b := []byte{}
+			var err error
+
+			opts := fd.Options()
+			if opts != nil {
+				fieldOpts := opts.(*descriptorpb.FieldOptions)
+				ext := koinos.E_KoinosBytesType.TypeDescriptor()
+				enum := fieldOpts.ProtoReflect().Get(ext).Enum()
+
+				switch koinos.BytesType(enum) {
+				case koinos.BytesType_HEX, koinos.BytesType_BLOCK_ID, koinos.BytesType_TRANSACTION_ID:
+					b = []byte(hex.EncodeToString(value.Bytes()))
+					if len(b) == 0 && len(value.Bytes()) != 0 {
+						err = fmt.Errorf("error encoding hex")
+					}
+				case koinos.BytesType_BASE58, koinos.BytesType_CONTRACT_ID, koinos.BytesType_ADDRESS:
+					b = []byte(base58.Encode(value.Bytes()))
+					if len(b) == 0 && len(value.Bytes()) != 0 {
+						err = fmt.Errorf("error encoding base58")
+					}
+				case koinos.BytesType_BASE64:
+					fallthrough
+				default:
+					b = []byte(base64.URLEncoding.EncodeToString(value.Bytes()))
+					if len(b) == 0 && len(value.Bytes()) != 0 {
+						err = fmt.Errorf("error encoding base64")
+					}
+				}
+			} else {
+				b = []byte(base64.URLEncoding.EncodeToString(value.Bytes()))
+				if len(b) == 0 && len(value.Bytes()) != 0 {
+					err = fmt.Errorf("error encoding base64")
+				}
+			}
+
+			if err != nil {
+				return nil, err
+			}
+
+			value = protoreflect.ValueOfBytes(b)
+		}
+
+		// Set the value on the message
+		dMsg.Set(fd, value)
+	}
 
 	b, err := prototext.Marshal(dMsg)
 	if err != nil {
