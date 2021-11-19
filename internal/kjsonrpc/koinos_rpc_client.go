@@ -145,18 +145,13 @@ func (c *KoinosRPCClient) GetAccountNonce(address []byte) (uint64, error) {
 
 func (c *KoinosRPCClient) GetContractMeta(contractID []byte) (*contract_meta_store.ContractMetaItem, error) {
 	// Build the contract request
-
-	req := contract_meta_store_rpc.ContractMetaStoreRequest{
-		Request: &contract_meta_store_rpc.ContractMetaStoreRequest_GetContractMeta{
-			GetContractMeta: &contract_meta_store_rpc.GetContractMetaRequest{
-				ContractId: contractID,
-			},
-		},
+	params := contract_meta_store_rpc.GetContractMetaRequest{
+		ContractId: contractID,
 	}
 
 	// Make the rpc call
 	var cResp contract_meta_store_rpc.GetContractMetaResponse
-	err := c.Call(GetContractMetaCall, &req, &cResp)
+	err := c.Call(GetContractMetaCall, &params, &cResp)
 	if err != nil {
 		return nil, err
 	}
