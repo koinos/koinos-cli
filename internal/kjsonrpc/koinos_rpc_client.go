@@ -143,6 +143,7 @@ func (c *KoinosRPCClient) GetAccountNonce(address []byte) (uint64, error) {
 	return cResp.Nonce, nil
 }
 
+// GetContractMeta gets the metadata of a given contract
 func (c *KoinosRPCClient) GetContractMeta(contractID []byte) (*contract_meta_store.ContractMetaItem, error) {
 	// Build the contract request
 	params := contract_meta_store_rpc.GetContractMetaRequest{
