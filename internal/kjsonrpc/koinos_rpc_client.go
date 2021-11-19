@@ -151,7 +151,7 @@ func (c *KoinosRPCClient) GetContractMeta(contractID []byte) (*contract_meta_sto
 
 	// Make the rpc call
 	var cResp contract_meta_store_rpc.GetContractMetaResponse
-	err := c.Call(ReadContractCall, &params, &cResp)
+	err := c.Call(GetContractMetaCall, &params, &cResp)
 	if err != nil {
 		return nil, err
 	}
