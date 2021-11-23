@@ -7,9 +7,11 @@ import (
 	"github.com/koinos/koinos-cli/internal/util"
 	kjson "github.com/koinos/koinos-proto-golang/encoding/json"
 	"github.com/koinos/koinos-proto-golang/koinos/canonical"
+	"github.com/koinos/koinos-proto-golang/koinos/contract_meta_store"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/koinos/koinos-proto-golang/koinos/rpc/chain"
+	contract_meta_store_rpc "github.com/koinos/koinos-proto-golang/koinos/rpc/contract_meta_store"
 	"github.com/multiformats/go-multihash"
 	jsonrpc "github.com/ybbus/jsonrpc/v2"
 	"google.golang.org/protobuf/proto"
@@ -21,6 +23,7 @@ const (
 	GetAccountNonceCall   = "chain.get_account_nonce"
 	GetAccountRcCall      = "chain.get_account_rc"
 	SubmitTransactionCall = "chain.submit_transaction"
+	GetContractMetaCall   = "contract_meta_store.get_contract_meta"
 )
 
 // KoinosRPCClient is a wrapper around the jsonrpc client
@@ -138,6 +141,23 @@ func (c *KoinosRPCClient) GetAccountNonce(address []byte) (uint64, error) {
 	}
 
 	return cResp.Nonce, nil
+}
+
+// GetContractMeta gets the metadata of a given contract
+func (c *KoinosRPCClient) GetContractMeta(contractID []byte) (*contract_meta_store.ContractMetaItem, error) {
+	// Build the contract request
+	params := contract_meta_store_rpc.GetContractMetaRequest{
+		ContractId: contractID,
+	}
+
+	// Make the rpc call
+	var cResp contract_meta_store_rpc.GetContractMetaResponse
+	err := c.Call(GetContractMetaCall, &params, &cResp)
+	if err != nil {
+		return nil, err
+	}
+
+	return cResp.Meta, nil
 }
 
 // SubmitTransaction creates and submits a transaction from a list of operations

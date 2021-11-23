@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -120,13 +121,13 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("help", "Show help on a given command", false, NewHelpCommand, *NewCommandArg("command", CmdNameArg)))
 	cs.AddCommand(NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", StringArg), *NewCommandArg("filename", StringArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("list", "List available commands", false, NewListCommand))
-	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", StringArg), *NewOptionalCommandArg("abi-filename", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand, *NewCommandArg("filename", StringArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("unlock", "Open a wallet file", true, NewOpenCommand, *NewCommandArg("filename", StringArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("private", "Show the currently opened wallet's private key", false, NewPrivateCommand))
 	cs.AddCommand(NewCommandDeclaration("read", "Read from a smart contract", false, NewReadCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg), *NewCommandArg("arguments", StringArg)))
-	cs.AddCommand(NewCommandDeclaration("register", "Register a smart contract's commands", false, NewRegisterCommand, *NewCommandArg("name", StringArg), *NewCommandArg("address", AddressArg), *NewCommandArg("abi-filename", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("register", "Register a smart contract's commands", false, NewRegisterCommand, *NewCommandArg("name", StringArg), *NewCommandArg("address", AddressArg), *NewOptionalCommandArg("abi-filename", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("value", AmountArg), *NewCommandArg("to", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("session", "Create or manage a transaction session (begin, submit, cancel, or view)", false, NewSessionCommand, *NewCommandArg("command", StringArg)))
@@ -350,12 +351,13 @@ func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironme
 
 // UploadContractCommand is a command that uploads a smart contract
 type UploadContractCommand struct {
-	Filename string
+	Filename    string
+	ABIFilename *string
 }
 
 // NewUploadContractCommand creates an upload contract object
 func NewUploadContractCommand(inv *CommandParseResult) Command {
-	return &UploadContractCommand{Filename: *inv.Args["filename"]}
+	return &UploadContractCommand{Filename: *inv.Args["filename"], ABIFilename: inv.Args["abi-filename"]}
 }
 
 // Execute calls a contract
@@ -370,9 +372,33 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	}
 
 	wasmBytes, err := ioutil.ReadFile(c.Filename)
-
 	if err != nil {
 		return nil, err
+	}
+
+	// Load the ABI if given
+	abiString := ""
+	if c.ABIFilename != nil {
+		abiFile, err := os.Open(*c.ABIFilename)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+		}
+
+		defer abiFile.Close()
+
+		abiBytes, err := ioutil.ReadAll(abiFile)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+		}
+
+		// Do a sanity check to make sure the abi file deserializes properly
+		var abi ABI
+		err = json.Unmarshal(abiBytes, &abi)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+		}
+
+		abiString = string(abiBytes)
 	}
 
 	op := &protocol.Operation{
@@ -380,6 +406,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 			UploadContract: &protocol.UploadContractOperation{
 				ContractId: ee.Key.AddressBytes(),
 				Bytecode:   wasmBytes,
+				Abi:        abiString,
 			},
 		},
 	}

@@ -31,12 +31,12 @@ import (
 type RegisterCommand struct {
 	Name        string
 	Address     string
-	ABIFilename string
+	ABIFilename *string
 }
 
 // NewRegisterCommand creates a new close object
 func NewRegisterCommand(inv *CommandParseResult) Command {
-	return &RegisterCommand{Name: *inv.Args["name"], Address: *inv.Args["address"], ABIFilename: *inv.Args["abi-filename"]}
+	return &RegisterCommand{Name: *inv.Args["name"], Address: *inv.Args["address"], ABIFilename: inv.Args["abi-filename"]}
 }
 
 // Execute closes the wallet
@@ -45,20 +45,31 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, fmt.Errorf("%w: contract %s already exists", util.ErrContract, c.Name)
 	}
 
-	jsonFile, err := os.Open(c.ABIFilename)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
-	}
+	// Get the ABI
+	var abiBytes []byte
+	if c.ABIFilename != nil { // If an ABI file was given, use it
+		jsonFile, err := os.Open(*c.ABIFilename)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+		}
 
-	defer jsonFile.Close()
+		defer jsonFile.Close()
 
-	jsonBytes, err := ioutil.ReadAll(jsonFile)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+		abiBytes, err = ioutil.ReadAll(jsonFile)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+		}
+	} else { // Otherwise ask the RPC server for the ABI
+		meta, err := ee.RPCClient.GetContractMeta(base58.Decode(c.Address))
+		if err != nil {
+			return nil, err
+		}
+
+		abiBytes = []byte(meta.GetAbi())
 	}
 
 	var abi ABI
-	err = json.Unmarshal(jsonBytes, &abi)
+	err := json.Unmarshal(abiBytes, &abi)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
 	}
