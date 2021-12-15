@@ -6,12 +6,12 @@ import (
 
 	"github.com/koinos/koinos-cli/internal/util"
 	kjson "github.com/koinos/koinos-proto-golang/encoding/json"
-	"github.com/koinos/koinos-proto-golang/koinos/canonical"
 	"github.com/koinos/koinos-proto-golang/koinos/contract_meta_store"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/koinos/koinos-proto-golang/koinos/rpc/chain"
 	contract_meta_store_rpc "github.com/koinos/koinos-proto-golang/koinos/rpc/contract_meta_store"
+	"github.com/koinos/koinos-proto-golang/koinos/canonical"
 	"github.com/multiformats/go-multihash"
 	jsonrpc "github.com/ybbus/jsonrpc/v2"
 	"google.golang.org/protobuf/proto"
@@ -175,23 +175,33 @@ func (c *KoinosRPCClient) SubmitTransaction(ops []*protocol.Operation, key *util
 	if err != nil {
 		return nil, err
 	}
+	
+	// Get operation hashes
+	opHashes := make([][]byte, len(ops))
+	for i, op := range ops {
+		opHashes[i] = util.HashMessage(op)
+	}
 
-	// Create the transaction
-	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: ops, RcLimit: rcLimit}
-	activeBytes, err := canonical.Marshal(&active)
+	// Find merkle root
+	merkleRoot := util.CalculateMerkleRoot(opHashes)
+
+	// Create the header
+	header := protocol.TransactionHeader{RcLimit: rcLimit, Nonce: nonce, OperationMerkleRoot: merkleRoot}
+	headerBytes, err := canonical.Marshal(&header)
 	if err != nil {
 		return nil, err
 	}
 
 	// Calculate the transaction ID
 	sha256Hasher := sha256.New()
-	sha256Hasher.Write(activeBytes)
-
+	sha256Hasher.Write(headerBytes)
 	tid, err := multihash.EncodeName(sha256Hasher.Sum(nil), "sha2-256")
 	if err != nil {
 		return nil, err
 	}
-	transaction := protocol.Transaction{Active: activeBytes, Id: tid}
+
+	// Create the transaction
+	transaction := protocol.Transaction{Header: &header, Operations: ops, Id: tid}
 
 	// Sign the transaction
 	err = util.SignTransaction(key.PrivateBytes(), &transaction)

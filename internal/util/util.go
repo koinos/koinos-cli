@@ -15,6 +15,8 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multihash"
 	"github.com/shopspring/decimal"
+	"google.golang.org/protobuf/proto"
+	"github.com/koinos/koinos-proto-golang/koinos/canonical"
 )
 
 const (
@@ -39,7 +41,7 @@ func SignTransaction(key []byte, tx *protocol.Transaction) error {
 	}
 
 	// Attach the signature data to the transaction
-	tx.SignatureData = signatureBytes
+	tx.Signature = signatureBytes
 
 	return nil
 }
@@ -235,4 +237,16 @@ func GetPassword(password *string) (string, error) {
 // DisplayAddress takes address bytes and returns a properly formatted human-readable string
 func DisplayAddress(addressBytes []byte) string {
 	return fmt.Sprintf("0x%s", hex.EncodeToString(addressBytes))
+}
+
+// HashMessage takes a protobuf message and returns the hash of the message
+func HashMessage(message proto.Message) []byte {
+	data, err := canonical.Marshal(message)
+	if err != nil {
+		panic(err)
+	}
+
+	hasher := sha256.New()
+	hasher.Write(data)
+	return hasher.Sum(nil)
 }
