@@ -248,7 +248,7 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 			opts := fd.Options()
 			if opts != nil {
 				fieldOpts := opts.(*descriptorpb.FieldOptions)
-				ext := koinos.E_KoinosBytesType.TypeDescriptor()
+				ext := koinos.E_Btype.TypeDescriptor()
 				enum := fieldOpts.ProtoReflect().Get(ext).Enum()
 
 				switch koinos.BytesType(enum) {
