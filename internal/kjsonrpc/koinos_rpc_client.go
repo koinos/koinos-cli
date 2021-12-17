@@ -6,12 +6,12 @@ import (
 
 	"github.com/koinos/koinos-cli/internal/util"
 	kjson "github.com/koinos/koinos-proto-golang/encoding/json"
+	"github.com/koinos/koinos-proto-golang/koinos/canonical"
 	"github.com/koinos/koinos-proto-golang/koinos/contract_meta_store"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/koinos/koinos-proto-golang/koinos/rpc/chain"
 	contract_meta_store_rpc "github.com/koinos/koinos-proto-golang/koinos/rpc/contract_meta_store"
-	"github.com/koinos/koinos-proto-golang/koinos/canonical"
 	"github.com/multiformats/go-multihash"
 	jsonrpc "github.com/ybbus/jsonrpc/v2"
 	"google.golang.org/protobuf/proto"
@@ -175,15 +175,21 @@ func (c *KoinosRPCClient) SubmitTransaction(ops []*protocol.Operation, key *util
 	if err != nil {
 		return nil, err
 	}
-	
-	// Get operation hashes
+
+	// Get operation multihashes
 	opHashes := make([][]byte, len(ops))
 	for i, op := range ops {
-		opHashes[i] = util.HashMessage(op)
+		opHashes[i], err = util.HashMessage(op)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Find merkle root
-	merkleRoot := util.CalculateMerkleRoot(opHashes)
+	merkleRoot, err := util.CalculateMerkleRoot(opHashes)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create the header
 	header := protocol.TransactionHeader{RcLimit: rcLimit, Nonce: nonce, OperationMerkleRoot: merkleRoot}

@@ -10,13 +10,13 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
+	"github.com/koinos/koinos-proto-golang/koinos/canonical"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/minio/sio"
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multihash"
 	"github.com/shopspring/decimal"
 	"google.golang.org/protobuf/proto"
-	"github.com/koinos/koinos-proto-golang/koinos/canonical"
 )
 
 const (
@@ -239,8 +239,8 @@ func DisplayAddress(addressBytes []byte) string {
 	return fmt.Sprintf("0x%s", hex.EncodeToString(addressBytes))
 }
 
-// HashMessage takes a protobuf message and returns the hash of the message
-func HashMessage(message proto.Message) []byte {
+// HashMessage takes a protobuf message and returns the multihash of the message
+func HashMessage(message proto.Message) ([]byte, error) {
 	data, err := canonical.Marshal(message)
 	if err != nil {
 		panic(err)
@@ -248,5 +248,12 @@ func HashMessage(message proto.Message) []byte {
 
 	hasher := sha256.New()
 	hasher.Write(data)
-	return hasher.Sum(nil)
+
+	// Encode as multihash
+	mh, err := multihash.Encode(hasher.Sum(nil), multihash.SHA2_256)
+	if err != nil {
+		return nil, err
+	}
+
+	return mh, nil
 }
