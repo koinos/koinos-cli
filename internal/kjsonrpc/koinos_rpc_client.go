@@ -201,7 +201,7 @@ func (c *KoinosRPCClient) SubmitTransaction(ops []*protocol.Operation, key *util
 	// Calculate the transaction ID
 	sha256Hasher := sha256.New()
 	sha256Hasher.Write(headerBytes)
-	tid, err := multihash.EncodeName(sha256Hasher.Sum(nil), "sha2-256")
+	tid, err := multihash.Encode(sha256Hasher.Sum(nil), multihash.SHA2_256)
 	if err != nil {
 		return nil, err
 	}
