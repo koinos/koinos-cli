@@ -181,7 +181,7 @@ func ParseABIFields(md protoreflect.MessageDescriptor) ([]CommandArg, error) {
 			opts := fd.Options()
 			if opts != nil {
 				fieldOpts := opts.(*descriptorpb.FieldOptions)
-				ext := koinos.E_KoinosBytesType.TypeDescriptor()
+				ext := koinos.E_Btype.TypeDescriptor()
 				enum := fieldOpts.ProtoReflect().Get(ext).Enum()
 
 				switch koinos.BytesType(enum) {
@@ -267,7 +267,7 @@ func DataToMessage(data map[string]*string, md protoreflect.MessageDescriptor) (
 			opts := fd.Options()
 			if opts != nil {
 				fieldOpts := opts.(*descriptorpb.FieldOptions)
-				ext := koinos.E_KoinosBytesType.TypeDescriptor()
+				ext := koinos.E_Btype.TypeDescriptor()
 				enum := fieldOpts.ProtoReflect().Get(ext).Enum()
 
 				switch koinos.BytesType(enum) {

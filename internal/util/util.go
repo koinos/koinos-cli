@@ -10,11 +10,13 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
+	"github.com/koinos/koinos-proto-golang/koinos/canonical"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/minio/sio"
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multihash"
 	"github.com/shopspring/decimal"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -39,7 +41,7 @@ func SignTransaction(key []byte, tx *protocol.Transaction) error {
 	}
 
 	// Attach the signature data to the transaction
-	tx.SignatureData = signatureBytes
+	tx.Signature = signatureBytes
 
 	return nil
 }
@@ -235,4 +237,23 @@ func GetPassword(password *string) (string, error) {
 // DisplayAddress takes address bytes and returns a properly formatted human-readable string
 func DisplayAddress(addressBytes []byte) string {
 	return fmt.Sprintf("0x%s", hex.EncodeToString(addressBytes))
+}
+
+// HashMessage takes a protobuf message and returns the multihash of the message
+func HashMessage(message proto.Message) ([]byte, error) {
+	data, err := canonical.Marshal(message)
+	if err != nil {
+		panic(err)
+	}
+
+	hasher := sha256.New()
+	hasher.Write(data)
+
+	// Encode as multihash
+	mh, err := multihash.Encode(hasher.Sum(nil), multihash.SHA2_256)
+	if err != nil {
+		return nil, err
+	}
+
+	return mh, nil
 }

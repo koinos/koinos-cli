@@ -176,22 +176,38 @@ func (c *KoinosRPCClient) SubmitTransaction(ops []*protocol.Operation, key *util
 		return nil, err
 	}
 
-	// Create the transaction
-	active := protocol.ActiveTransactionData{Nonce: nonce, Operations: ops, RcLimit: rcLimit}
-	activeBytes, err := canonical.Marshal(&active)
+	// Get operation multihashes
+	opHashes := make([][]byte, len(ops))
+	for i, op := range ops {
+		opHashes[i], err = util.HashMessage(op)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Find merkle root
+	merkleRoot, err := util.CalculateMerkleRoot(opHashes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the header
+	header := protocol.TransactionHeader{RcLimit: rcLimit, Nonce: nonce, OperationMerkleRoot: merkleRoot}
+	headerBytes, err := canonical.Marshal(&header)
 	if err != nil {
 		return nil, err
 	}
 
 	// Calculate the transaction ID
 	sha256Hasher := sha256.New()
-	sha256Hasher.Write(activeBytes)
-
-	tid, err := multihash.EncodeName(sha256Hasher.Sum(nil), "sha2-256")
+	sha256Hasher.Write(headerBytes)
+	tid, err := multihash.Encode(sha256Hasher.Sum(nil), multihash.SHA2_256)
 	if err != nil {
 		return nil, err
 	}
-	transaction := protocol.Transaction{Active: activeBytes, Id: tid}
+
+	// Create the transaction
+	transaction := protocol.Transaction{Header: &header, Operations: ops, Id: tid}
 
 	// Sign the transaction
 	err = util.SignTransaction(key.PrivateBytes(), &transaction)
