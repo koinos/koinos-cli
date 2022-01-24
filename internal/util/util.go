@@ -41,7 +41,7 @@ func SignTransaction(key []byte, tx *protocol.Transaction) error {
 	}
 
 	// Attach the signature data to the transaction
-	tx.Signature = signatureBytes
+	tx.Signatures = [][]byte{signatureBytes}
 
 	return nil
 }
