@@ -8,12 +8,13 @@ import (
 	"testing"
 
 	"github.com/koinos/koinos-cli/internal/cliutil"
+	util "github.com/koinos/koinos-util-golang"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSatoshiToDecimal(t *testing.T) {
-	v, err := cliutil.SatoshiToDecimal(100000000, 8)
+	v, err := util.SatoshiToDecimal(100000000, 8)
 	if err != nil {
 		t.Error(err)
 	}
@@ -22,7 +23,7 @@ func TestSatoshiToDecimal(t *testing.T) {
 		t.Error("Expected 1.0, got", v)
 	}
 
-	v, err = cliutil.SatoshiToDecimal(1000, 1)
+	v, err = util.SatoshiToDecimal(1000, 1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -31,7 +32,7 @@ func TestSatoshiToDecimal(t *testing.T) {
 		t.Error("Expected 100.0, got", v)
 	}
 
-	v, err = cliutil.SatoshiToDecimal(12345678, 3)
+	v, err = util.SatoshiToDecimal(12345678, 3)
 	if err != nil {
 		t.Error(err)
 	}
