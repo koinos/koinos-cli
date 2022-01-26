@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/koinos/koinos-cli/internal/kjsonrpc"
-	"github.com/koinos/koinos-cli/internal/util"
+	util "github.com/koinos/koinos-util-golang"
+	"github.com/koinos/koinos-util-golang/rpc"
 )
 
 // Command execution code
@@ -41,7 +41,7 @@ func (er *ExecutionResult) Print() {
 
 // ExecutionEnvironment is a struct that holds the environment for command execution.
 type ExecutionEnvironment struct {
-	RPCClient *kjsonrpc.KoinosRPCClient
+	RPCClient *rpc.KoinosRPCClient
 	Key       *util.KoinosKey
 	Parser    *CommandParser
 	Contracts Contracts
@@ -49,7 +49,7 @@ type ExecutionEnvironment struct {
 }
 
 // NewExecutionEnvironment creates a new ExecutionEnvironment object
-func NewExecutionEnvironment(rpcClient *kjsonrpc.KoinosRPCClient, parser *CommandParser) *ExecutionEnvironment {
+func NewExecutionEnvironment(rpcClient *rpc.KoinosRPCClient, parser *CommandParser) *ExecutionEnvironment {
 	return &ExecutionEnvironment{
 		RPCClient: rpcClient,
 		Parser:    parser,
