@@ -8,8 +8,9 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/koinos/koinos-cli/internal/util"
+	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/koinos"
+	util "github.com/koinos/koinos-util-golang"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -201,7 +202,7 @@ func ParseABIFields(md protoreflect.MessageDescriptor) ([]CommandArg, error) {
 			continue
 
 		default:
-			return nil, fmt.Errorf("%w: %s", util.ErrUnsupportedType, fd.Kind().String())
+			return nil, fmt.Errorf("%w: %s", cliutil.ErrUnsupportedType, fd.Kind().String())
 		}
 
 		params = append(params, *NewCommandArg(name, t))
@@ -302,7 +303,7 @@ func DataToMessage(data map[string]*string, md protoreflect.MessageDescriptor) (
 			continue
 
 		default:
-			return nil, fmt.Errorf("%w: %s", util.ErrUnsupportedType, fd.Kind().String())
+			return nil, fmt.Errorf("%w: %s", cliutil.ErrUnsupportedType, fd.Kind().String())
 		}
 
 		// Set the value on the message

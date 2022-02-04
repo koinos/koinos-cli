@@ -15,12 +15,14 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/koinos/koinos-cli/internal/kjsonrpc"
+	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
+	util "github.com/koinos/koinos-util-golang"
+	"github.com/koinos/koinos-util-golang/rpc"
 	"github.com/shopspring/decimal"
 
-	"github.com/koinos/koinos-cli/internal/util"
+	lutil "github.com/koinos/koinos-util-golang"
 )
 
 // Hardcoded Koin contract constants
@@ -161,7 +163,7 @@ func NewBalanceCommand(inv *CommandParseResult) Command {
 // Execute fetches the balance
 func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsOnline() {
-		return nil, fmt.Errorf("%w: cannot check balance", util.ErrOffline)
+		return nil, fmt.Errorf("%w: cannot check balance", cliutil.ErrOffline)
 	}
 
 	var address []byte
@@ -170,7 +172,7 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	// Get current account balance if empty address
 	if c.AddressString == nil {
 		if !ee.IsWalletOpen() {
-			return nil, fmt.Errorf("%w: must give an address", util.ErrWalletClosed)
+			return nil, fmt.Errorf("%w: must give an address", cliutil.ErrWalletClosed)
 		}
 
 		address = ee.Key.AddressBytes()
@@ -230,7 +232,7 @@ func NewCloseCommand(inv *CommandParseResult) Command {
 // Execute closes the wallet
 func (c *CloseCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
-		return nil, fmt.Errorf("%w: cannot close", util.ErrWalletClosed)
+		return nil, fmt.Errorf("%w: cannot close", cliutil.ErrWalletClosed)
 	}
 
 	// Close the wallet
@@ -258,7 +260,7 @@ func NewConnectCommand(inv *CommandParseResult) Command {
 
 // Execute connects to an RPC endpoint
 func (c *ConnectCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	rpc := kjsonrpc.NewKoinosRPCClient(c.URL)
+	rpc := rpc.NewKoinosRPCClient(c.URL)
 	ee.RPCClient = rpc
 
 	// TODO: Ensure connection (some sort of ping?)
@@ -286,7 +288,7 @@ func NewDisconnectCommand(inv *CommandParseResult) Command {
 // Execute disconnects from an RPC endpoint
 func (c *DisconnectCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsOnline() {
-		return nil, fmt.Errorf("%w: cannot disconnect", util.ErrOffline)
+		return nil, fmt.Errorf("%w: cannot disconnect", cliutil.ErrOffline)
 	}
 
 	// Disconnect from the RPC endpoint
@@ -363,12 +365,12 @@ func NewUploadContractCommand(inv *CommandParseResult) Command {
 // Execute calls a contract
 func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
-		return nil, fmt.Errorf("%w: cannot upload contract", util.ErrWalletClosed)
+		return nil, fmt.Errorf("%w: cannot upload contract", cliutil.ErrWalletClosed)
 	}
 
 	// Check if the wallet already exists
 	if _, err := os.Stat(c.Filename); os.IsNotExist(err) {
-		return nil, fmt.Errorf("%w: %s", util.ErrFileNotFound, c.Filename)
+		return nil, fmt.Errorf("%w: %s", cliutil.ErrFileNotFound, c.Filename)
 	}
 
 	wasmBytes, err := ioutil.ReadFile(c.Filename)
@@ -379,21 +381,21 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	// Load the ABI
 	abiFile, err := os.Open(*c.ABIFilename)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 	}
 
 	defer abiFile.Close()
 
 	abiBytes, err := ioutil.ReadAll(abiFile)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 	}
 
 	// Do a sanity check to make sure the abi file deserializes properly
 	var abi ABI
 	err = json.Unmarshal(abiBytes, &abi)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 	}
 
 	abiString := string(abiBytes)
@@ -446,11 +448,11 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 
 	// Check if the wallet already exists
 	if _, err := os.Stat(c.Filename); !os.IsNotExist(err) {
-		return nil, fmt.Errorf("%w: %s", util.ErrWalletExists, c.Filename)
+		return nil, fmt.Errorf("%w: %s", cliutil.ErrWalletExists, c.Filename)
 	}
 
 	// Generate new key
-	key, err := util.GenerateKoinosKey()
+	key, err := lutil.GenerateKoinosKey()
 	if err != nil {
 		return nil, err
 	}
@@ -462,13 +464,13 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	}
 
 	// Get the password
-	pass, err := util.GetPassword(c.Password)
+	pass, err := cliutil.GetPassword(c.Password)
 	if err != nil {
 		return nil, err
 	}
 
 	// Write the key to the wallet file
-	err = util.CreateWalletFile(file, pass, key.PrivateBytes())
+	err = cliutil.CreateWalletFile(file, pass, key.PrivateBytes())
 	if err != nil {
 		return nil, err
 	}
@@ -503,17 +505,17 @@ func NewImportCommand(inv *CommandParseResult) Command {
 func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	// Check if the wallet already exists
 	if _, err := os.Stat(c.Filename); !os.IsNotExist(err) {
-		return nil, fmt.Errorf("%w: %s", util.ErrWalletExists, c.Filename)
+		return nil, fmt.Errorf("%w: %s", cliutil.ErrWalletExists, c.Filename)
 	}
 
 	// Convert the private key to bytes
-	keyBytes, err := util.DecodeWIF(c.PrivateKey)
+	keyBytes, err := lutil.DecodeWIF(c.PrivateKey)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create the key
-	key, err := util.NewKoinosKeysFromBytes(keyBytes)
+	key, err := lutil.NewKoinosKeysFromBytes(keyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -525,13 +527,13 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	}
 
 	// Get the password
-	pass, err := util.GetPassword(c.Password)
+	pass, err := cliutil.GetPassword(c.Password)
 	if err != nil {
 		return nil, err
 	}
 
 	// Write the key to the wallet file
-	err = util.CreateWalletFile(file, pass, key.PrivateBytes())
+	err = cliutil.CreateWalletFile(file, pass, key.PrivateBytes())
 	if err != nil {
 		return nil, err
 	}
@@ -562,7 +564,7 @@ func NewAddressCommand(inv *CommandParseResult) Command {
 // Execute shows wallet address
 func (c *AddressCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
-		return nil, fmt.Errorf("%w: cannot show address", util.ErrWalletClosed)
+		return nil, fmt.Errorf("%w: cannot show address", cliutil.ErrWalletClosed)
 	}
 
 	result := NewExecutionResult()
@@ -587,7 +589,7 @@ func NewPrivateCommand(inv *CommandParseResult) Command {
 // Execute shows wallet private key
 func (c *PrivateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
-		return nil, fmt.Errorf("%w: cannot show private key", util.ErrWalletClosed)
+		return nil, fmt.Errorf("%w: cannot show private key", cliutil.ErrWalletClosed)
 	}
 
 	result := NewExecutionResult()
@@ -615,7 +617,7 @@ func (c *HelpCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	decl, ok := ee.Parser.Commands.Name2Command[string(c.Command)]
 
 	if !ok {
-		return nil, fmt.Errorf("%w: cannot show help for %s", util.ErrUnknownCommand, c.Command)
+		return nil, fmt.Errorf("%w: cannot show help for %s", cliutil.ErrUnknownCommand, c.Command)
 	}
 
 	result := NewExecutionResult()
@@ -648,7 +650,7 @@ func NewCallCommand(inv *CommandParseResult) Command {
 // Execute a contract call
 func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
-		return nil, fmt.Errorf("%w: cannot call contract", util.ErrWalletClosed)
+		return nil, fmt.Errorf("%w: cannot call contract", cliutil.ErrWalletClosed)
 	}
 
 	entryPoint, err := strconv.ParseUint(c.EntryPoint[2:], 16, 32)
@@ -719,19 +721,19 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	}
 
 	// Get the password
-	pass, err := util.GetPassword(c.Password)
+	pass, err := cliutil.GetPassword(c.Password)
 	if err != nil {
 		return nil, err
 	}
 
 	// Read the wallet file
-	keyBytes, err := util.ReadWalletFile(file, pass)
+	keyBytes, err := cliutil.ReadWalletFile(file, pass)
 	if err != nil {
-		return nil, fmt.Errorf("%w: check your password", util.ErrWalletDecrypt)
+		return nil, fmt.Errorf("%w: check your password", cliutil.ErrWalletDecrypt)
 	}
 
 	// Create the key object
-	key, err := util.NewKoinosKeysFromBytes(keyBytes)
+	key, err := lutil.NewKoinosKeysFromBytes(keyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -810,29 +812,29 @@ func NewTransferCommand(inv *CommandParseResult) Command {
 // Execute transfers token
 func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
-		return nil, fmt.Errorf("%w: cannot transfer", util.ErrWalletClosed)
+		return nil, fmt.Errorf("%w: cannot transfer", cliutil.ErrWalletClosed)
 	}
 
 	if !ee.IsOnline() {
-		return nil, fmt.Errorf("%w: cannot transfer", util.ErrOffline)
+		return nil, fmt.Errorf("%w: cannot transfer", cliutil.ErrOffline)
 	}
 
 	// Convert the amount to a decimal
 	dAmount, err := decimal.NewFromString(c.Amount)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", util.ErrInvalidAmount, err.Error())
+		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidAmount, err.Error())
 	}
 
 	// Convert the amount to satoshis
 	sAmount, err := util.DecimalToSatoshi(&dAmount, KoinPrecision)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", util.ErrInvalidAmount, err.Error())
+		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidAmount, err.Error())
 	}
 
 	// Ensure a transfer greater than zero
 	if sAmount <= 0 {
 		minimalAmount, _ := util.SatoshiToDecimal(1, KoinPrecision)
-		return nil, fmt.Errorf("%w: cannot transfer %s %s, amount should be greater than minimal %s (1e-%d) %s", util.ErrInvalidAmount, dAmount, KoinSymbol, minimalAmount, KoinPrecision, KoinSymbol)
+		return nil, fmt.Errorf("%w: cannot transfer %s %s, amount should be greater than minimal %s (1e-%d) %s", cliutil.ErrInvalidAmount, dAmount, KoinSymbol, minimalAmount, KoinPrecision, KoinSymbol)
 	}
 
 	// Setup command execution environment
@@ -854,7 +856,7 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 
 	// Ensure a transfer greater than opened account balance
 	if int64(balance) <= sAmount {
-		return nil, fmt.Errorf("%w: insufficient balance %s %s on opened wallet %s, cannot transfer %s %s", util.ErrInvalidAmount, dBalance, KoinSymbol, myAddress, dAmount, KoinSymbol)
+		return nil, fmt.Errorf("%w: insufficient balance %s %s on opened wallet %s, cannot transfer %s %s", cliutil.ErrInvalidAmount, dBalance, KoinSymbol, myAddress, dAmount, KoinSymbol)
 	}
 
 	toAddress := base58.Decode(c.Address)
@@ -924,11 +926,11 @@ func NewSetSystemCallCommand(inv *CommandParseResult) Command {
 // Execute a contract call
 func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
-		return nil, fmt.Errorf("%w: cannot call contract", util.ErrWalletClosed)
+		return nil, fmt.Errorf("%w: cannot call contract", cliutil.ErrWalletClosed)
 	}
 
 	if !ee.IsOnline() {
-		return nil, fmt.Errorf("%w: cannot call contract", util.ErrOffline)
+		return nil, fmt.Errorf("%w: cannot call contract", cliutil.ErrOffline)
 	}
 
 	systemCall, err := strconv.ParseUint(c.SystemCall, 10, 32)
@@ -1003,7 +1005,7 @@ func NewSessionCommand(inv *CommandParseResult) Command {
 // Execute a contract call
 func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
-		return nil, fmt.Errorf("%w: cannot manage session", util.ErrWalletClosed)
+		return nil, fmt.Errorf("%w: cannot manage session", cliutil.ErrWalletClosed)
 	}
 
 	result := NewExecutionResult()
@@ -1017,11 +1019,11 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 		result.AddMessage("Began transaction session")
 	case "submit":
 		if !ee.IsWalletOpen() {
-			return nil, fmt.Errorf("%w: cannot submit session", util.ErrWalletClosed)
+			return nil, fmt.Errorf("%w: cannot submit session", cliutil.ErrWalletClosed)
 		}
 
 		if !ee.IsOnline() {
-			return nil, fmt.Errorf("%w: cannot submit session", util.ErrOffline)
+			return nil, fmt.Errorf("%w: cannot submit session", cliutil.ErrOffline)
 		}
 
 		reqs, err := ee.Session.GetOperations()

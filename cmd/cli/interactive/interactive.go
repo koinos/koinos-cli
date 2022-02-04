@@ -7,7 +7,7 @@ import (
 
 	"github.com/c-bata/go-prompt"
 	"github.com/koinos/koinos-cli/internal/cli"
-	"github.com/koinos/koinos-cli/internal/util"
+	"github.com/koinos/koinos-cli/internal/cliutil"
 )
 
 // KoinosPrompt is an object to manage interactive mode
@@ -113,7 +113,7 @@ func (kp *KoinosPrompt) executor(input string) {
 
 // Run runs interactive mode
 func (kp *KoinosPrompt) Run() {
-	fmt.Println(fmt.Sprintf("Koinos CLI %s", util.Version))
+	fmt.Println(fmt.Sprintf("Koinos CLI %s", cliutil.Version))
 	fmt.Println("Type \"list\" for a list of commands, \"help <command>\" for help on a specific command.")
 	kp.gPrompt.Run()
 }

@@ -7,7 +7,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/koinos/koinos-cli/internal/util"
+	"github.com/koinos/koinos-cli/internal/cliutil"
+	util "github.com/koinos/koinos-util-golang"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )
@@ -81,8 +82,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error("Expected error, got none")
 	}
 
-	if !errors.Is(err, util.ErrUnknownCommand) {
-		t.Error("Expected error", util.ErrUnknownCommand, ", got", err)
+	if !errors.Is(err, cliutil.ErrUnknownCommand) {
+		t.Error("Expected error", cliutil.ErrUnknownCommand, ", got", err)
 	}
 
 	if results.CommandResults[0].CurrentArg != -1 {
@@ -94,8 +95,8 @@ func TestBasicParser(t *testing.T) {
 		t.Error("Expected error, got none")
 	}
 
-	if !errors.Is(err, util.ErrUnknownCommand) {
-		t.Error("Expected error", util.ErrUnknownCommand, ", got", err)
+	if !errors.Is(err, cliutil.ErrUnknownCommand) {
+		t.Error("Expected error", cliutil.ErrUnknownCommand, ", got", err)
 	}
 
 	if results.CommandResults[0].CurrentArg != 0 {
@@ -141,8 +142,8 @@ func TestNonsensicalInput(t *testing.T) {
 		t.Error("Expected error, got none")
 	}
 
-	if !errors.Is(err, util.ErrInvalidCommandName) {
-		t.Error("Expected error", util.ErrInvalidCommandName, ", got", err)
+	if !errors.Is(err, cliutil.ErrInvalidCommandName) {
+		t.Error("Expected error", cliutil.ErrInvalidCommandName, ", got", err)
 	}
 
 	if results.Len() != 1 {
@@ -154,8 +155,8 @@ func TestOptionalArguments(t *testing.T) {
 	parser := makeTestParser()
 
 	// These should error since it is missing a required argument
-	checkParseResults(t, parser, "optional", util.ErrMissingParam, []string{}, []interface{}{})
-	checkParseResults(t, parser, "optional abcd", util.ErrMissingParam, []string{}, []interface{}{})
+	checkParseResults(t, parser, "optional", cliutil.ErrMissingParam, []string{}, []interface{}{})
+	checkParseResults(t, parser, "optional abcd", cliutil.ErrMissingParam, []string{}, []interface{}{})
 
 	// Check with proper optional arguments
 	checkParseResults(t, parser, "optional abcd efgh", nil, []string{"arg0", "arg1", "arg2", "arg3"}, []interface{}{"abcd", "efgh", nil, nil})
@@ -182,7 +183,7 @@ func TestParseBool(t *testing.T) {
 	checkParseResults(t, parser, "test_bool abcd 1 123.345", nil, []string{"string", "bool", "amount"}, []interface{}{"abcd", "true", "123.345"})
 
 	// Test invalid value
-	checkParseResults(t, parser, "test_bool abcd ghjkg 123.345", util.ErrInvalidParam, []string{"string", "bool", "amount"}, []interface{}{"abcd", nil, "123.345"})
+	checkParseResults(t, parser, "test_bool abcd ghjkg 123.345", cliutil.ErrInvalidParam, []string{"string", "bool", "amount"}, []interface{}{"abcd", nil, "123.345"})
 
 }
 
@@ -250,7 +251,7 @@ func TestWalletFile(t *testing.T) {
 	defer os.Remove(file.Name())
 	assert.NoError(t, err)
 
-	err = util.CreateWalletFile(file, "my_password", testKey)
+	err = cliutil.CreateWalletFile(file, "my_password", testKey)
 	assert.NoError(t, err)
 
 	file.Close()
@@ -259,7 +260,7 @@ func TestWalletFile(t *testing.T) {
 	file, err = os.OpenFile(file.Name(), os.O_RDONLY, 0600)
 	assert.NoError(t, err)
 
-	result, err := util.ReadWalletFile(file, "my_password")
+	result, err := cliutil.ReadWalletFile(file, "my_password")
 	assert.NoError(t, err)
 
 	assert.True(t, bytes.Equal(result, testKey), "retrieved private key from wallet file mismatch")
@@ -270,7 +271,7 @@ func TestWalletFile(t *testing.T) {
 	file, err = os.OpenFile(file.Name(), os.O_RDONLY, 0600)
 	assert.NoError(t, err)
 
-	_, err = util.ReadWalletFile(file, "not_my_password")
+	_, err = cliutil.ReadWalletFile(file, "not_my_password")
 	assert.Error(t, err)
 
 	file.Close()
@@ -281,8 +282,8 @@ func TestWalletFile(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	err = util.CreateWalletFile(errfile, "", testKey)
-	assert.ErrorIs(t, err, util.ErrEmptyPassphrase, "An empty passphrase should be disallowed")
+	err = cliutil.CreateWalletFile(errfile, "", testKey)
+	assert.ErrorIs(t, err, cliutil.ErrEmptyPassphrase, "An empty passphrase should be disallowed")
 
 	errfile.Close()
 }

@@ -11,7 +11,7 @@ import (
 	"strconv"
 
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/koinos/koinos-cli/internal/util"
+	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/encoding/text"
 	"github.com/koinos/koinos-proto-golang/koinos"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
@@ -42,7 +42,7 @@ func NewRegisterCommand(inv *CommandParseResult) Command {
 // Execute closes the wallet
 func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if ee.Contracts.Contains(c.Name) {
-		return nil, fmt.Errorf("%w: contract %s already exists", util.ErrContract, c.Name)
+		return nil, fmt.Errorf("%w: contract %s already exists", cliutil.ErrContract, c.Name)
 	}
 
 	// Get the ABI
@@ -50,14 +50,14 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	if c.ABIFilename != nil { // If an ABI file was given, use it
 		jsonFile, err := os.Open(*c.ABIFilename)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 		}
 
 		defer jsonFile.Close()
 
 		abiBytes, err = ioutil.ReadAll(jsonFile)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 		}
 	} else { // Otherwise ask the RPC server for the ABI
 		meta, err := ee.RPCClient.GetContractMeta(base58.Decode(c.Address))
@@ -71,7 +71,7 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	var abi ABI
 	err := json.Unmarshal(abiBytes, &abi)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 	}
 
 	fileMap := make(map[string]*descriptorpb.FileDescriptorProto)
@@ -98,7 +98,7 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		fdProto := &descriptorpb.FileDescriptorProto{}
 		err := proto.Unmarshal(abi.Types, fdProto)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 		}
 
 		fileMap[*fdProto.Name] = fdProto
@@ -117,7 +117,7 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 
 	files, err := protoFileOpts.NewFiles(fileDescriptorSet)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 	}
 
 	commands := []*CommandDeclaration{}
@@ -126,27 +126,27 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	for name, method := range abi.Methods {
 		d, err := files.FindDescriptorByName(protoreflect.FullName(method.Argument))
 		if err != nil {
-			return nil, fmt.Errorf("%w: could not find type %s", util.ErrInvalidABI, method.Argument)
+			return nil, fmt.Errorf("%w: could not find type %s", cliutil.ErrInvalidABI, method.Argument)
 		}
 
 		md, ok := d.(protoreflect.MessageDescriptor)
 		if !ok {
-			return nil, fmt.Errorf("%w: %s is not a message", util.ErrInvalidABI, method.Argument)
+			return nil, fmt.Errorf("%w: %s is not a message", cliutil.ErrInvalidABI, method.Argument)
 		}
 
 		params, err := ParseABIFields(md)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 		}
 
 		d, err = files.FindDescriptorByName(protoreflect.FullName(method.Return))
 		if err != nil {
-			return nil, fmt.Errorf("%w: could not find type %s", util.ErrInvalidABI, method.Argument)
+			return nil, fmt.Errorf("%w: could not find type %s", cliutil.ErrInvalidABI, method.Argument)
 		}
 
 		md, ok = d.(protoreflect.MessageDescriptor)
 		if !ok {
-			return nil, fmt.Errorf("%w: %s is not a message", util.ErrInvalidABI, method.Argument)
+			return nil, fmt.Errorf("%w: %s is not a message", cliutil.ErrInvalidABI, method.Argument)
 		}
 
 		commandName := fmt.Sprintf("%s.%s", c.Name, name)
@@ -191,7 +191,7 @@ func NewReadContractCommand(inv *CommandParseResult) Command {
 // Execute executes the read contract command
 func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsOnline() {
-		return nil, fmt.Errorf("%w: cannot execute method", util.ErrOffline)
+		return nil, fmt.Errorf("%w: cannot execute method", cliutil.ErrOffline)
 	}
 
 	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
@@ -204,7 +204,7 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 	// Form a protobuf message from the command input
 	msg, err := ParseResultToMessage(c.ParseResult, ee.Contracts)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 	}
 
 	// Get the bytes of the message
@@ -315,11 +315,11 @@ func NewWriteContractCommand(inv *CommandParseResult) Command {
 // Execute executes the write contract command
 func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
-		return nil, fmt.Errorf("%w: cannot execute method", util.ErrWalletClosed)
+		return nil, fmt.Errorf("%w: cannot execute method", cliutil.ErrWalletClosed)
 	}
 
 	if !ee.IsOnline() {
-		return nil, fmt.Errorf("%w: cannot execute method", util.ErrOffline)
+		return nil, fmt.Errorf("%w: cannot execute method", cliutil.ErrOffline)
 	}
 
 	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
@@ -332,7 +332,7 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 	// Form a protobuf message from the command input
 	msg, err := ParseResultToMessage(c.ParseResult, ee.Contracts)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", util.ErrInvalidABI, err)
+		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 	}
 
 	// Get the contractID
