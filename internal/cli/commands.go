@@ -16,6 +16,7 @@ import (
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli/internal/cliutil"
+	"github.com/koinos/koinos-proto-golang/koinos/chain"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	util "github.com/koinos/koinos-util-golang"
@@ -935,7 +936,7 @@ func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 
 	systemCall, err := strconv.ParseUint(c.SystemCall, 10, 32)
 	if err != nil {
-		if sysCall, ok := protocol.SystemCallId_value[c.SystemCall]; ok {
+		if sysCall, ok := chain.SystemCallId_value[c.SystemCall]; ok {
 			systemCall = uint64(sysCall)
 		} else {
 			return nil, fmt.Errorf("no system call: %s", c.SystemCall)
