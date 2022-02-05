@@ -9,7 +9,7 @@ require (
 	github.com/ethereum/go-ethereum v1.10.9
 	github.com/joho/godotenv v1.3.0
 	github.com/koinos/koinos-proto-golang v0.2.1-0.20220203004644-1d7ca7362b45
-	github.com/koinos/koinos-util-golang v0.0.0-20220204210736-1d8fd39061de
+	github.com/koinos/koinos-util-golang v0.0.0-20220205001012-1f2ae751bc10
 	github.com/minio/sio v0.3.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multihash v0.1.0
