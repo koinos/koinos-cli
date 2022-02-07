@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -133,6 +132,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("register", "Register a smart contract's commands", false, NewRegisterCommand, *NewCommandArg("name", StringArg), *NewCommandArg("address", AddressArg), *NewOptionalCommandArg("abi-filename", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("value", AmountArg), *NewCommandArg("to", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("set_system_contract", "Change a contract's permission level between user and system", false, NewSetSystemContractCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("system-contract", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("session", "Create or manage a transaction session (begin, submit, cancel, or view)", false, NewSessionCommand, *NewCommandArg("command", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	cs.AddCommand(NewCommandDeclaration("quit", "", true, NewExitCommand))
@@ -379,34 +379,36 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 		return nil, err
 	}
 
-	// Load the ABI
-	abiFile, err := os.Open(*c.ABIFilename)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
-	}
+	/*
+		// Load the ABI
+		abiFile, err := os.Open(*c.ABIFilename)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
+		}
 
-	defer abiFile.Close()
+		defer abiFile.Close()
 
-	abiBytes, err := ioutil.ReadAll(abiFile)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
-	}
+		abiBytes, err := ioutil.ReadAll(abiFile)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
+		}
 
-	// Do a sanity check to make sure the abi file deserializes properly
-	var abi ABI
-	err = json.Unmarshal(abiBytes, &abi)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
-	}
+		// Do a sanity check to make sure the abi file deserializes properly
+		var abi ABI
+		err = json.Unmarshal(abiBytes, &abi)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
+		}
 
-	abiString := string(abiBytes)
+		abiString := string(abiBytes)
+	*/
 
 	op := &protocol.Operation{
 		Op: &protocol.Operation_UploadContract{
 			UploadContract: &protocol.UploadContractOperation{
 				ContractId: ee.Key.AddressBytes(),
 				Bytecode:   wasmBytes,
-				Abi:        abiString,
+				//Abi:        abiString,
 			},
 		},
 	}
@@ -973,6 +975,76 @@ func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 	result.AddMessage(fmt.Sprintf("Setting system call %s to contract %s at entry point %s", c.SystemCall, c.ContractID, c.EntryPoint))
 
 	err = ee.Session.AddOperation(op, fmt.Sprintf("Set system call %s to contract %s at entry point %s", c.SystemCall, c.ContractID, c.EntryPoint))
+	if err == nil {
+		result.AddMessage("Adding operation to transaction session")
+	}
+	if err != nil {
+		id, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		if err != nil {
+			return nil, err
+		}
+		result.AddMessage(fmt.Sprintf("Submitted transaction with ID 0x%s", hex.EncodeToString(id)))
+	}
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// SetSystemContract Command
+// ----------------------------------------------------------------------------
+
+// SetSystemContractCommand is a command that sets a system call to a new contract and entry point
+type SetSystemContractCommand struct {
+	ContractID     string
+	SystemContract string
+}
+
+// NewSetSystemContractCommand calls a contract method
+func NewSetSystemContractCommand(inv *CommandParseResult) Command {
+	return &SetSystemContractCommand{
+		ContractID:     *inv.Args["contract-id"],
+		SystemContract: *inv.Args["system-contract"],
+	}
+}
+
+// Execute a contract call
+func (c *SetSystemContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot set system contract", cliutil.ErrWalletClosed)
+	}
+
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot set system contract", cliutil.ErrOffline)
+	}
+
+	contractID := base58.Decode(c.ContractID)
+	if len(contractID) == 0 {
+		return nil, errors.New("could not parse contract id")
+	}
+
+	systemContract, err := strconv.ParseBool(c.SystemContract)
+	if err != nil {
+		return nil, err
+	}
+
+	op := &protocol.Operation{
+		Op: &protocol.Operation_SetSystemContract{
+			SetSystemContract: &protocol.SetSystemContractOperation{
+				ContractId:     contractID,
+				SystemContract: systemContract,
+			},
+		},
+	}
+
+	result := NewExecutionResult()
+	if systemContract {
+		result.AddMessage(fmt.Sprintf("Setting contract %s to system level permissions", c.ContractID))
+		err = ee.Session.AddOperation(op, fmt.Sprintf("Setting contract %s to system level permissions", c.ContractID))
+	} else {
+		result.AddMessage(fmt.Sprintf("Setting contract %s to user level permissions", c.ContractID))
+		err = ee.Session.AddOperation(op, fmt.Sprintf("Setting contract %s to user level permissions", c.ContractID))
+	}
+
 	if err == nil {
 		result.AddMessage("Adding operation to transaction session")
 	}
