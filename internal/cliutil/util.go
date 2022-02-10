@@ -35,6 +35,7 @@ const (
 	RIPEMD320 = 0x1055
 )
 
+// TransactionReceiptToString creates a string from a receipt
 func TransactionReceiptToString(receipt *protocol.TransactionReceipt, operations int) string {
 	s := fmt.Sprintf("Transaction with ID 0x%s containing %d operations", hex.EncodeToString(receipt.Id), operations)
 	if receipt.Reverted {
