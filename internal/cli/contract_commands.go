@@ -365,11 +365,11 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		er.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		id, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
 		if err != nil {
 			return nil, err
 		}
-		er.AddMessage(fmt.Sprintf("Submitted transaction with id %s", hex.EncodeToString(id)))
+		er.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
 	return er, nil
