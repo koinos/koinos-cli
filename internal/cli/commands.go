@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -104,7 +105,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("help", "Show help on a given command", false, NewHelpCommand, *NewCommandArg("command", CmdNameArg)))
 	cs.AddCommand(NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", StringArg), *NewCommandArg("filename", StringArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("list", "List available commands", false, NewListCommand))
-	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", StringArg), *NewCommandArg("abi-filename", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", StringArg), *NewOptionalCommandArg("abi-filename", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand, *NewCommandArg("filename", StringArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("unlock", "Open a wallet file", true, NewOpenCommand, *NewCommandArg("filename", StringArg), *NewOptionalCommandArg("password", StringArg)))
@@ -360,8 +361,14 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 		return nil, err
 	}
 
-	/*
-		// Load the ABI
+	// Make the upload contract operation
+	uco := &protocol.UploadContractOperation{
+		ContractId: ee.Key.AddressBytes(),
+		Bytecode:   wasmBytes,
+	}
+
+	// Load the ABI if given
+	if c.ABIFilename != nil {
 		abiFile, err := os.Open(*c.ABIFilename)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
@@ -381,16 +388,13 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 		}
 
-		abiString := string(abiBytes)
-	*/
+		uco.Abi = string(abiBytes)
+	}
 
+	// Make the operation object
 	op := &protocol.Operation{
 		Op: &protocol.Operation_UploadContract{
-			UploadContract: &protocol.UploadContractOperation{
-				ContractId: ee.Key.AddressBytes(),
-				Bytecode:   wasmBytes,
-				//Abi:        abiString,
-			},
+			UploadContract: uco,
 		},
 	}
 
