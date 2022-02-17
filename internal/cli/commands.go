@@ -3,7 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/base64"
-	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -23,24 +23,6 @@ import (
 	"github.com/shopspring/decimal"
 
 	lutil "github.com/koinos/koinos-util-golang"
-)
-
-// Hardcoded Koin contract constants
-const (
-	KoinSymbol         = "tKOIN"
-	ManaSymbol         = "mana"
-	KoinPrecision      = 8
-	KoinContractID     = "19JntSm8pSNETT9aHTwAUHC5RMoaSmgZPJ"
-	KoinBalanceOfEntry = uint32(0x15619248)
-	KoinTransferEntry  = uint32(0x62efa292)
-)
-
-// Hardcoded Multihash constants.
-const (
-	RIPEMD128 = 0x1052
-	RIPEMD160 = 0x1053
-	RIPEMD256 = 0x1054
-	RIPEMD320 = 0x1055
 )
 
 // CommandSet represents a set of commands for the parser
@@ -117,16 +99,16 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("connect", "Connect to an RPC endpoint", false, NewConnectCommand, *NewCommandArg("url", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("close", "Close the currently open wallet", false, NewCloseCommand))
 	cs.AddCommand(NewCommandDeclaration("lock", "Close the currently open wallet", true, NewCloseCommand))
-	cs.AddCommand(NewCommandDeclaration("create", "Create and open a new wallet file", false, NewCreateCommand, *NewCommandArg("filename", StringArg), *NewOptionalCommandArg("password", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("create", "Create and open a new wallet file", false, NewCreateCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("disconnect", "Disconnect from RPC endpoint", false, NewDisconnectCommand))
 	cs.AddCommand(NewCommandDeclaration("generate", "Generate and display a new private key", false, NewGenerateKeyCommand))
 	cs.AddCommand(NewCommandDeclaration("help", "Show help on a given command", false, NewHelpCommand, *NewCommandArg("command", CmdNameArg)))
-	cs.AddCommand(NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", StringArg), *NewCommandArg("filename", StringArg), *NewOptionalCommandArg("password", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", StringArg), *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("list", "List available commands", false, NewListCommand))
-	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", StringArg), *NewCommandArg("abi-filename", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("abi-filename", FileArg)))
 	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg), *NewCommandArg("arguments", StringArg)))
-	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand, *NewCommandArg("filename", StringArg), *NewOptionalCommandArg("password", StringArg)))
-	cs.AddCommand(NewCommandDeclaration("unlock", "Open a wallet file", true, NewOpenCommand, *NewCommandArg("filename", StringArg), *NewOptionalCommandArg("password", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("unlock", "Open a wallet file", true, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("private", "Show the currently opened wallet's private key", false, NewPrivateCommand))
 	cs.AddCommand(NewCommandDeclaration("read", "Read from a smart contract", false, NewReadCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("register", "Register a smart contract's commands", false, NewRegisterCommand, *NewCommandArg("name", StringArg), *NewCommandArg("address", AddressArg), *NewOptionalCommandArg("abi-filename", StringArg)))
@@ -185,15 +167,15 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	// Setup command execution environment
-	contractID := base58.Decode(KoinContractID)
+	contractID := base58.Decode(cliutil.KoinContractID)
 	if len(contractID) == 0 {
 		panic("Invalid KOIN contract ID")
 	}
 
-	balance, err := ee.RPCClient.GetAccountBalance(address, contractID, KoinBalanceOfEntry)
+	balance, err := ee.RPCClient.GetAccountBalance(address, contractID, cliutil.KoinBalanceOfEntry)
 
 	// Build the result
-	dec, err := util.SatoshiToDecimal(int64(balance), KoinPrecision)
+	dec, err := util.SatoshiToDecimal(int64(balance), cliutil.KoinPrecision)
 	if err != nil {
 		return nil, err
 	}
@@ -205,14 +187,14 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	// Build the mana result
-	manaDec, err := util.SatoshiToDecimal(int64(mana), KoinPrecision)
+	manaDec, err := util.SatoshiToDecimal(int64(mana), cliutil.KoinPrecision)
 	if err != nil {
 		return nil, err
 	}
 
 	er := NewExecutionResult()
-	er.AddMessage(fmt.Sprintf("%v %s", dec, KoinSymbol))
-	er.AddMessage(fmt.Sprintf("%v %s", manaDec, ManaSymbol))
+	er.AddMessage(fmt.Sprintf("%v %s", dec, cliutil.KoinSymbol))
+	er.AddMessage(fmt.Sprintf("%v %s", manaDec, cliutil.ManaSymbol))
 
 	return er, nil
 }
@@ -379,8 +361,14 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 		return nil, err
 	}
 
-	/*
-		// Load the ABI
+	// Make the upload contract operation
+	uco := &protocol.UploadContractOperation{
+		ContractId: ee.Key.AddressBytes(),
+		Bytecode:   wasmBytes,
+	}
+
+	// Load the ABI if given
+	if c.ABIFilename != nil {
 		abiFile, err := os.Open(*c.ABIFilename)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
@@ -400,16 +388,13 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 		}
 
-		abiString := string(abiBytes)
-	*/
+		uco.Abi = string(abiBytes)
+	}
 
+	// Make the operation object
 	op := &protocol.Operation{
 		Op: &protocol.Operation_UploadContract{
-			UploadContract: &protocol.UploadContractOperation{
-				ContractId: ee.Key.AddressBytes(),
-				Bytecode:   wasmBytes,
-				//Abi:        abiString,
-			},
+			UploadContract: uco,
 		},
 	}
 
@@ -421,11 +406,11 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 		er.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		id, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
 		if err != nil {
 			return nil, err
 		}
-		er.AddMessage(fmt.Sprintf("Submitted transaction with ID 0x%s", hex.EncodeToString(id)))
+		er.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
 	return er, nil
@@ -690,11 +675,11 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		id, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
 		if err != nil {
 			return nil, err
 		}
-		result.AddMessage(fmt.Sprintf("Submitted transaction with ID 0x%s", hex.EncodeToString(id)))
+		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
 	return result, nil
@@ -829,37 +814,37 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	}
 
 	// Convert the amount to satoshis
-	sAmount, err := util.DecimalToSatoshi(&dAmount, KoinPrecision)
+	sAmount, err := util.DecimalToSatoshi(&dAmount, cliutil.KoinPrecision)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidAmount, err.Error())
 	}
 
 	// Ensure a transfer greater than zero
 	if sAmount <= 0 {
-		minimalAmount, _ := util.SatoshiToDecimal(1, KoinPrecision)
-		return nil, fmt.Errorf("%w: cannot transfer %s %s, amount should be greater than minimal %s (1e-%d) %s", cliutil.ErrInvalidAmount, dAmount, KoinSymbol, minimalAmount, KoinPrecision, KoinSymbol)
+		minimalAmount, _ := util.SatoshiToDecimal(1, cliutil.KoinPrecision)
+		return nil, fmt.Errorf("%w: cannot transfer %s %s, amount should be greater than minimal %s (1e-%d) %s", cliutil.ErrInvalidAmount, dAmount, cliutil.KoinSymbol, minimalAmount, cliutil.KoinPrecision, cliutil.KoinSymbol)
 	}
 
 	// Setup command execution environment
-	contractID := base58.Decode(KoinContractID)
+	contractID := base58.Decode(cliutil.KoinContractID)
 	if len(contractID) == 0 {
 		panic("Invalid KOIN contract ID")
 	}
 
 	// Fetch the account's balance
 	myAddress := ee.Key.AddressBytes()
-	balance, err := ee.RPCClient.GetAccountBalance(myAddress, contractID, KoinBalanceOfEntry)
+	balance, err := ee.RPCClient.GetAccountBalance(myAddress, contractID, cliutil.KoinBalanceOfEntry)
 	if err != nil {
 		return nil, err
 	}
-	dBalance, err := util.SatoshiToDecimal(int64(balance), KoinPrecision)
+	dBalance, err := util.SatoshiToDecimal(int64(balance), cliutil.KoinPrecision)
 	if err != nil {
 		return nil, err
 	}
 
 	// Ensure a transfer greater than opened account balance
 	if int64(balance) <= sAmount {
-		return nil, fmt.Errorf("%w: insufficient balance %s %s on opened wallet %s, cannot transfer %s %s", cliutil.ErrInvalidAmount, dBalance, KoinSymbol, myAddress, dAmount, KoinSymbol)
+		return nil, fmt.Errorf("%w: insufficient balance %s %s on opened wallet %s, cannot transfer %s %s", cliutil.ErrInvalidAmount, dBalance, cliutil.KoinSymbol, myAddress, dAmount, cliutil.KoinSymbol)
 	}
 
 	toAddress := base58.Decode(c.Address)
@@ -882,25 +867,25 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		Op: &protocol.Operation_CallContract{
 			CallContract: &protocol.CallContractOperation{
 				ContractId: contractID,
-				EntryPoint: KoinTransferEntry,
+				EntryPoint: cliutil.KoinTransferEntry,
 				Args:       args,
 			},
 		},
 	}
 
 	result := NewExecutionResult()
-	result.AddMessage(fmt.Sprintf("Transferring %s %s to %s", dAmount, KoinSymbol, c.Address))
+	result.AddMessage(fmt.Sprintf("Transferring %s %s to %s", dAmount, cliutil.KoinSymbol, c.Address))
 
-	err = ee.Session.AddOperation(op, fmt.Sprintf("Transfer %s %s to %s", dAmount, KoinSymbol, c.Address))
+	err = ee.Session.AddOperation(op, fmt.Sprintf("Transfer %s %s to %s", dAmount, cliutil.KoinSymbol, c.Address))
 	if err == nil {
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		id, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
 		if err != nil {
 			return nil, err
 		}
-		result.AddMessage(fmt.Sprintf("Submitted transaction with ID 0x%s", hex.EncodeToString(id)))
+		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
 	return result, nil
@@ -979,11 +964,11 @@ func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		id, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
 		if err != nil {
 			return nil, err
 		}
-		result.AddMessage(fmt.Sprintf("Submitted transaction with ID 0x%s", hex.EncodeToString(id)))
+		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
 	return result, nil
@@ -1049,11 +1034,11 @@ func (c *SetSystemContractCommand) Execute(ctx context.Context, ee *ExecutionEnv
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		id, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
 		if err != nil {
 			return nil, err
 		}
-		result.AddMessage(fmt.Sprintf("Submitted transaction with ID 0x%s", hex.EncodeToString(id)))
+		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
 	return result, nil
@@ -1110,12 +1095,12 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 				ops[i] = reqs[i].Op
 			}
 
-			id, err := ee.RPCClient.SubmitTransaction(ops, ee.Key)
+			receipt, err := ee.RPCClient.SubmitTransaction(ops, ee.Key)
 			if err != nil {
 				return nil, fmt.Errorf("error submitting transaction, %w", err)
 			}
 
-			result.AddMessage(fmt.Sprintf("Submitted transaction with ID 0x%s (%v operations)", hex.EncodeToString(id), len(ops)))
+			result.AddMessage(cliutil.TransactionReceiptToString(receipt, len(ops)))
 		} else {
 			result.AddMessage("Cancelling transaction because session has 0 operations")
 		}

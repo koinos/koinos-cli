@@ -3,9 +3,12 @@ package cliutil
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 
+	"github.com/koinos/koinos-proto-golang/koinos/protocol"
+	util "github.com/koinos/koinos-util-golang"
 	"github.com/minio/sio"
 )
 
@@ -13,6 +16,53 @@ const (
 	// Version number (this should probably not live here)
 	Version = "v0.2.0"
 )
+
+// Hardcoded Koin contract constants
+const (
+	KoinSymbol         = "tKOIN"
+	ManaSymbol         = "mana"
+	KoinPrecision      = 8
+	KoinContractID     = "19JntSm8pSNETT9aHTwAUHC5RMoaSmgZPJ"
+	KoinBalanceOfEntry = uint32(0x15619248)
+	KoinTransferEntry  = uint32(0x62efa292)
+)
+
+// Hardcoded Multihash constants.
+const (
+	RIPEMD128 = 0x1052
+	RIPEMD160 = 0x1053
+	RIPEMD256 = 0x1054
+	RIPEMD320 = 0x1055
+)
+
+// TransactionReceiptToString creates a string from a receipt
+func TransactionReceiptToString(receipt *protocol.TransactionReceipt, operations int) string {
+	s := fmt.Sprintf("Transaction with ID 0x%s containing %d operations", hex.EncodeToString(receipt.Id), operations)
+	if receipt.Reverted {
+		s += " reverted."
+	} else {
+		s += " submitted."
+	}
+
+	// Build the mana result
+	manaDec, err := util.SatoshiToDecimal(int64(receipt.RcUsed), KoinPrecision)
+	if err != nil {
+		s += "\n" + err.Error()
+		return s
+	}
+
+	s += fmt.Sprintf("\nMana cost: %v (Disk: %d, Network: %d, Compute: %d)", manaDec, receipt.DiskStorageUsed, receipt.NetworkBandwidthUsed, receipt.ComputeBandwidthUsed)
+
+	// Show logs if available
+	if receipt.Logs != nil && len(receipt.Logs) > 0 {
+		s += "\nLogs:"
+		for _, log := range receipt.Logs {
+			s += "\n" + log
+		}
+	}
+
+	return s
+}
 
 func walletConfig(password []byte) sio.Config {
 	return sio.Config{
