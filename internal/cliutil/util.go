@@ -52,6 +52,15 @@ func TransactionReceiptToString(receipt *protocol.TransactionReceipt, operations
 	}
 
 	s += fmt.Sprintf("\nMana cost: %v (Disk: %d, Network: %d, Compute: %d)", manaDec, receipt.DiskStorageUsed, receipt.NetworkBandwidthUsed, receipt.ComputeBandwidthUsed)
+
+	// Show logs if available
+	if receipt.Logs != nil && len(receipt.Logs) > 0 {
+		s += "\nLogs:"
+		for _, log := range receipt.Logs {
+			s += "\n" + log
+		}
+	}
+
 	return s
 }
 
