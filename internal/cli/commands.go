@@ -1100,7 +1100,6 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 				return nil, fmt.Errorf("error submitting transaction, %w", err)
 			}
 
-			//result.AddMessage(fmt.Sprintf("Submitted transaction with ID 0x%s (%v operations)", hex.EncodeToString(id), len(ops)))
 			result.AddMessage(cliutil.TransactionReceiptToString(receipt, len(ops)))
 		} else {
 			result.AddMessage("Cancelling transaction because session has 0 operations")
