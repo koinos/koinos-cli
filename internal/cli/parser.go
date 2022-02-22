@@ -31,6 +31,7 @@ const (
 	BytesArg
 	BoolArg
 	HexArg
+	FileArg
 
 	// A parameter should never be declared as type nothing, this is only for parsing errors
 	NoArg
@@ -42,6 +43,8 @@ func (c *CommandArgType) String() string {
 		return "address"
 	case StringArg:
 		return "string"
+	case FileArg:
+		return "file"
 	case AmountArg:
 		return "amount"
 	case CmdNameArg:
@@ -259,6 +262,8 @@ func (p *CommandParser) parseArgs(input []byte, inv *CommandParseResult) ([]byte
 		case AmountArg:
 			match, l, err = p.parseAmount(input)
 		case CmdNameArg:
+			match, l, err = p.parseString(input)
+		case FileArg:
 			match, l, err = p.parseString(input)
 		case UIntArg:
 			match, l, err = p.parseUInt(input)

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/c-bata/go-prompt"
+	"github.com/c-bata/go-prompt/completer"
 	"github.com/koinos/koinos-cli/internal/cli"
 	"github.com/koinos/koinos-cli/internal/cliutil"
 )
@@ -15,6 +16,7 @@ type KoinosPrompt struct {
 	parser             *cli.CommandParser
 	execEnv            *cli.ExecutionEnvironment
 	gPrompt            *prompt.Prompt
+	fPath              *completer.FilePathCompleter
 	commandSuggestions []prompt.Suggest
 	unicodeSupport     bool
 
@@ -30,7 +32,8 @@ type KoinosPrompt struct {
 // NewKoinosPrompt creates a new interactive prompt object
 func NewKoinosPrompt(parser *cli.CommandParser, execEnv *cli.ExecutionEnvironment) *KoinosPrompt {
 	kp := &KoinosPrompt{parser: parser, execEnv: execEnv, latestRevision: -1}
-	kp.gPrompt = prompt.New(kp.executor, kp.completer, prompt.OptionLivePrefix(kp.changeLivePrefix))
+	kp.gPrompt = prompt.New(kp.executor, kp.completer, prompt.OptionLivePrefix(kp.changeLivePrefix), prompt.OptionCompletionWordSeparator(completer.FilePathCompletionSeparator))
+	kp.fPath = &completer.FilePathCompleter{}
 
 	// Check for terminal unicode support
 	lang := strings.ToUpper(os.Getenv("LANG"))
@@ -101,6 +104,10 @@ func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {
 
 	if metrics.CurrentParamType == cli.CmdNameArg {
 		return prompt.FilterHasPrefix(kp.commandSuggestions, d.GetWordBeforeCursor(), true)
+	}
+
+	if metrics.CurrentParamType == cli.FileArg {
+		return kp.fPath.Complete(d)
 	}
 
 	return []prompt.Suggest{}
