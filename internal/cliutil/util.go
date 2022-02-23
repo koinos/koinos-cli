@@ -23,8 +23,8 @@ const (
 	ManaSymbol         = "mana"
 	KoinPrecision      = 8
 	KoinContractID     = "19JntSm8pSNETT9aHTwAUHC5RMoaSmgZPJ"
-	KoinBalanceOfEntry = uint32(0x15619248)
-	KoinTransferEntry  = uint32(0x62efa292)
+	KoinBalanceOfEntry = uint32(0x5c721497)
+	KoinTransferEntry  = uint32(0x27f576ca)
 )
 
 // Hardcoded Multihash constants.
