@@ -67,6 +67,17 @@ func makeTestParser() *CommandParser {
 func FuzzParser(f *testing.F) {
 	parser := makeTestParser()
 
+	f.Add("test_address 12o489Fwv94oGQMmgvvwFEehj7kL8CRhJk;")
+	f.Add("test_string asdasd;")
+	f.Add("test_string \"asdasd\";")
+	f.Add("test_none;")
+	f.Add("test_none2;")
+	f.Add("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg asdasd 12345678.12345678 asdasd;")
+	f.Add("optional asdasd asdasd asdasd;")
+	f.Add("optional asdasd asdasd;")
+	f.Add("test_bool asdasd true 12345678.12345678;")
+	f.Add("test_transfer 12345678.12345678 12o489Fwv94oGQMmgvvwFEehj7kL8CRhJk;")
+
 	f.Fuzz(func(t *testing.T, commands string) {
 		//fmt.Println(commands)
 		//assert.NotPanics(t, func() { parser.Parse(commands) }, fmt.Sprintf("Parser encountered panic on: %s", commands))
