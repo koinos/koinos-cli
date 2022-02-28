@@ -246,6 +246,10 @@ func (p *CommandParser) parseArgs(input []byte, inv *CommandParseResult) ([]byte
 
 		// If there was no skip here, then parameters have been melded together
 		if !skip {
+			if i == 0 {
+				return input, fmt.Errorf("%w: %s", cliutil.ErrInvalidParam, inv.Decl.Args[i].Name)
+			}
+
 			return input, fmt.Errorf("%w: %s", cliutil.ErrInvalidParam, inv.Decl.Args[i-1].Name)
 		}
 
