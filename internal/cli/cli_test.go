@@ -64,6 +64,16 @@ func makeTestParser() *CommandParser {
 	return parser
 }
 
+func FuzzParser(f *testing.F) {
+	parser := makeTestParser()
+
+	f.Fuzz(func(t *testing.T, commands string) {
+		//fmt.Println(commands)
+		//assert.NotPanics(t, func() { parser.Parse(commands) }, fmt.Sprintf("Parser encountered panic on: %s", commands))
+		parser.Parse(commands)
+	})
+}
+
 func TestBasicParser(t *testing.T) {
 	parser := makeTestParser()
 
