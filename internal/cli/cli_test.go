@@ -3,7 +3,6 @@ package cli
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -63,40 +62,6 @@ func makeTestParser() *CommandParser {
 	parser := NewCommandParser(cs)
 
 	return parser
-}
-
-func FuzzParser(f *testing.F) {
-	parser := makeTestParser()
-
-	// working commands
-	f.Add("test_address 12o489Fwv94oGQMmgvvwFEehj7kL8CRhJk;")
-	f.Add("test_string asdasd;")
-	f.Add("test_string \"asdasd\";")
-	f.Add("test_none;")
-	f.Add("test_none2;")
-	f.Add("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg asdasd 12345678.12345678 asdasd;")
-	f.Add("optional as4ytusd as3478usd asdasd;")
-	f.Add("optional \"asd\" 'asdasd';")
-	f.Add("test_bool asdasd true 12345678.12345678;")
-	f.Add("test_transfer 12345678.12345678 12o489Fwv94oGQMmgvvwFEehj7kL8CRhJk;")
-	f.Add("test_multi 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg 'a multiword string' 50.403873 basic_str; test_string \"ab' \\\"cdef\";")
-	f.Add(" ; ;; ;; ;;;;    ;     ;  ;    ")
-	f.Add("    test_address    1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg;     test_address 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg   ;  ")
-	f.Add(" ; ;; ;; ;;;;    ;     ;  ;    ")
-	f.Add("         ")
-
-	// failing commands
-	f.Add("test_none; test_none;     test_string \"blah blah''''''' 1234\";")
-	f.Add("tdssdfd ghhd rerfd; tddffg ;  rsdgdtfgh ")
-	f.Add("test_address 12o489Fwv94")
-	f.Add("test_transfer 12o489Fwv94oGQMmgvvwFEehj7kL8CRhJk;")
-	f.Add("test_string \";")
-
-	f.Fuzz(func(t *testing.T, commands string) {
-		//fmt.Println(commands)
-		assert.NotPanics(t, func() { parser.Parse(commands) }, fmt.Sprintf("Parser encountered panic on: %s", commands))
-		//parser.Parse(commands)
-	})
 }
 
 func TestBasicParser(t *testing.T) {
