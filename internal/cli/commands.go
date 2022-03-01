@@ -407,12 +407,12 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	}
 	if err != nil {
 		// Fetch the nonce
-		nonce, err := ee.GetNonce()
+		subParams, err := ee.GetSubmissionParams()
 		if err != nil {
 			return nil, fmt.Errorf("cannot upload contract, %w", err)
 		}
 
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, &rpc.SubmissionParams{Nonce: nonce})
+		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, subParams)
 		if err != nil {
 			return nil, err
 		}
@@ -682,12 +682,12 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	}
 	if err != nil {
 		// Fetch the nonce
-		nonce, err := ee.GetNonce()
+		subParams, err := ee.GetSubmissionParams()
 		if err != nil {
 			return nil, fmt.Errorf("cannot call contract, %w", err)
 		}
 
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, &rpc.SubmissionParams{Nonce: nonce})
+		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, subParams)
 		if err != nil {
 			return nil, err
 		}
@@ -894,12 +894,12 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	}
 	if err != nil {
 		// Fetch the nonce
-		nonce, err := ee.GetNonce()
+		subParams, err := ee.GetSubmissionParams()
 		if err != nil {
 			return nil, fmt.Errorf("cannot transfer, %w", err)
 		}
 
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, &rpc.SubmissionParams{Nonce: nonce})
+		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, subParams)
 		if err != nil {
 			return nil, err
 		}
@@ -983,12 +983,12 @@ func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 	}
 	if err != nil {
 		// Fetch the nonce
-		nonce, err := ee.GetNonce()
+		subParams, err := ee.GetSubmissionParams()
 		if err != nil {
 			return nil, fmt.Errorf("cannot set system call, %w", err)
 		}
 
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, &rpc.SubmissionParams{Nonce: nonce})
+		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, subParams)
 		if err != nil {
 			return nil, err
 		}
@@ -1059,12 +1059,12 @@ func (c *SetSystemContractCommand) Execute(ctx context.Context, ee *ExecutionEnv
 	}
 	if err != nil {
 		// Fetch the nonce
-		nonce, err := ee.GetNonce()
+		subParams, err := ee.GetSubmissionParams()
 		if err != nil {
 			return nil, fmt.Errorf("cannot set contract, %w", err)
 		}
 
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, &rpc.SubmissionParams{Nonce: nonce})
+		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, subParams)
 		if err != nil {
 			return nil, err
 		}
@@ -1126,12 +1126,12 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 			}
 
 			// Fetch the nonce
-			nonce, err := ee.GetNonce()
+			subParams, err := ee.GetSubmissionParams()
 			if err != nil {
 				return nil, fmt.Errorf("cannot submit transaction session, %w", err)
 			}
 
-			receipt, err := ee.RPCClient.SubmitTransaction(ops, ee.Key, &rpc.SubmissionParams{Nonce: nonce})
+			receipt, err := ee.RPCClient.SubmitTransaction(ops, ee.Key, subParams)
 			if err != nil {
 				return nil, fmt.Errorf("error submitting transaction, %w", err)
 			}

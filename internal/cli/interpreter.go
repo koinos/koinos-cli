@@ -86,6 +86,29 @@ func (ee *ExecutionEnvironment) GetNonce() (uint64, error) {
 	return ee.currentNonce, nil
 }
 
+// GetRcLimit returns the current RC limit
+func (ee *ExecutionEnvironment) GetRcLimit() (uint64, error) {
+	return ee.RPCClient.GetAccountRc(ee.Key.AddressBytes())
+}
+
+// GetSubmissionParams returns the submission parameters for a command
+func (ee *ExecutionEnvironment) GetSubmissionParams() (*rpc.SubmissionParams, error) {
+	nonce, err := ee.GetNonce()
+	if err != nil {
+		return nil, err
+	}
+
+	rcLimit, err := ee.GetRcLimit()
+	if err != nil {
+		return nil, err
+	}
+
+	return &rpc.SubmissionParams{
+		Nonce:   nonce,
+		RCLimit: rcLimit,
+	}, nil
+}
+
 // IsWalletOpen returns a bool representing whether or not there is an open wallet
 func (ee *ExecutionEnvironment) IsWalletOpen() bool {
 	return ee.Key != nil
