@@ -398,29 +398,21 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 		},
 	}
 
-	er := NewExecutionResult()
-	er.AddMessage(fmt.Sprintf("Contract uploaded with address %s", base58.Encode(ee.Key.AddressBytes())))
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Contract uploaded with address %s", base58.Encode(ee.Key.AddressBytes())))
 
 	err = ee.Session.AddOperation(op, fmt.Sprintf("Upload contract with address %s", base58.Encode(ee.Key.AddressBytes())))
 	if err == nil {
-		er.AddMessage("Adding operation to transaction session")
+		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		// Fetch the nonce
-		subParams, err := ee.GetSubmissionParams()
+		err := ee.SubmitTransaction(result, op)
 		if err != nil {
 			return nil, fmt.Errorf("cannot upload contract, %w", err)
 		}
-
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, subParams)
-		if err != nil {
-			ee.ResetNonce()
-			return nil, err
-		}
-		er.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
-	return er, nil
+	return result, nil
 }
 
 // ----------------------------------------------------------------------------
@@ -682,18 +674,10 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		// Fetch the nonce
-		subParams, err := ee.GetSubmissionParams()
+		err := ee.SubmitTransaction(result, op)
 		if err != nil {
 			return nil, fmt.Errorf("cannot call contract, %w", err)
 		}
-
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, subParams)
-		if err != nil {
-			ee.ResetNonce()
-			return nil, err
-		}
-		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
 	return result, nil
@@ -895,18 +879,10 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		// Fetch the nonce
-		subParams, err := ee.GetSubmissionParams()
+		err := ee.SubmitTransaction(result, op)
 		if err != nil {
 			return nil, fmt.Errorf("cannot transfer, %w", err)
 		}
-
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, subParams)
-		if err != nil {
-			ee.ResetNonce()
-			return nil, err
-		}
-		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
 	return result, nil
@@ -985,18 +961,10 @@ func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		// Fetch the nonce
-		subParams, err := ee.GetSubmissionParams()
+		err := ee.SubmitTransaction(result, op)
 		if err != nil {
 			return nil, fmt.Errorf("cannot set system call, %w", err)
 		}
-
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, subParams)
-		if err != nil {
-			ee.ResetNonce()
-			return nil, err
-		}
-		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
 	return result, nil
@@ -1062,18 +1030,10 @@ func (c *SetSystemContractCommand) Execute(ctx context.Context, ee *ExecutionEnv
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		// Fetch the nonce
-		subParams, err := ee.GetSubmissionParams()
+		err := ee.SubmitTransaction(result, op)
 		if err != nil {
 			return nil, fmt.Errorf("cannot set contract, %w", err)
 		}
-
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, subParams)
-		if err != nil {
-			ee.ResetNonce()
-			return nil, err
-		}
-		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
 	return result, nil
@@ -1130,18 +1090,10 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 				ops[i] = reqs[i].Op
 			}
 
-			// Fetch the nonce
-			subParams, err := ee.GetSubmissionParams()
-			if err != nil {
-				return nil, fmt.Errorf("cannot submit transaction session, %w", err)
-			}
-
-			receipt, err := ee.RPCClient.SubmitTransaction(ops, ee.Key, subParams)
+			err := ee.SubmitTransaction(result, ops...)
 			if err != nil {
 				return nil, fmt.Errorf("error submitting transaction, %w", err)
 			}
-
-			result.AddMessage(cliutil.TransactionReceiptToString(receipt, len(ops)))
 		} else {
 			result.AddMessage("Cancelling transaction because session has 0 operations")
 		}

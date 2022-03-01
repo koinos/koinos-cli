@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/koinos/koinos-cli/internal/cliutil"
+	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	util "github.com/koinos/koinos-util-golang"
 	"github.com/koinos/koinos-util-golang/rpc"
 )
@@ -107,6 +109,25 @@ func (ee *ExecutionEnvironment) GetNonce() (uint64, error) {
 // GetRcLimit returns the current RC limit
 func (ee *ExecutionEnvironment) GetRcLimit() (uint64, error) {
 	return ee.RPCClient.GetAccountRc(ee.Key.AddressBytes())
+}
+
+// SubmitTransaction is a utility function to submit a transaction from a command
+func (ee *ExecutionEnvironment) SubmitTransaction(result *ExecutionResult, ops ...*protocol.Operation) error {
+	// Fetch the nonce
+	subParams, err := ee.GetSubmissionParams()
+	if err != nil {
+		return err
+	}
+
+	receipt, err := ee.RPCClient.SubmitTransaction(ops, ee.Key, subParams)
+	if err != nil {
+		ee.ResetNonce()
+		return err
+	}
+
+	result.AddMessage(cliutil.TransactionReceiptToString(receipt, len(ops)))
+
+	return nil
 }
 
 // GetSubmissionParams returns the submission parameters for a command
