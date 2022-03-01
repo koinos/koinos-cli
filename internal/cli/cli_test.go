@@ -149,6 +149,11 @@ func TestNonsensicalInput(t *testing.T) {
 	if results.Len() != 1 {
 		t.Error("Expected 1 result, got", results.Len())
 	}
+
+	results, err = parser.Parse("optional!")
+	if !errors.Is(err, cliutil.ErrInvalidParam) {
+		t.Error("Expected error", cliutil.ErrInvalidParam, ", got", err)
+	}
 }
 
 func TestOptionalArguments(t *testing.T) {
