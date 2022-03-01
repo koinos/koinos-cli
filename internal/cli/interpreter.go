@@ -145,7 +145,7 @@ func (ee *ExecutionEnvironment) GetSubmissionParams() (*rpc.SubmissionParams, er
 
 	return &rpc.SubmissionParams{
 		Nonce:   nonce,
-		RCLimit: rcLimit / 100,
+		RCLimit: rcLimit,
 	}, nil
 }
 
