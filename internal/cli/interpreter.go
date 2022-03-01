@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
+	"time"
 
 	util "github.com/koinos/koinos-util-golang"
 	"github.com/koinos/koinos-util-golang/rpc"
@@ -10,6 +12,10 @@ import (
 
 // Command execution code
 // Actual command implementations are in commands.go
+
+const (
+	NonceCheckTime = time.Second * 60 * 3
+)
 
 // Command is the interface that all commands must implement
 type Command interface {
@@ -46,16 +52,38 @@ type ExecutionEnvironment struct {
 	Parser    *CommandParser
 	Contracts Contracts
 	Session   *TransactionSession
+
+	currentNonce uint64
+	nonceTime    time.Time
 }
 
 // NewExecutionEnvironment creates a new ExecutionEnvironment object
 func NewExecutionEnvironment(rpcClient *rpc.KoinosRPCClient, parser *CommandParser) *ExecutionEnvironment {
 	return &ExecutionEnvironment{
-		RPCClient: rpcClient,
-		Parser:    parser,
-		Contracts: make(map[string]*ContractInfo),
-		Session:   &TransactionSession{},
+		RPCClient:    rpcClient,
+		Parser:       parser,
+		Contracts:    make(map[string]*ContractInfo),
+		Session:      &TransactionSession{},
+		nonceTime:    time.Time{},
+		currentNonce: 0,
 	}
+}
+
+// GetNonce returns the current nonce
+func (ee *ExecutionEnvironment) GetNonce() (uint64, error) {
+	if ee.nonceTime.IsZero() || time.Now().Sub(ee.nonceTime) > NonceCheckTime {
+		nonce, err := ee.RPCClient.GetAccountNonce(ee.Key.AddressBytes())
+		if err != nil {
+			return 0, err
+		}
+
+		atomic.StoreUint64(&ee.currentNonce, nonce)
+	}
+
+	ee.nonceTime = time.Now()
+
+	atomic.AddUint64(&ee.currentNonce, 1)
+	return ee.currentNonce, nil
 }
 
 // IsWalletOpen returns a bool representing whether or not there is an open wallet

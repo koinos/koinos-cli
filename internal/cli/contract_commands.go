@@ -15,6 +15,7 @@ import (
 	"github.com/koinos/koinos-proto-golang/encoding/text"
 	"github.com/koinos/koinos-proto-golang/koinos"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
+	"github.com/koinos/koinos-util-golang/rpc"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
@@ -365,7 +366,13 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		er.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		// Fetch the nonce
+		nonce, err := ee.GetNonce()
+		if err != nil {
+			return nil, fmt.Errorf("cannot make call, %w", err)
+		}
+
+		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, &rpc.SubmissionParams{Nonce: nonce})
 		if err != nil {
 			return nil, err
 		}
