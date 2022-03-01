@@ -69,6 +69,24 @@ func NewExecutionEnvironment(rpcClient *rpc.KoinosRPCClient, parser *CommandPars
 	}
 }
 
+// OpenWallet opens a wallet
+func (ee *ExecutionEnvironment) OpenWallet(key *util.KoinosKey) {
+	ee.Key = key
+	ee.ResetNonce()
+}
+
+// CloseWallet closes the wallet
+func (ee *ExecutionEnvironment) CloseWallet() {
+	ee.Key = nil
+	ee.ResetNonce()
+}
+
+// ResetNonce resets the nonce
+func (ee *ExecutionEnvironment) ResetNonce() {
+	ee.currentNonce = 0
+	ee.nonceTime = time.Time{}
+}
+
 // GetNonce returns the current nonce
 func (ee *ExecutionEnvironment) GetNonce() (uint64, error) {
 	if ee.nonceTime.IsZero() || time.Now().Sub(ee.nonceTime) > NonceCheckTime {

@@ -219,7 +219,7 @@ func (c *CloseCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*
 	}
 
 	// Close the wallet
-	ee.Key = nil
+	ee.CloseWallet()
 
 	result := NewExecutionResult()
 	result.AddMessage("Wallet closed")
@@ -414,6 +414,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 
 		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, subParams)
 		if err != nil {
+			ee.ResetNonce()
 			return nil, err
 		}
 		er.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
@@ -689,6 +690,7 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 
 		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, subParams)
 		if err != nil {
+			ee.ResetNonce()
 			return nil, err
 		}
 		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
@@ -738,8 +740,8 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		return nil, err
 	}
 
-	// Set the wallet keys
-	ee.Key = key
+	// Open the wallet
+	ee.OpenWallet(key)
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Opened wallet: %s", c.Filename))
@@ -901,6 +903,7 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 
 		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, subParams)
 		if err != nil {
+			ee.ResetNonce()
 			return nil, err
 		}
 		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
@@ -990,6 +993,7 @@ func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 
 		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, subParams)
 		if err != nil {
+			ee.ResetNonce()
 			return nil, err
 		}
 		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
@@ -1066,6 +1070,7 @@ func (c *SetSystemContractCommand) Execute(ctx context.Context, ee *ExecutionEnv
 
 		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key, subParams)
 		if err != nil {
+			ee.ResetNonce()
 			return nil, err
 		}
 		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
