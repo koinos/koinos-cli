@@ -16,7 +16,8 @@ import (
 // Actual command implementations are in commands.go
 
 const (
-	NonceCheckTime = time.Second * 60 * 3
+	// NonceCheckTime is the time between nonce checks
+	NonceCheckTime = time.Second * 30
 )
 
 // Command is the interface that all commands must implement
@@ -144,7 +145,7 @@ func (ee *ExecutionEnvironment) GetSubmissionParams() (*rpc.SubmissionParams, er
 
 	return &rpc.SubmissionParams{
 		Nonce:   nonce,
-		RCLimit: rcLimit,
+		RCLimit: rcLimit / 100,
 	}, nil
 }
 
