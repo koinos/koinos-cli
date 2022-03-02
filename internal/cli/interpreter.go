@@ -48,6 +48,11 @@ func (er *ExecutionResult) Print() {
 	}
 }
 
+type nonceInfo struct {
+	currentNonce uint64
+	nonceTime    time.Time
+}
+
 // ExecutionEnvironment is a struct that holds the environment for command execution.
 type ExecutionEnvironment struct {
 	RPCClient *rpc.KoinosRPCClient
@@ -55,56 +60,60 @@ type ExecutionEnvironment struct {
 	Parser    *CommandParser
 	Contracts Contracts
 	Session   *TransactionSession
-
-	currentNonce uint64
-	nonceTime    time.Time
+	nonceMap  map[string]*nonceInfo
 }
 
 // NewExecutionEnvironment creates a new ExecutionEnvironment object
 func NewExecutionEnvironment(rpcClient *rpc.KoinosRPCClient, parser *CommandParser) *ExecutionEnvironment {
 	return &ExecutionEnvironment{
-		RPCClient:    rpcClient,
-		Parser:       parser,
-		Contracts:    make(map[string]*ContractInfo),
-		Session:      &TransactionSession{},
-		nonceTime:    time.Time{},
-		currentNonce: 0,
+		RPCClient: rpcClient,
+		Parser:    parser,
+		Contracts: make(map[string]*ContractInfo),
+		Session:   &TransactionSession{},
+		nonceMap:  make(map[string]*nonceInfo),
 	}
 }
 
 // OpenWallet opens a wallet
 func (ee *ExecutionEnvironment) OpenWallet(key *util.KoinosKey) {
 	ee.Key = key
-	ee.ResetNonce()
 }
 
 // CloseWallet closes the wallet
 func (ee *ExecutionEnvironment) CloseWallet() {
 	ee.Key = nil
-	ee.ResetNonce()
 }
 
 // ResetNonce resets the nonce
 func (ee *ExecutionEnvironment) ResetNonce() {
-	ee.currentNonce = 0
-	ee.nonceTime = time.Time{}
+	if nInfo, exists := ee.nonceMap[string(ee.Key.AddressBytes())]; exists {
+		atomic.StoreUint64(&nInfo.currentNonce, 0)
+		nInfo.nonceTime = time.Now()
+	}
 }
 
 // GetNonce returns the current nonce
 func (ee *ExecutionEnvironment) GetNonce() (uint64, error) {
-	if ee.nonceTime.IsZero() || time.Now().Sub(ee.nonceTime) > NonceCheckTime {
+	nInfo, exists := ee.nonceMap[string(ee.Key.AddressBytes())]
+
+	if !exists {
+		nInfo = &nonceInfo{}
+		ee.nonceMap[string(ee.Key.AddressBytes())] = nInfo
+	}
+
+	if nInfo.nonceTime.IsZero() || time.Now().Sub(nInfo.nonceTime) > NonceCheckTime {
 		nonce, err := ee.RPCClient.GetAccountNonce(ee.Key.AddressBytes())
 		if err != nil {
 			return 0, err
 		}
 
-		atomic.StoreUint64(&ee.currentNonce, nonce)
+		atomic.StoreUint64(&nInfo.currentNonce, nonce)
 	}
 
-	ee.nonceTime = time.Now()
+	nInfo.nonceTime = time.Now()
 
-	atomic.AddUint64(&ee.currentNonce, 1)
-	return ee.currentNonce, nil
+	atomic.AddUint64(&nInfo.currentNonce, 1)
+	return nInfo.currentNonce, nil
 }
 
 // GetRcLimit returns the current RC limit
@@ -145,7 +154,7 @@ func (ee *ExecutionEnvironment) GetSubmissionParams() (*rpc.SubmissionParams, er
 
 	return &rpc.SubmissionParams{
 		Nonce:   nonce,
-		RCLimit: rcLimit / 100,
+		RCLimit: rcLimit / 1000,
 	}, nil
 }
 
