@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -116,6 +117,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_contract", "Change a contract's permission level between user and system", false, NewSetSystemContractCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("system-contract", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("session", "Create or manage a transaction session (begin, submit, cancel, or view)", false, NewSessionCommand, *NewCommandArg("command", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("sleep", "Sleep for the given number seconds", true, NewSleepCommand, *NewCommandArg("seconds", AmountArg)))
 	cs.AddCommand(NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	cs.AddCommand(NewCommandDeclaration("quit", "", true, NewExitCommand))
 
@@ -777,6 +779,34 @@ func (c *ReadCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 
 	result := NewExecutionResult()
 	result.AddMessage("M" + base64.StdEncoding.EncodeToString(cResp.Result))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Sleep Command
+// ----------------------------------------------------------------------------
+
+// SleepCommand is a command that shows the currently opened wallet's address and private key
+type SleepCommand struct {
+	Duration time.Duration
+}
+
+// NewSleepCommand creates a new address command object
+func NewSleepCommand(inv *CommandParseResult) Command {
+	f, err := strconv.ParseFloat(*inv.Args["seconds"], 32)
+	if err != nil {
+		return nil
+	}
+
+	return &SleepCommand{Duration: time.Duration(f * float64(time.Second))}
+}
+
+// Execute shows wallet address
+func (c *SleepCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Slept for %s", c.Duration))
+	time.Sleep(c.Duration)
 
 	return result, nil
 }
