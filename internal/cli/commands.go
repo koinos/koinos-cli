@@ -653,7 +653,7 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	}
 
 	// Get the argument bytes
-	argumentBytes, err := base64.StdEncoding.DecodeString(c.Arguments[1:])
+	argumentBytes, err := base64.StdEncoding.DecodeString(c.Arguments)
 	if err != nil {
 		return nil, err
 	}
