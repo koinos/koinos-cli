@@ -740,12 +740,12 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 // RcLimit Command
 // ----------------------------------------------------------------------------
 
-// ConnectCommand is a command that connects to an RPC endpoint
+// RcLimitCommand is a command that sets or checks your cuttent rc limit
 type RcLimitCommand struct {
 	limit *string
 }
 
-// NewConnectCommand creates a new connect object
+// NewRcLimitCommand creates a new rc limit command object
 func NewRcLimitCommand(inv *CommandParseResult) Command {
 	return &RcLimitCommand{limit: inv.Args["limit"]}
 }
