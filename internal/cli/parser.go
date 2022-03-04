@@ -465,7 +465,7 @@ func (p *CommandParser) parseSkip(input []byte, inv *CommandParseResult, incArgs
 // Parse a hex string. Returns matched string consumed length, and error
 func (p *CommandParser) parseHex(input []byte) ([]byte, int, error) {
 	// Parse hex strmg
-	m := p.addressRE.Find(input)
+	m := p.hexRE.Find(input)
 	if m == nil {
 		return nil, 0, fmt.Errorf("%w", cliutil.ErrInvalidParam)
 	}

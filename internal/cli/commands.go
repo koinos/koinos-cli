@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -106,16 +107,18 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", StringArg), *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("list", "List available commands", false, NewListCommand))
 	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("abi-filename", FileArg)))
-	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg), *NewCommandArg("arguments", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", HexArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("unlock", "Open a wallet file", true, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("private", "Show the currently opened wallet's private key", false, NewPrivateCommand))
+	cs.AddCommand(NewCommandDeclaration("rclimit", "Set or show the current rc limit. Give no limit to see current calue. Give limit as either mana for a percent (i.e. 80%).", false, NewRcLimitCommand, *NewOptionalCommandArg("limit", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("read", "Read from a smart contract", false, NewReadCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("register", "Register a smart contract's commands", false, NewRegisterCommand, *NewCommandArg("name", StringArg), *NewCommandArg("address", AddressArg), *NewOptionalCommandArg("abi-filename", FileArg)))
 	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("value", AmountArg), *NewCommandArg("to", AddressArg)))
-	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg)))
-	cs.AddCommand(NewCommandDeclaration("set_system_contract", "Change a contract's permission level between user and system", false, NewSetSystemContractCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("system-contract", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", AddressArg), *NewCommandArg("entry-point", HexArg)))
+	cs.AddCommand(NewCommandDeclaration("set_system_contract", "Change a contract's permission level between user and system", false, NewSetSystemContractCommand, *NewCommandArg("contract-id", AddressArg), *NewCommandArg("system-contract", BoolArg)))
 	cs.AddCommand(NewCommandDeclaration("session", "Create or manage a transaction session (begin, submit, cancel, or view)", false, NewSessionCommand, *NewCommandArg("command", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("sleep", "Sleep for the given number seconds", true, NewSleepCommand, *NewCommandArg("seconds", AmountArg)))
 	cs.AddCommand(NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	cs.AddCommand(NewCommandDeclaration("quit", "", true, NewExitCommand))
 
@@ -219,7 +222,7 @@ func (c *CloseCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*
 	}
 
 	// Close the wallet
-	ee.Key = nil
+	ee.CloseWallet()
 
 	result := NewExecutionResult()
 	result.AddMessage("Wallet closed")
@@ -398,22 +401,21 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 		},
 	}
 
-	er := NewExecutionResult()
-	er.AddMessage(fmt.Sprintf("Contract uploaded with address %s", base58.Encode(ee.Key.AddressBytes())))
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Contract uploaded with address %s", base58.Encode(ee.Key.AddressBytes())))
 
 	err = ee.Session.AddOperation(op, fmt.Sprintf("Upload contract with address %s", base58.Encode(ee.Key.AddressBytes())))
 	if err == nil {
-		er.AddMessage("Adding operation to transaction session")
+		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		err := ee.SubmitTransaction(result, op)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot upload contract, %w", err)
 		}
-		er.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
-	return er, nil
+	return result, nil
 }
 
 // ----------------------------------------------------------------------------
@@ -652,7 +654,7 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	}
 
 	// Get the argument bytes
-	argumentBytes, err := base64.StdEncoding.DecodeString(c.Arguments[1:])
+	argumentBytes, err := base64.StdEncoding.DecodeString(c.Arguments)
 	if err != nil {
 		return nil, err
 	}
@@ -675,11 +677,10 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		err := ee.SubmitTransaction(result, op)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot call contract, %w", err)
 		}
-		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
 	return result, nil
@@ -726,11 +727,88 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		return nil, err
 	}
 
-	// Set the wallet keys
-	ee.Key = key
+	// Open the wallet
+	ee.OpenWallet(key)
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Opened wallet: %s", c.Filename))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// RcLimit Command
+// ----------------------------------------------------------------------------
+
+// RcLimitCommand is a command that sets or checks your cuttent rc limit
+type RcLimitCommand struct {
+	limit *string
+}
+
+// NewRcLimitCommand creates a new rc limit command object
+func NewRcLimitCommand(inv *CommandParseResult) Command {
+	return &RcLimitCommand{limit: inv.Args["limit"]}
+}
+
+// Execute handles the rc limit command
+func (c *RcLimitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	result := NewExecutionResult()
+	// If no limit given, display current
+	if c.limit == nil {
+		if ee.rcLimit.absolute {
+			result.AddMessage(fmt.Sprintf("Current rc limit: %f", ee.rcLimit.value))
+			return result, nil
+		}
+
+		// Otherwise its relative
+		if !ee.IsOnline() || !ee.IsWalletOpen() {
+			result.AddMessage(fmt.Sprintf("Current rc limit: %f%%", ee.rcLimit.value*100))
+			return result, nil
+		}
+
+		limit, err := ee.RPCClient.GetAccountRc(ee.Key.AddressBytes())
+		if err != nil {
+			return nil, err
+		}
+
+		dAmount, err := util.SatoshiToDecimal(int64(limit), cliutil.KoinPrecision)
+		if err != nil {
+			return nil, err
+		}
+
+		f, _ := dAmount.Mul(decimal.NewFromFloat(ee.rcLimit.value)).Float64()
+		result.AddMessage(fmt.Sprintf("Current rc limit: %f%% (%f)", ee.rcLimit.value*100, f))
+		return result, nil
+	}
+
+	// Otherwise we are setting the limit
+	s := *c.limit
+	if s[len(s)-1] == '%' {
+		res, err := strconv.ParseFloat(s[:len(s)-1], 64)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check bounds
+		if res < 0 || res > 100 {
+			return nil, fmt.Errorf("%w: percentage rc limit must be between 0%% and 100%%", cliutil.ErrInvalidParam)
+		}
+
+		ee.rcLimit.value = res / 100.0
+		ee.rcLimit.absolute = false
+		result.AddMessage(fmt.Sprintf("Set rc limit to %f%%", res))
+		return result, nil
+	}
+
+	// Otherwise we are setting the absolute limit
+	res, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	ee.rcLimit.value = res
+	ee.rcLimit.absolute = true
+	result.AddMessage(fmt.Sprintf("Set rc limit to %f", res))
 
 	return result, nil
 }
@@ -777,6 +855,34 @@ func (c *ReadCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 
 	result := NewExecutionResult()
 	result.AddMessage("M" + base64.StdEncoding.EncodeToString(cResp.Result))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Sleep Command
+// ----------------------------------------------------------------------------
+
+// SleepCommand is a command that shows the currently opened wallet's address and private key
+type SleepCommand struct {
+	Duration time.Duration
+}
+
+// NewSleepCommand creates a new address command object
+func NewSleepCommand(inv *CommandParseResult) Command {
+	f, err := strconv.ParseFloat(*inv.Args["seconds"], 32)
+	if err != nil {
+		return nil
+	}
+
+	return &SleepCommand{Duration: time.Duration(f * float64(time.Second))}
+}
+
+// Execute shows wallet address
+func (c *SleepCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Slept for %s", c.Duration))
+	time.Sleep(c.Duration)
 
 	return result, nil
 }
@@ -881,11 +987,10 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		err := ee.SubmitTransaction(result, op)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot transfer, %w", err)
 		}
-		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
 	return result, nil
@@ -964,11 +1069,10 @@ func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		err := ee.SubmitTransaction(result, op)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot set system call, %w", err)
 		}
-		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
 	return result, nil
@@ -1034,11 +1138,10 @@ func (c *SetSystemContractCommand) Execute(ctx context.Context, ee *ExecutionEnv
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		err := ee.SubmitTransaction(result, op)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot set contract, %w", err)
 		}
-		result.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
 	return result, nil
@@ -1095,12 +1198,10 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 				ops[i] = reqs[i].Op
 			}
 
-			receipt, err := ee.RPCClient.SubmitTransaction(ops, ee.Key)
+			err := ee.SubmitTransaction(result, ops...)
 			if err != nil {
 				return nil, fmt.Errorf("error submitting transaction, %w", err)
 			}
-
-			result.AddMessage(cliutil.TransactionReceiptToString(receipt, len(ops)))
 		} else {
 			result.AddMessage("Cancelling transaction because session has 0 operations")
 		}

@@ -3,13 +3,23 @@ package cli
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
+	"time"
 
+	"github.com/koinos/koinos-cli/internal/cliutil"
+	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	util "github.com/koinos/koinos-util-golang"
 	"github.com/koinos/koinos-util-golang/rpc"
+	"github.com/shopspring/decimal"
 )
 
 // Command execution code
 // Actual command implementations are in commands.go
+
+const (
+	// NonceCheckTime is the time between nonce checks
+	NonceCheckTime = time.Second * 30
+)
 
 // Command is the interface that all commands must implement
 type Command interface {
@@ -39,6 +49,16 @@ func (er *ExecutionResult) Print() {
 	}
 }
 
+type rcInfo struct {
+	value    float64
+	absolute bool
+}
+
+type nonceInfo struct {
+	currentNonce uint64
+	nonceTime    time.Time
+}
+
 // ExecutionEnvironment is a struct that holds the environment for command execution.
 type ExecutionEnvironment struct {
 	RPCClient *rpc.KoinosRPCClient
@@ -46,6 +66,8 @@ type ExecutionEnvironment struct {
 	Parser    *CommandParser
 	Contracts Contracts
 	Session   *TransactionSession
+	nonceMap  map[string]*nonceInfo
+	rcLimit   rcInfo
 }
 
 // NewExecutionEnvironment creates a new ExecutionEnvironment object
@@ -55,7 +77,111 @@ func NewExecutionEnvironment(rpcClient *rpc.KoinosRPCClient, parser *CommandPars
 		Parser:    parser,
 		Contracts: make(map[string]*ContractInfo),
 		Session:   &TransactionSession{},
+		nonceMap:  make(map[string]*nonceInfo),
+		rcLimit:   rcInfo{value: 1.0, absolute: false},
 	}
+}
+
+// OpenWallet opens a wallet
+func (ee *ExecutionEnvironment) OpenWallet(key *util.KoinosKey) {
+	ee.Key = key
+}
+
+// CloseWallet closes the wallet
+func (ee *ExecutionEnvironment) CloseWallet() {
+	ee.Key = nil
+}
+
+// ResetNonce resets the nonce
+func (ee *ExecutionEnvironment) ResetNonce() {
+	if nInfo, exists := ee.nonceMap[string(ee.Key.AddressBytes())]; exists {
+		atomic.StoreUint64(&nInfo.currentNonce, 0)
+		nInfo.nonceTime = time.Time{}
+	}
+}
+
+// GetNonce returns the current nonce
+func (ee *ExecutionEnvironment) GetNonce() (uint64, error) {
+	nInfo, exists := ee.nonceMap[string(ee.Key.AddressBytes())]
+
+	if !exists {
+		nInfo = &nonceInfo{}
+		ee.nonceMap[string(ee.Key.AddressBytes())] = nInfo
+	}
+
+	if nInfo.nonceTime.IsZero() || time.Now().Sub(nInfo.nonceTime) > NonceCheckTime {
+		nonce, err := ee.RPCClient.GetAccountNonce(ee.Key.AddressBytes())
+		if err != nil {
+			return 0, err
+		}
+
+		atomic.StoreUint64(&nInfo.currentNonce, nonce)
+	}
+
+	nInfo.nonceTime = time.Now()
+
+	atomic.AddUint64(&nInfo.currentNonce, 1)
+	return nInfo.currentNonce, nil
+}
+
+// GetRcLimit returns the current RC limit
+func (ee *ExecutionEnvironment) GetRcLimit() (uint64, error) {
+	if ee.rcLimit.absolute {
+		dAmount := decimal.NewFromFloat(ee.rcLimit.value)
+
+		val, err := util.DecimalToSatoshi(&dAmount, cliutil.KoinPrecision)
+		if err != nil {
+			return 0, fmt.Errorf("%w: %s", cliutil.ErrInvalidAmount, err.Error())
+		}
+
+		return uint64(val), nil
+	}
+
+	// else it's relative
+	limit, err := ee.RPCClient.GetAccountRc(ee.Key.AddressBytes())
+	if err != nil {
+		return 0, err
+	}
+
+	val := uint64(float64(limit) * ee.rcLimit.value)
+	return val, nil
+}
+
+// SubmitTransaction is a utility function to submit a transaction from a command
+func (ee *ExecutionEnvironment) SubmitTransaction(result *ExecutionResult, ops ...*protocol.Operation) error {
+	// Fetch the nonce
+	subParams, err := ee.GetSubmissionParams()
+	if err != nil {
+		return err
+	}
+
+	receipt, err := ee.RPCClient.SubmitTransaction(ops, ee.Key, subParams)
+	if err != nil {
+		ee.ResetNonce()
+		return err
+	}
+
+	result.AddMessage(cliutil.TransactionReceiptToString(receipt, len(ops)))
+
+	return nil
+}
+
+// GetSubmissionParams returns the submission parameters for a command
+func (ee *ExecutionEnvironment) GetSubmissionParams() (*rpc.SubmissionParams, error) {
+	nonce, err := ee.GetNonce()
+	if err != nil {
+		return nil, err
+	}
+
+	rcLimit, err := ee.GetRcLimit()
+	if err != nil {
+		return nil, err
+	}
+
+	return &rpc.SubmissionParams{
+		Nonce:   nonce,
+		RCLimit: rcLimit,
+	}, nil
 }
 
 // IsWalletOpen returns a bool representing whether or not there is an open wallet

@@ -355,22 +355,21 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 
 	textMsg, _ := text.Marshal(msg)
 
-	er := NewExecutionResult()
-	er.AddMessage(fmt.Sprintf("Calling %s with arguments '%s'", c.ParseResult.CommandName, textMsg))
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Calling %s with arguments '%s'", c.ParseResult.CommandName, textMsg))
 
 	logMessage := fmt.Sprintf("Call %s with arguments '%s'", c.ParseResult.CommandName, textMsg)
 
 	err = ee.Session.AddOperation(op, logMessage)
 	if err == nil {
-		er.AddMessage("Adding operation to transaction session")
+		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		receipt, err := ee.RPCClient.SubmitTransaction([]*protocol.Operation{op}, ee.Key)
+		err := ee.SubmitTransaction(result, op)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot make call, %w", err)
 		}
-		er.AddMessage(cliutil.TransactionReceiptToString(receipt, 1))
 	}
 
-	return er, nil
+	return result, nil
 }
