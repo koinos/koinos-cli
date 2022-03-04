@@ -10,6 +10,7 @@ import (
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	util "github.com/koinos/koinos-util-golang"
 	"github.com/koinos/koinos-util-golang/rpc"
+	"github.com/shopspring/decimal"
 )
 
 // Command execution code
@@ -48,6 +49,11 @@ func (er *ExecutionResult) Print() {
 	}
 }
 
+type rcInfo struct {
+	value    float64
+	absolute bool
+}
+
 type nonceInfo struct {
 	currentNonce uint64
 	nonceTime    time.Time
@@ -61,6 +67,7 @@ type ExecutionEnvironment struct {
 	Contracts Contracts
 	Session   *TransactionSession
 	nonceMap  map[string]*nonceInfo
+	rcLimit   rcInfo
 }
 
 // NewExecutionEnvironment creates a new ExecutionEnvironment object
@@ -71,6 +78,7 @@ func NewExecutionEnvironment(rpcClient *rpc.KoinosRPCClient, parser *CommandPars
 		Contracts: make(map[string]*ContractInfo),
 		Session:   &TransactionSession{},
 		nonceMap:  make(map[string]*nonceInfo),
+		rcLimit:   rcInfo{value: 1.0, absolute: false},
 	}
 }
 
@@ -118,7 +126,25 @@ func (ee *ExecutionEnvironment) GetNonce() (uint64, error) {
 
 // GetRcLimit returns the current RC limit
 func (ee *ExecutionEnvironment) GetRcLimit() (uint64, error) {
-	return ee.RPCClient.GetAccountRc(ee.Key.AddressBytes())
+	if ee.rcLimit.absolute {
+		dAmount := decimal.NewFromFloat(ee.rcLimit.value)
+
+		val, err := util.DecimalToSatoshi(&dAmount, cliutil.KoinPrecision)
+		if err != nil {
+			return 0, fmt.Errorf("%w: %s", cliutil.ErrInvalidAmount, err.Error())
+		}
+
+		return uint64(val), nil
+	}
+
+	// else it's relative
+	limit, err := ee.RPCClient.GetAccountRc(ee.Key.AddressBytes())
+	if err != nil {
+		return 0, err
+	}
+
+	val := uint64(float64(limit) * ee.rcLimit.value)
+	return val, nil
 }
 
 // SubmitTransaction is a utility function to submit a transaction from a command

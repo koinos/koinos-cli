@@ -111,6 +111,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file", false, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("unlock", "Open a wallet file", true, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("private", "Show the currently opened wallet's private key", false, NewPrivateCommand))
+	cs.AddCommand(NewCommandDeclaration("rclimit", "Set or show the current rc limit. Give no limit to see current calue. Give limit as either mana for a percent (i.e. 80%).", false, NewRcLimitCommand, *NewOptionalCommandArg("limit", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("read", "Read from a smart contract", false, NewReadCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("register", "Register a smart contract's commands", false, NewRegisterCommand, *NewCommandArg("name", StringArg), *NewCommandArg("address", AddressArg), *NewOptionalCommandArg("abi-filename", FileArg)))
 	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("value", AmountArg), *NewCommandArg("to", AddressArg)))
@@ -731,6 +732,83 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Opened wallet: %s", c.Filename))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// RcLimit Command
+// ----------------------------------------------------------------------------
+
+// ConnectCommand is a command that connects to an RPC endpoint
+type RcLimitCommand struct {
+	limit *string
+}
+
+// NewConnectCommand creates a new connect object
+func NewRcLimitCommand(inv *CommandParseResult) Command {
+	return &RcLimitCommand{limit: inv.Args["limit"]}
+}
+
+// Execute connects to an RPC endpoint
+func (c *RcLimitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	result := NewExecutionResult()
+	// If no limit given, display current
+	if c.limit == nil {
+		if ee.rcLimit.absolute {
+			result.AddMessage(fmt.Sprintf("Current rc limit: %f", ee.rcLimit.value))
+			return result, nil
+		}
+
+		// Otherwise its relative
+		if !ee.IsOnline() || !ee.IsWalletOpen() {
+			result.AddMessage(fmt.Sprintf("Current rc limit: %f%%", ee.rcLimit.value*100))
+			return result, nil
+		}
+
+		limit, err := ee.RPCClient.GetAccountRc(ee.Key.AddressBytes())
+		if err != nil {
+			return nil, err
+		}
+
+		dAmount, err := util.SatoshiToDecimal(int64(limit), cliutil.KoinPrecision)
+		if err != nil {
+			return nil, err
+		}
+
+		f, _ := dAmount.Mul(decimal.NewFromFloat(ee.rcLimit.value)).Float64()
+		result.AddMessage(fmt.Sprintf("Current rc limit: %f%% (%f)", ee.rcLimit.value*100, f))
+		return result, nil
+	}
+
+	// Otherwise we are setting the limit
+	s := *c.limit
+	if s[len(s)-1] == '%' {
+		res, err := strconv.ParseFloat(s[:len(s)-1], 64)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check bounds
+		if res < 0 || res > 100 {
+			return nil, fmt.Errorf("%w: percentage rc limit must be between 0%% and 100%%", cliutil.ErrInvalidParam)
+		}
+
+		ee.rcLimit.value = res / 100.0
+		ee.rcLimit.absolute = false
+		result.AddMessage(fmt.Sprintf("Set rc limit to %f%%", res))
+		return result, nil
+	}
+
+	// Otherwise we are setting the absolute limit
+	res, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	ee.rcLimit.value = res
+	ee.rcLimit.absolute = true
+	result.AddMessage(fmt.Sprintf("Set rc limit to %f", res))
 
 	return result, nil
 }
