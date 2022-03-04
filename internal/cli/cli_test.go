@@ -58,6 +58,7 @@ func makeTestParser() *CommandParser {
 		*NewCommandArg("bool", BoolArg), *NewCommandArg("amount", AmountArg)))
 	cs.AddCommand(NewCommandDeclaration("test_transfer", "Test command which looks like transfer", false, nil, *NewCommandArg("amount", AmountArg),
 		*NewCommandArg("amount", AddressArg)))
+	cs.AddCommand(NewCommandDeclaration("test_hex", "Test command which takes a hex argument", false, nil, *NewCommandArg("hex", HexArg)))
 
 	parser := NewCommandParser(cs)
 
@@ -120,6 +121,12 @@ func TestBasicParser(t *testing.T) {
 
 	if results.Len() != 0 {
 		t.Error("Expected 0 results, got", results.Len())
+	}
+
+	// Test hex parsing
+	results, err = parser.Parse("test_hex 0x0123456789abcdef")
+	if err != nil {
+		t.Error(err)
 	}
 }
 

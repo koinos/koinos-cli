@@ -88,7 +88,7 @@ func (ee *ExecutionEnvironment) CloseWallet() {
 func (ee *ExecutionEnvironment) ResetNonce() {
 	if nInfo, exists := ee.nonceMap[string(ee.Key.AddressBytes())]; exists {
 		atomic.StoreUint64(&nInfo.currentNonce, 0)
-		nInfo.nonceTime = time.Now()
+		nInfo.nonceTime = time.Time{}
 	}
 }
 
@@ -154,7 +154,7 @@ func (ee *ExecutionEnvironment) GetSubmissionParams() (*rpc.SubmissionParams, er
 
 	return &rpc.SubmissionParams{
 		Nonce:   nonce,
-		RCLimit: rcLimit / 1000,
+		RCLimit: rcLimit,
 	}, nil
 }
 
