@@ -750,7 +750,7 @@ func NewRcLimitCommand(inv *CommandParseResult) Command {
 	return &RcLimitCommand{limit: inv.Args["limit"]}
 }
 
-// Execute connects to an RPC endpoint
+// Execute handles the rc limit command
 func (c *RcLimitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	result := NewExecutionResult()
 	// If no limit given, display current
