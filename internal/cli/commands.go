@@ -949,8 +949,9 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	}
 
 	// Ensure a transfer greater than opened account balance
+
 	if int64(balance) <= sAmount {
-		return nil, fmt.Errorf("%w: insufficient balance %s %s on opened wallet %s, cannot transfer %s %s", cliutil.ErrInvalidAmount, dBalance, cliutil.KoinSymbol, myAddress, dAmount, cliutil.KoinSymbol)
+		return nil, fmt.Errorf("%w: insufficient balance %s %s on opened wallet %s, cannot transfer %s %s", cliutil.ErrInvalidAmount, dBalance, cliutil.KoinSymbol, base58.Encode(myAddress), dAmount, cliutil.KoinSymbol)
 	}
 
 	toAddress := base58.Decode(c.Address)
