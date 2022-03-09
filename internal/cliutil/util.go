@@ -14,7 +14,7 @@ import (
 
 const (
 	// Version number (this should probably not live here)
-	Version = "v0.2.0"
+	Version = "v0.3.1"
 )
 
 // Hardcoded Koin contract constants
@@ -45,7 +45,7 @@ func TransactionReceiptToString(receipt *protocol.TransactionReceipt, operations
 	}
 
 	// Build the mana result
-	manaDec, err := util.SatoshiToDecimal(int64(receipt.RcUsed), KoinPrecision)
+	manaDec, err := util.SatoshiToDecimal(receipt.RcUsed, KoinPrecision)
 	if err != nil {
 		s += "\n" + err.Error()
 		return s
