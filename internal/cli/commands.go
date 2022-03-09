@@ -178,7 +178,7 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	balance, err := ee.RPCClient.GetAccountBalance(address, contractID, cliutil.KoinBalanceOfEntry)
 
 	// Build the result
-	dec, err := util.SatoshiToDecimal(int64(balance), cliutil.KoinPrecision)
+	dec, err := util.SatoshiToDecimal(balance, cliutil.KoinPrecision)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +190,7 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	// Build the mana result
-	manaDec, err := util.SatoshiToDecimal(int64(mana), cliutil.KoinPrecision)
+	manaDec, err := util.SatoshiToDecimal(mana, cliutil.KoinPrecision)
 	if err != nil {
 		return nil, err
 	}
@@ -771,7 +771,7 @@ func (c *RcLimitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 			return nil, err
 		}
 
-		dAmount, err := util.SatoshiToDecimal(int64(limit), cliutil.KoinPrecision)
+		dAmount, err := util.SatoshiToDecimal(limit, cliutil.KoinPrecision)
 		if err != nil {
 			return nil, err
 		}
@@ -943,14 +943,14 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	if err != nil {
 		return nil, err
 	}
-	dBalance, err := util.SatoshiToDecimal(int64(balance), cliutil.KoinPrecision)
+	dBalance, err := util.SatoshiToDecimal(balance, cliutil.KoinPrecision)
 	if err != nil {
 		return nil, err
 	}
 
 	// Ensure a transfer greater than opened account balance
 
-	if int64(balance) <= sAmount {
+	if balance <= sAmount {
 		return nil, fmt.Errorf("%w: insufficient balance %s %s on opened wallet %s, cannot transfer %s %s", cliutil.ErrInvalidAmount, dBalance, cliutil.KoinSymbol, base58.Encode(myAddress), dAmount, cliutil.KoinSymbol)
 	}
 

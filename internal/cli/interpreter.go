@@ -134,7 +134,7 @@ func (ee *ExecutionEnvironment) GetRcLimit() (uint64, error) {
 			return 0, fmt.Errorf("%w: %s", cliutil.ErrInvalidAmount, err.Error())
 		}
 
-		return uint64(val), nil
+		return val, nil
 	}
 
 	// else it's relative
