@@ -106,7 +106,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("help", "Show help on a given command", false, NewHelpCommand, *NewCommandArg("command", CmdNameArg)))
 	cs.AddCommand(NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", StringArg), *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("list", "List available commands", false, NewListCommand))
-	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("abi-filename", FileArg), *NewOptionalCommandArg("authorize-override-call-contract", BoolArg), *NewOptionalCommandArg("authorize-override-transaction-application", BoolArg), *NewOptionalCommandArg("authorize-override-upload-contract", BoolArg)))
+	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("abi-filename", FileArg), *NewOptionalCommandArg("override-authorize-call-contract", BoolArg), *NewOptionalCommandArg("override-authorize-transaction-application", BoolArg), *NewOptionalCommandArg("override-authorize-upload-contract", BoolArg)))
 	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", HexArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file (unlock also works)", false, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("unlock", "Synonym for open", true, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
@@ -351,9 +351,9 @@ func NewUploadContractCommand(inv *CommandParseResult) Command {
 	return &UploadContractCommand{
 		Filename:                         *inv.Args["filename"],
 		ABIFilename:                      inv.Args["abi-filename"],
-		AuthorizesCallContract:           inv.Args["authorize-override-call-contract"],
-		AuthorizesTransactionApplication: inv.Args["authorize-override-transaction-application"],
-		AuthorizesUploadContract:         inv.Args["authorize-override-upload-contract"],
+		AuthorizesCallContract:           inv.Args["override-authorize-call-contract"],
+		AuthorizesTransactionApplication: inv.Args["override-authorize-transaction-application"],
+		AuthorizesUploadContract:         inv.Args["override-authorize-upload-contract"],
 	}
 }
 
