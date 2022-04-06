@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	util "github.com/koinos/koinos-util-golang"
+	"github.com/koinos/koinos-util-golang/rpc"
 	"github.com/minio/sio"
 )
 
@@ -144,4 +147,14 @@ func GetPassword(password *string) (string, error) {
 	}
 
 	return result, nil
+}
+
+func AddLogsToError(err error) error {
+	var rpcErr rpc.KoinosRPCError
+
+	if errors.As(err, &rpcErr) && len(rpcErr.Logs) > 0 {
+		return fmt.Errorf("%w\n\nlogs:\n - %s", strings.Join(rpcErr.Logs, "\n - "))
+	}
+
+	return err
 }

@@ -8,8 +8,8 @@ require (
 	github.com/c-bata/go-prompt v0.2.6-0.20210301180729-8aae7fb1a6f9
 	github.com/ethereum/go-ethereum v1.10.9
 	github.com/joho/godotenv v1.3.0
-	github.com/koinos/koinos-proto-golang v0.2.1-0.20220224180227-6fbc5fe4a89a
-	github.com/koinos/koinos-util-golang v0.0.0-20220309184603-4faf8205b8ed
+	github.com/koinos/koinos-proto-golang v0.3.1-0.20220401182752-3551cd2e289f
+	github.com/koinos/koinos-util-golang v0.0.0-20220406201011-5df580ccdd47
 	github.com/minio/sio v0.3.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multihash v0.1.0

@@ -258,6 +258,8 @@ github.com/koinos/koinos-proto-golang v0.2.1-0.20220203004644-1d7ca7362b45 h1:9z
 github.com/koinos/koinos-proto-golang v0.2.1-0.20220203004644-1d7ca7362b45/go.mod h1:ZonOOdmZcuEbRdOqqdfYRA2I4szYHy5aKzUveMWXBog=
 github.com/koinos/koinos-proto-golang v0.2.1-0.20220224180227-6fbc5fe4a89a h1:3Htl8NnPsoSaHhzJhROeQiAyFIcGwsobypAkvysKGvg=
 github.com/koinos/koinos-proto-golang v0.2.1-0.20220224180227-6fbc5fe4a89a/go.mod h1:ZonOOdmZcuEbRdOqqdfYRA2I4szYHy5aKzUveMWXBog=
+github.com/koinos/koinos-proto-golang v0.3.1-0.20220401182752-3551cd2e289f h1:rMdwQUgMy+yBtGkcCTOEcSP5lU2edAahfH8G3UrBW+Q=
+github.com/koinos/koinos-proto-golang v0.3.1-0.20220401182752-3551cd2e289f/go.mod h1:ZonOOdmZcuEbRdOqqdfYRA2I4szYHy5aKzUveMWXBog=
 github.com/koinos/koinos-util-golang v0.0.0-20210909225633-da2fb456bade h1:qiTxIjQpu3xo4dm6QCp0EmN0PnhR/VsA3yyu5USMZA4=
 github.com/koinos/koinos-util-golang v0.0.0-20210909225633-da2fb456bade/go.mod h1:3NWXUf07ZUBOBYzU7r+aG34kA2bI0Y/kLXaZyF1Y7q4=
 github.com/koinos/koinos-util-golang v0.0.0-20220125232647-558189fe5a87 h1:ugaYiI+qyxLHWhini1mWfsrsdOz9NsrAoRJQxZKiQ2U=
@@ -282,6 +284,18 @@ github.com/koinos/koinos-util-golang v0.0.0-20220301215016-a6dd44e1b886 h1:aCqco
 github.com/koinos/koinos-util-golang v0.0.0-20220301215016-a6dd44e1b886/go.mod h1:0+oSa/Ml9+INjfAGubMtKNOq+e4a/OoEz7GfaQPN/P8=
 github.com/koinos/koinos-util-golang v0.0.0-20220309184603-4faf8205b8ed h1:Zga+bkh2cIoD/J/qZZLoOt/F/UHRBz9o5i1PlaTuWGw=
 github.com/koinos/koinos-util-golang v0.0.0-20220309184603-4faf8205b8ed/go.mod h1:0+oSa/Ml9+INjfAGubMtKNOq+e4a/OoEz7GfaQPN/P8=
+github.com/koinos/koinos-util-golang v0.0.0-20220406184806-a7a3da632ae9 h1:oR3wnG/p03qNt8oD3MC5mHYSusdVJBsWtBu09pSNELA=
+github.com/koinos/koinos-util-golang v0.0.0-20220406184806-a7a3da632ae9/go.mod h1:0+oSa/Ml9+INjfAGubMtKNOq+e4a/OoEz7GfaQPN/P8=
+github.com/koinos/koinos-util-golang v0.0.0-20220406185545-eae9b65ec8b7 h1:VLoVwXuGUBVsTeI979AP+dpvN6osU4CD9hwT092evbw=
+github.com/koinos/koinos-util-golang v0.0.0-20220406185545-eae9b65ec8b7/go.mod h1:0+oSa/Ml9+INjfAGubMtKNOq+e4a/OoEz7GfaQPN/P8=
+github.com/koinos/koinos-util-golang v0.0.0-20220406191055-50b75d0e63b7 h1:RL73tXLJg2mqDOmdjbshDZhMfk3sTlG44wHmNJvAh8M=
+github.com/koinos/koinos-util-golang v0.0.0-20220406191055-50b75d0e63b7/go.mod h1:0+oSa/Ml9+INjfAGubMtKNOq+e4a/OoEz7GfaQPN/P8=
+github.com/koinos/koinos-util-golang v0.0.0-20220406194424-0ec07584c758 h1:LHWek1pdEVANtdmQJUYRbGuO+H2Mzb0kkeGanxq56ps=
+github.com/koinos/koinos-util-golang v0.0.0-20220406194424-0ec07584c758/go.mod h1:0+oSa/Ml9+INjfAGubMtKNOq+e4a/OoEz7GfaQPN/P8=
+github.com/koinos/koinos-util-golang v0.0.0-20220406200502-45d2fbbe5cf5 h1:QAGIR440O2iNYa/uYIJBJymW9x8lzwOtBPHQS1NJcJo=
+github.com/koinos/koinos-util-golang v0.0.0-20220406200502-45d2fbbe5cf5/go.mod h1:0+oSa/Ml9+INjfAGubMtKNOq+e4a/OoEz7GfaQPN/P8=
+github.com/koinos/koinos-util-golang v0.0.0-20220406201011-5df580ccdd47 h1:otXjy3JqsIKTpXUC/PRD9x0ooBVL2OYBSuGs90LIB78=
+github.com/koinos/koinos-util-golang v0.0.0-20220406201011-5df580ccdd47/go.mod h1:0+oSa/Ml9+INjfAGubMtKNOq+e4a/OoEz7GfaQPN/P8=
 github.com/koinos/protobuf-go v1.27.2-0.20211016005428-adb3d63afc5e h1:e92AS0/Aklop09SUlZXIaKJKMAtFsp1bMCf8SKRdVVE=
 github.com/koinos/protobuf-go v1.27.2-0.20211016005428-adb3d63afc5e/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
 github.com/koinos/protobuf-go v1.27.2-0.20211026185306-2456c83214fe h1:PJ+2AnN4ibN2WxldiClplZZosQNPnXj7S5vOeFNtV+M=

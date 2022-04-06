@@ -358,6 +358,7 @@ func (pr *ParseResults) Metrics() *ParseResultMetrics {
 func ParseAndInterpret(parser *CommandParser, ee *ExecutionEnvironment, input string) *InterpretResults {
 	result, err := parser.Parse(input)
 	if err != nil {
+		err = cliutil.AddLogsToError(err)
 		o := NewInterpretResults()
 		o.AddResult(err.Error())
 		metrics := result.Metrics()

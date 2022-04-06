@@ -116,6 +116,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("register", "Register a smart contract's commands", false, NewRegisterCommand, *NewCommandArg("name", StringArg), *NewCommandArg("address", AddressArg), *NewOptionalCommandArg("abi-filename", FileArg)))
 	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("value", AmountArg), *NewCommandArg("to", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", AddressArg), *NewCommandArg("entry-point", HexArg)))
+	cs.AddCommand(NewCommandDeclaration("set_system_call_thunk", "Set a system call to a thunk", false, NewSetSystemCallThunkCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("thunk-id", UIntArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_contract", "Change a contract's permission level between user and system", false, NewSetSystemContractCommand, *NewCommandArg("contract-id", AddressArg), *NewCommandArg("system-contract", BoolArg)))
 	cs.AddCommand(NewCommandDeclaration("session", "Create or manage a transaction session (begin, submit, cancel, or view)", false, NewSessionCommand, *NewCommandArg("command", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("sleep", "Sleep for the given number seconds", true, NewSleepCommand, *NewCommandArg("seconds", AmountArg)))
@@ -1066,6 +1067,78 @@ func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 	result.AddMessage(fmt.Sprintf("Setting system call %s to contract %s at entry point %s", c.SystemCall, c.ContractID, c.EntryPoint))
 
 	err = ee.Session.AddOperation(op, fmt.Sprintf("Set system call %s to contract %s at entry point %s", c.SystemCall, c.ContractID, c.EntryPoint))
+	if err == nil {
+		result.AddMessage("Adding operation to transaction session")
+	}
+	if err != nil {
+		err := ee.SubmitTransaction(result, op)
+		if err != nil {
+			return nil, fmt.Errorf("cannot set system call, %w", err)
+		}
+	}
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// SetSystemCallThunk Command
+// ----------------------------------------------------------------------------
+
+// SetSystemCallThunkCommand is a command that sets a system call to a new contract and entry point
+type SetSystemCallThunkCommand struct {
+	SystemCall string
+	ThunkID    string
+}
+
+// NewSetSystemCallCommand calls a contract method
+func NewSetSystemCallThunkCommand(inv *CommandParseResult) Command {
+	return &SetSystemCallThunkCommand{
+		SystemCall: *inv.Args["system-call"],
+		ThunkID:    *inv.Args["thunk-id"],
+	}
+}
+
+// Execute a contract call
+func (c *SetSystemCallThunkCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot call contract", cliutil.ErrWalletClosed)
+	}
+
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot call contract", cliutil.ErrOffline)
+	}
+
+	systemCall, err := strconv.ParseUint(c.SystemCall, 10, 32)
+	if err != nil {
+		if sysCall, ok := chain.SystemCallId_value[c.SystemCall]; ok {
+			systemCall = uint64(sysCall)
+		} else {
+			return nil, fmt.Errorf("no system call: %s", c.SystemCall)
+		}
+	}
+
+	thunkId, err := strconv.ParseUint(c.ThunkID, 10, 32)
+	if err != nil {
+		return nil, err
+	}
+
+	op := &protocol.Operation{
+		Op: &protocol.Operation_SetSystemCall{
+			SetSystemCall: &protocol.SetSystemCallOperation{
+				CallId: uint32(systemCall),
+				Target: &protocol.SystemCallTarget{
+					Target: &protocol.SystemCallTarget_ThunkId{
+						ThunkId: uint32(thunkId),
+					},
+				},
+			},
+		},
+	}
+
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Setting system call %s to thunk %v", c.SystemCall, c.ThunkID))
+
+	err = ee.Session.AddOperation(op, fmt.Sprintf("Set system call %s to thunk %v", c.SystemCall, c.ThunkID))
 	if err == nil {
 		result.AddMessage("Adding operation to transaction session")
 	}

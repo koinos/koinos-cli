@@ -5,16 +5,19 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/encoding/text"
 	"github.com/koinos/koinos-proto-golang/koinos"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
+	"github.com/koinos/koinos-util-golang/rpc"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
@@ -367,7 +370,14 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 	if err != nil {
 		err := ee.SubmitTransaction(result, op)
 		if err != nil {
-			return nil, fmt.Errorf("cannot make call, %w", err)
+			var rpcErr rpc.KoinosRPCError
+			var logs string
+
+			if errors.As(err, &rpcErr) && len(rpcErr.Logs) > 0 {
+				logs = fmt.Sprintf("\n\nlogs:\n - %s", strings.Join(rpcErr.Logs, "\n - "))
+			}
+
+			return nil, fmt.Errorf("cannot make call, %w%s", err, logs)
 		}
 	}
 
