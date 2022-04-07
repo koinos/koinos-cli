@@ -11,7 +11,6 @@ import (
 	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/koinos"
 	util "github.com/koinos/koinos-util-golang"
-	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -324,11 +323,5 @@ func ParseResultToMessage(cmd *CommandParseResult, contracts Contracts) (proto.M
 		return nil, err
 	}
 
-	msg, err := DataToMessage(cmd.Args, md)
-	t, err := prototext.Marshal(msg)
-	if err != nil {
-		fmt.Println("ERROR")
-	}
-	fmt.Println(string(t))
-	return msg, err
+	return DataToMessage(cmd.Args, md)
 }
