@@ -11,6 +11,7 @@ import (
 	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/koinos"
 	util "github.com/koinos/koinos-util-golang"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -219,7 +220,11 @@ func DataToMessage(data map[string]*string, md protoreflect.MessageDescriptor) (
 	for i := 0; i < l; i++ {
 		fd := md.Fields().Get(i)
 		name := string(fd.Name())
-		inputValue := *data[name]
+
+		inputValue := ""
+		if fd.Kind() != protoreflect.MessageKind {
+			inputValue = *data[name]
+		}
 
 		var value protoreflect.Value
 		switch fd.Kind() {
@@ -300,7 +305,6 @@ func DataToMessage(data map[string]*string, md protoreflect.MessageDescriptor) (
 				return nil, err
 			}
 			value = protoreflect.ValueOf(subMsg)
-			continue
 
 		default:
 			return nil, fmt.Errorf("%w: %s", cliutil.ErrUnsupportedType, fd.Kind().String())
@@ -320,5 +324,11 @@ func ParseResultToMessage(cmd *CommandParseResult, contracts Contracts) (proto.M
 		return nil, err
 	}
 
-	return DataToMessage(cmd.Args, md)
+	msg, err := DataToMessage(cmd.Args, md)
+	t, err := prototext.Marshal(msg)
+	if err != nil {
+		fmt.Println("ERROR")
+	}
+	fmt.Println(string(t))
+	return msg, err
 }
