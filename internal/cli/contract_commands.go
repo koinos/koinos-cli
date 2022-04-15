@@ -17,7 +17,6 @@ import (
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
@@ -74,48 +73,7 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 	}
 
-	fileMap := make(map[string]*descriptorpb.FileDescriptorProto)
-
-	// Add FieldOptions to protoregistry
-	fieldProtoFile := protodesc.ToFileDescriptorProto((&descriptorpb.FieldOptions{}).ProtoReflect().Descriptor().ParentFile())
-	fileMap[*fieldProtoFile.Name] = fieldProtoFile
-
-	optionsFile := protodesc.ToFileDescriptorProto((koinos.BytesType(0)).Descriptor().ParentFile())
-	fileMap[*optionsFile.Name] = optionsFile
-
-	commonFile := protodesc.ToFileDescriptorProto((&koinos.BlockTopology{}).ProtoReflect().Descriptor().ParentFile())
-	fileMap[*commonFile.Name] = commonFile
-
-	protocolFile := protodesc.ToFileDescriptorProto((&protocol.Block{}).ProtoReflect().Descriptor().ParentFile())
-	fileMap[*protocolFile.Name] = protocolFile
-
-	chainFile := protodesc.ToFileDescriptorProto((&koinos.BlockTopology{}).ProtoReflect().Descriptor().ParentFile())
-	fileMap[*chainFile.Name] = chainFile
-
-	var fds descriptorpb.FileDescriptorSet
-	err = proto.Unmarshal(abi.Types, &fds)
-	if err != nil {
-		fdProto := &descriptorpb.FileDescriptorProto{}
-		err := proto.Unmarshal(abi.Types, fdProto)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
-		}
-
-		fileMap[*fdProto.Name] = fdProto
-	} else {
-		for _, fdProto := range fds.GetFile() {
-			fileMap[*fdProto.Name] = fdProto
-		}
-	}
-
-	var protoFileOpts protodesc.FileOptions
-	fileDescriptorSet := &descriptorpb.FileDescriptorSet{}
-
-	for _, v := range fileMap {
-		fileDescriptorSet.File = append(fileDescriptorSet.File, v)
-	}
-
-	files, err := protoFileOpts.NewFiles(fileDescriptorSet)
+	files, err := abi.GetFiles()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 	}

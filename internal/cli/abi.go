@@ -10,8 +10,10 @@ import (
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/koinos"
+	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	util "github.com/koinos/koinos-util-golang"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -31,6 +33,51 @@ func (abi *ABI) GetMethod(name string) *ABIMethod {
 	}
 
 	return nil
+}
+
+func (abi *ABI) GetFiles() (*protoregistry.Files, error) {
+	fileMap := make(map[string]*descriptorpb.FileDescriptorProto)
+
+	// Add FieldOptions to protoregistry
+	fieldProtoFile := protodesc.ToFileDescriptorProto((&descriptorpb.FieldOptions{}).ProtoReflect().Descriptor().ParentFile())
+	fileMap[*fieldProtoFile.Name] = fieldProtoFile
+
+	optionsFile := protodesc.ToFileDescriptorProto((koinos.BytesType(0)).Descriptor().ParentFile())
+	fileMap[*optionsFile.Name] = optionsFile
+
+	commonFile := protodesc.ToFileDescriptorProto((&koinos.BlockTopology{}).ProtoReflect().Descriptor().ParentFile())
+	fileMap[*commonFile.Name] = commonFile
+
+	protocolFile := protodesc.ToFileDescriptorProto((&protocol.Block{}).ProtoReflect().Descriptor().ParentFile())
+	fileMap[*protocolFile.Name] = protocolFile
+
+	chainFile := protodesc.ToFileDescriptorProto((&koinos.BlockTopology{}).ProtoReflect().Descriptor().ParentFile())
+	fileMap[*chainFile.Name] = chainFile
+
+	var fds descriptorpb.FileDescriptorSet
+	err := proto.Unmarshal(abi.Types, &fds)
+	if err != nil {
+		fdProto := &descriptorpb.FileDescriptorProto{}
+		err := proto.Unmarshal(abi.Types, fdProto)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
+		}
+
+		fileMap[*fdProto.Name] = fdProto
+	} else {
+		for _, fdProto := range fds.GetFile() {
+			fileMap[*fdProto.Name] = fdProto
+		}
+	}
+
+	var protoFileOpts protodesc.FileOptions
+	fileDescriptorSet := &descriptorpb.FileDescriptorSet{}
+
+	for _, v := range fileMap {
+		fileDescriptorSet.File = append(fileDescriptorSet.File, v)
+	}
+
+	return protoFileOpts.NewFiles(fileDescriptorSet)
 }
 
 // ABIMethod represents an ABI method descriptor
@@ -155,11 +202,19 @@ func (c Contracts) Add(name string, address string, abi *ABI, files *protoregist
 
 // ParseABIFields takes a message decriptor and returns a slice of command arguments
 func ParseABIFields(md protoreflect.MessageDescriptor) ([]CommandArg, error) {
+	return parseABIFields(md, "")
+}
+
+// ParseABIFields takes a message decriptor and returns a slice of command arguments
+func parseABIFields(md protoreflect.MessageDescriptor, root string) ([]CommandArg, error) {
 	params := make([]CommandArg, 0)
 	l := md.Fields().Len()
 	for i := 0; i < l; i++ {
 		fd := md.Fields().Get(i)
 		name := string(fd.Name())
+		if root != "" {
+			name = root + "." + name
+		}
 
 		// Translate protobuf type to parser argument type
 		var t CommandArgType
@@ -194,7 +249,7 @@ func ParseABIFields(md protoreflect.MessageDescriptor) ([]CommandArg, error) {
 			}
 
 		case protoreflect.MessageKind:
-			cmds, err := ParseABIFields(fd.Message())
+			cmds, err := parseABIFields(fd.Message(), name)
 			if err != nil {
 				return nil, err
 			}
@@ -206,7 +261,6 @@ func ParseABIFields(md protoreflect.MessageDescriptor) ([]CommandArg, error) {
 		}
 
 		params = append(params, *NewCommandArg(name, t))
-
 	}
 
 	return params, nil
@@ -214,11 +268,18 @@ func ParseABIFields(md protoreflect.MessageDescriptor) ([]CommandArg, error) {
 
 // DataToMessage takes a map of parsed command data and a message descriptor, and returns a message
 func DataToMessage(data map[string]*string, md protoreflect.MessageDescriptor) (proto.Message, error) {
+	return dataToMessage(data, md, "")
+}
+
+func dataToMessage(data map[string]*string, md protoreflect.MessageDescriptor, root string) (proto.Message, error) {
 	msg := dynamicpb.NewMessage(md)
 	l := md.Fields().Len()
 	for i := 0; i < l; i++ {
 		fd := md.Fields().Get(i)
 		name := string(fd.Name())
+		if root != "" {
+			name = root + "." + name
+		}
 
 		inputValue := ""
 		if fd.Kind() != protoreflect.MessageKind {
@@ -299,7 +360,7 @@ func DataToMessage(data map[string]*string, md protoreflect.MessageDescriptor) (
 			value = protoreflect.ValueOfBytes(b)
 
 		case protoreflect.MessageKind:
-			subMsg, err := DataToMessage(data, fd.Message())
+			subMsg, err := dataToMessage(data, fd.Message(), name)
 			if err != nil {
 				return nil, err
 			}
