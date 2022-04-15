@@ -35,6 +35,7 @@ func (abi *ABI) GetMethod(name string) *ABIMethod {
 	return nil
 }
 
+// GetFiles returns the proto files of the contract
 func (abi *ABI) GetFiles() (*protoregistry.Files, error) {
 	fileMap := make(map[string]*descriptorpb.FileDescriptorProto)
 
