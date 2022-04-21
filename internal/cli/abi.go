@@ -10,6 +10,7 @@ import (
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/koinos"
+	"github.com/koinos/koinos-proto-golang/koinos/chain"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	util "github.com/koinos/koinos-util-golang"
 	"google.golang.org/protobuf/proto"
@@ -52,7 +53,7 @@ func (abi *ABI) GetFiles() (*protoregistry.Files, error) {
 	protocolFile := protodesc.ToFileDescriptorProto((&protocol.Block{}).ProtoReflect().Descriptor().ParentFile())
 	fileMap[*protocolFile.Name] = protocolFile
 
-	chainFile := protodesc.ToFileDescriptorProto((&koinos.BlockTopology{}).ProtoReflect().Descriptor().ParentFile())
+	chainFile := protodesc.ToFileDescriptorProto((&chain.DatabaseKey{}).ProtoReflect().Descriptor().ParentFile())
 	fileMap[*chainFile.Name] = chainFile
 
 	var fds descriptorpb.FileDescriptorSet

@@ -15,7 +15,6 @@ import (
 	"github.com/koinos/koinos-proto-golang/encoding/text"
 	"github.com/koinos/koinos-proto-golang/koinos"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
-	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -246,7 +245,7 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 		dMsg.Set(fd, value)
 	}
 
-	b, err := prototext.Marshal(dMsg)
+	b, err := text.Marshal(dMsg)
 	if err != nil {
 		return nil, err
 	}
