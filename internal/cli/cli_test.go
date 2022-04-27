@@ -128,6 +128,10 @@ func TestBasicParser(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	if results.Len() != 1 {
+		t.Error("Expected 1 result, got", results.Len())
+	}
 }
 
 func TestNonsensicalInput(t *testing.T) {
@@ -160,6 +164,10 @@ func TestNonsensicalInput(t *testing.T) {
 	results, err = parser.Parse("optional!")
 	if !errors.Is(err, cliutil.ErrInvalidParam) {
 		t.Error("Expected error", cliutil.ErrInvalidParam, ", got", err)
+	}
+
+	if results.Len() != 1 {
+		t.Error("Expected 1 result, got", results.Len())
 	}
 }
 

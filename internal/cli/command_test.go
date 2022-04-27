@@ -17,9 +17,6 @@ type RequestData struct {
 	body    string
 }
 
-// set the response body the httpServer should return for the next request
-var responseBody = ""
-
 var httpServer *httptest.Server
 
 // start the testhttp server and stop it when tests are finished

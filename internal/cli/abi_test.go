@@ -46,9 +46,13 @@ func loadABI(t *testing.T) *ABI {
 func loadContracts(t *testing.T) Contracts {
 	contracts := Contracts(make(map[string]*ContractInfo))
 	abi := loadABI(t)
+
 	files, err := abi.GetFiles()
 	assert.NoError(t, err)
-	contracts.Add("abi_test", "", abi, files)
+
+	err = contracts.Add("abi_test", "", abi, files)
+	assert.NoError(t, err)
+
 	return contracts
 }
 

@@ -120,7 +120,7 @@ func (kp *KoinosPrompt) executor(input string) {
 
 // Run runs interactive mode
 func (kp *KoinosPrompt) Run() {
-	fmt.Println(fmt.Sprintf("Koinos CLI %s", cliutil.Version))
+	fmt.Printf("Koinos CLI %s\n", cliutil.Version)
 	fmt.Println("Type \"list\" for a list of commands, \"help <command>\" for help on a specific command.")
 	kp.gPrompt.Run()
 }
