@@ -245,7 +245,7 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 		dMsg.Set(fd, value)
 	}
 
-	b, err := text.Marshal(dMsg)
+	b, err := text.MarshalPretty(dMsg)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +310,7 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		},
 	}
 
-	textMsg, _ := text.Marshal(msg)
+	textMsg, _ := text.MarshalPretty(msg)
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Calling %s with arguments '%s'", c.ParseResult.CommandName, textMsg))
