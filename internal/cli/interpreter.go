@@ -109,7 +109,7 @@ func (ee *ExecutionEnvironment) GetNonce() (uint64, error) {
 		ee.nonceMap[string(ee.Key.AddressBytes())] = nInfo
 	}
 
-	if nInfo.nonceTime.IsZero() || time.Now().Sub(nInfo.nonceTime) > NonceCheckTime {
+	if nInfo.nonceTime.IsZero() || time.Since(nInfo.nonceTime) > NonceCheckTime {
 		nonce, err := ee.RPCClient.GetAccountNonce(ee.Key.AddressBytes())
 		if err != nil {
 			return 0, err

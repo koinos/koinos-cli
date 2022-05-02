@@ -101,7 +101,7 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 			return nil, fmt.Errorf("%w: could not find type %s", cliutil.ErrInvalidABI, method.Argument)
 		}
 
-		md, ok = d.(protoreflect.MessageDescriptor)
+		_, ok = d.(protoreflect.MessageDescriptor)
 		if !ok {
 			return nil, fmt.Errorf("%w: %s is not a message", cliutil.ErrInvalidABI, method.Argument)
 		}
@@ -120,7 +120,10 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	}
 
 	// Register the contract
-	ee.Contracts.Add(c.Name, c.Address, &abi, files)
+	err = ee.Contracts.Add(c.Name, c.Address, &abi, files)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, cmd := range commands {
 		ee.Parser.Commands.AddCommand(cmd)
@@ -199,7 +202,7 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 
 		switch fd.Kind() {
 		case protoreflect.BytesKind:
-			b := []byte{}
+			var b []byte
 			var err error
 
 			opts := fd.Options()

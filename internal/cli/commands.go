@@ -176,6 +176,9 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	balance, err := ee.RPCClient.GetAccountBalance(address, contractID, cliutil.KoinBalanceOfEntry)
+	if err != nil {
+		return nil, err
+	}
 
 	// Build the result
 	dec, err := util.SatoshiToDecimal(balance, cliutil.KoinPrecision)
@@ -1207,7 +1210,10 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 			result.AddMessage("Cancelling transaction because session has 0 operations")
 		}
 
-		ee.Session.EndSession()
+		err = ee.Session.EndSession()
+		if err != nil {
+			return nil, fmt.Errorf("cannot end transaction session, %w", err)
+		}
 	case "cancel":
 		err := ee.Session.EndSession()
 		if err != nil {

@@ -329,7 +329,7 @@ func dataToMessage(data map[string]*string, md protoreflect.MessageDescriptor, r
 			value = protoreflect.ValueOfString(inputValue)
 
 		case protoreflect.BytesKind:
-			b := []byte{}
+			var b []byte
 			var err error
 
 			opts := fd.Options()
