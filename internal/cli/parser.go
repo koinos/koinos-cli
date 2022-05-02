@@ -17,6 +17,10 @@ const (
 	CommandTermination
 )
 
+const (
+	CommandNameTokens = `[a-zA-Z0-9_]`
+)
+
 // CommandArgType is an enum that defines the types of arguments a command can take
 type CommandArgType int
 
@@ -32,6 +36,7 @@ const (
 	BoolArg
 	HexArg
 	FileArg
+	ContractNameArg
 
 	// A parameter should never be declared as type nothing, this is only for parsing errors
 	NoArg
@@ -61,6 +66,8 @@ func (c *CommandArgType) String() string {
 		return "hex"
 	case NoArg:
 		return "none"
+	case ContractNameArg:
+		return "contract-name"
 
 	default:
 		return "unknown"
@@ -123,6 +130,7 @@ type CommandParser struct {
 
 	// Parser token recognizer regexps
 	commandNameRE  *regexp.Regexp
+	contractNameRE *regexp.Regexp
 	skipRE         *regexp.Regexp
 	terminatorRE   *regexp.Regexp
 	addressRE      *regexp.Regexp
@@ -141,7 +149,8 @@ func NewCommandParser(commands *CommandSet) *CommandParser {
 		Commands: commands,
 	}
 
-	parser.commandNameRE = regexp.MustCompile(`^([a-zA-Z0-9_]+\.)?[a-zA-Z0-9_]+`)
+	parser.contractNameRE = regexp.MustCompile(fmt.Sprintf(`^%s+`, CommandNameTokens))
+	parser.commandNameRE = regexp.MustCompile(fmt.Sprintf(`^(%s+\.)?%s+`, CommandNameTokens, CommandNameTokens))
 	parser.skipRE = regexp.MustCompile(`^\s*`)
 	parser.terminatorRE = regexp.MustCompile(`^(;|$)`)
 	parser.addressRE = regexp.MustCompile(`^[1-9A-HJ-NP-Za-km-z]+`)
@@ -267,6 +276,8 @@ func (p *CommandParser) parseArgs(input []byte, inv *CommandParseResult) ([]byte
 			match, l, err = p.parseAmount(input)
 		case CmdNameArg:
 			match, l, err = p.parseString(input)
+		case ContractNameArg:
+			match, l, err = p.parseContractName(input)
 		case FileArg:
 			match, l, err = p.parseString(input)
 		case UIntArg:
@@ -301,6 +312,16 @@ func (p *CommandParser) parseAddress(input []byte) ([]byte, int, error) {
 	m := p.addressRE.Find(input)
 	if m == nil {
 		return nil, 0, fmt.Errorf("%w", cliutil.ErrInvalidParam)
+	}
+
+	return m, len(m), nil
+}
+
+// Returns the matched contract name
+func (p *CommandParser) parseContractName(input []byte) ([]byte, int, error) {
+	m := p.contractNameRE.Find(input)
+	if m == nil {
+		return nil, 0, fmt.Errorf("%w: %s", cliutil.ErrInvalidParam, string(input))
 	}
 
 	return m, len(m), nil

@@ -43,6 +43,12 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		return nil, fmt.Errorf("%w: contract %s already exists", cliutil.ErrContract, c.Name)
 	}
 
+	// Ensure that the name is a valid command name
+	_, err := ee.Parser.parseCommandName([]byte(c.Name))
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid characters in contract name %s", cliutil.ErrContract, err)
+	}
+
 	// Get the ABI
 	var abiBytes []byte
 	if c.ABIFilename != nil { // If an ABI file was given, use it
@@ -67,7 +73,7 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	}
 
 	var abi ABI
-	err := json.Unmarshal(abiBytes, &abi)
+	err = json.Unmarshal(abiBytes, &abi)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 	}
