@@ -48,6 +48,7 @@ func makeTestParser() *CommandParser {
 
 	cs.AddCommand(NewCommandDeclaration("test_address", "Test command which takes an address", false, nil, *NewCommandArg("address", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("test_string", "Test command which takes a string", false, nil, *NewCommandArg("string", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("test_contract", "Test command which takes a contract name", false, nil, *NewCommandArg("name", ContractNameArg), *NewCommandArg("address", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("test_none", "Test command which takes no arguments", false, nil))
 	cs.AddCommand(NewCommandDeclaration("test_none2", "Another test command which takes no arguments", false, nil))
 	cs.AddCommand(NewCommandDeclaration("test_multi", "Test command which takes multiple arguments, and of different types", false, NewGenerateKeyCommand,
@@ -103,6 +104,15 @@ func TestBasicParser(t *testing.T) {
 	if results.CommandResults[0].CurrentArg != 0 {
 		t.Error("Expected current arg to be 0, got", results.CommandResults[0].CurrentArg)
 	}
+
+	results, err = parser.Parse("test_contract test_contract_name 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg")
+	assert.NoError(t, err)
+	assert.Len(t, results.CommandResults, 1)
+
+	results, err = parser.Parse("test_contract invalid-contract-name 1GbiqgoMhvkztWytizNPn8g5SvXrrYHQQg")
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, cliutil.ErrInvalidParam)
+	assert.Len(t, results.CommandResults, 1)
 
 	// Test parsing empty inputs
 	results, err = parser.Parse("")
