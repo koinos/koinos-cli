@@ -106,7 +106,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("help", "Show help on a given command", false, NewHelpCommand, *NewCommandArg("command", CmdNameArg)))
 	cs.AddCommand(NewCommandDeclaration("import", "Import a WIF private key to a new wallet file", false, NewImportCommand, *NewCommandArg("private-key", StringArg), *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("list", "List available commands", false, NewListCommand))
-	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("abi-filename", FileArg)))
+	cs.AddCommand(NewCommandDeclaration("upload", "Upload a smart contract", false, NewUploadContractCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("abi-filename", FileArg), *NewOptionalCommandArg("override-authorize-call-contract", BoolArg), *NewOptionalCommandArg("override-authorize-transaction-application", BoolArg), *NewOptionalCommandArg("override-authorize-upload-contract", BoolArg)))
 	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", HexArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file (unlock also works)", false, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("unlock", "Synonym for open", true, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
@@ -342,13 +342,22 @@ func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironme
 
 // UploadContractCommand is a command that uploads a smart contract
 type UploadContractCommand struct {
-	Filename    string
-	ABIFilename *string
+	Filename                         string
+	ABIFilename                      *string
+	AuthorizesCallContract           *string
+	AuthorizesTransactionApplication *string
+	AuthorizesUploadContract         *string
 }
 
 // NewUploadContractCommand creates an upload contract object
 func NewUploadContractCommand(inv *CommandParseResult) Command {
-	return &UploadContractCommand{Filename: *inv.Args["filename"], ABIFilename: inv.Args["abi-filename"]}
+	return &UploadContractCommand{
+		Filename:                         *inv.Args["filename"],
+		ABIFilename:                      inv.Args["abi-filename"],
+		AuthorizesCallContract:           inv.Args["override-authorize-call-contract"],
+		AuthorizesTransactionApplication: inv.Args["override-authorize-transaction-application"],
+		AuthorizesUploadContract:         inv.Args["override-authorize-upload-contract"],
+	}
 }
 
 // Execute calls a contract
@@ -395,6 +404,36 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 		}
 
 		uco.Abi = string(abiBytes)
+	}
+
+	// parse AuthorizesCallContract if given
+	if c.AuthorizesCallContract != nil {
+		authorizesCallContract, err := strconv.ParseBool(*c.AuthorizesCallContract)
+		if err != nil {
+			return nil, err
+		}
+
+		uco.AuthorizesCallContract = authorizesCallContract
+	}
+
+	// parse AuthorizesTransactionApplication if given
+	if c.AuthorizesTransactionApplication != nil {
+		authorizesTransactionApplication, err := strconv.ParseBool(*c.AuthorizesTransactionApplication)
+		if err != nil {
+			return nil, err
+		}
+
+		uco.AuthorizesTransactionApplication = authorizesTransactionApplication
+	}
+
+	// parse AuthorizesUploadContract if given
+	if c.AuthorizesUploadContract != nil {
+		authorizesUploadContract, err := strconv.ParseBool(*c.AuthorizesUploadContract)
+		if err != nil {
+			return nil, err
+		}
+
+		uco.AuthorizesUploadContract = authorizesUploadContract
 	}
 
 	// Make the operation object
