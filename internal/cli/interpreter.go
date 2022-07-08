@@ -155,7 +155,7 @@ func (ee *ExecutionEnvironment) SubmitTransaction(result *ExecutionResult, ops .
 		return err
 	}
 
-	receipt, err := ee.RPCClient.SubmitTransaction(ops, ee.Key, subParams)
+	receipt, err := ee.RPCClient.SubmitTransaction(ops, ee.Key, subParams, true)
 	if err != nil {
 		ee.ResetNonce()
 		return err
