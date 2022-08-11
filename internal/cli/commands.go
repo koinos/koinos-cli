@@ -111,6 +111,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file (unlock also works)", false, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("unlock", "Synonym for open", true, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("private", "Show the currently opened wallet's private key", false, NewPrivateCommand))
+	cs.AddCommand(NewCommandDeclaration("public", "Show the currently opened wallet's public key", false, NewPublicCommand))
 	cs.AddCommand(NewCommandDeclaration("rclimit", "Set or show the current rc limit. Give no limit to see current value. Give limit as either mana or a percent (i.e. 80%).", false, NewRcLimitCommand, *NewOptionalCommandArg("limit", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("read", "Read from a smart contract", false, NewReadCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("register", "Register a smart contract's commands", false, NewRegisterCommand, *NewCommandArg("name", ContractNameArg), *NewCommandArg("address", AddressArg), *NewOptionalCommandArg("abi-filename", FileArg)))
@@ -331,6 +332,7 @@ func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironme
 	result := NewExecutionResult()
 	result.AddMessage("New key generated\nThis is only shown once, make sure to record this information\n---")
 	result.AddMessage(fmt.Sprintf("Address: %s", base58.Encode(k.AddressBytes())))
+	result.AddMessage(fmt.Sprintf("Public : %s", base64.URLEncoding.EncodeToString(k.PublicBytes())))
 	result.AddMessage(fmt.Sprintf("Private: %s", k.Private()))
 
 	return result, nil
@@ -626,6 +628,31 @@ func (c *PrivateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Private key: %s", ee.Key.Private()))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Public Command
+// ----------------------------------------------------------------------------
+
+// PublicCommand is a command that shows the currently opened wallet's address and private key
+type PublicCommand struct {
+}
+
+// NewPublicCommand creates a new public command object
+func NewPublicCommand(inv *CommandParseResult) Command {
+	return &PublicCommand{}
+}
+
+// Execute shows wallet private key
+func (c *PublicCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot show public key", cliutil.ErrWalletClosed)
+	}
+
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Public key: %s", base64.URLEncoding.EncodeToString(ee.Key.PublicBytes())))
 
 	return result, nil
 }
