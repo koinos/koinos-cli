@@ -636,7 +636,7 @@ func (c *PrivateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 // Public Command
 // ----------------------------------------------------------------------------
 
-// PublicCommand is a command that shows the currently opened wallet's address and private key
+// PublicCommand is a command that shows the currently opened wallet's public
 type PublicCommand struct {
 }
 
@@ -645,7 +645,7 @@ func NewPublicCommand(inv *CommandParseResult) Command {
 	return &PublicCommand{}
 }
 
-// Execute shows wallet private key
+// Execute shows wallet public key
 func (c *PublicCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
 		return nil, fmt.Errorf("%w: cannot show public key", cliutil.ErrWalletClosed)
