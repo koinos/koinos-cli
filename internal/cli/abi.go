@@ -86,7 +86,7 @@ func (abi *ABI) GetFiles() (*protoregistry.Files, error) {
 type ABIMethod struct {
 	Argument    string `json:"argument"`
 	Return      string `json:"return"`
-	EntryPoint  string `json:"entry_point"`
+	EntryPoint  string `json:"entry-point"`
 	Description string `json:"description"`
 	ReadOnly    bool   `json:"read-only"`
 }
