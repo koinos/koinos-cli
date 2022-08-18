@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/c-bata/go-prompt"
-	"github.com/c-bata/go-prompt/completer"
+	"github.com/koinos/go-prompt"
+	"github.com/koinos/go-prompt/completer"
 	"github.com/koinos/koinos-cli/internal/cli"
 	"github.com/koinos/koinos-cli/internal/cliutil"
 )
