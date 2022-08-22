@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.0]
+
+### Added
+
+- `public` command which shows open wallet's public key
+- `generate` now shows public key
+
+### Changed
+
+- Fix terminal scrolling error
+- Many small parser fixes
+
 ## [v0.2.0]
 
 ### Added
