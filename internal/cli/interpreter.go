@@ -61,13 +61,14 @@ type nonceInfo struct {
 
 // ExecutionEnvironment is a struct that holds the environment for command execution.
 type ExecutionEnvironment struct {
-	RPCClient *rpc.KoinosRPCClient
-	Key       *util.KoinosKey
-	Parser    *CommandParser
-	Contracts Contracts
-	Session   *TransactionSession
-	nonceMap  map[string]*nonceInfo
-	rcLimit   rcInfo
+	RPCClient        *rpc.KoinosRPCClient
+	Key              *util.KoinosKey
+	Parser           *CommandParser
+	Contracts        Contracts
+	Session          *TransactionSession
+	CleanupCallbacks []func()
+	nonceMap         map[string]*nonceInfo
+	rcLimit          rcInfo
 }
 
 // NewExecutionEnvironment creates a new ExecutionEnvironment object
@@ -79,6 +80,18 @@ func NewExecutionEnvironment(rpcClient *rpc.KoinosRPCClient, parser *CommandPars
 		Session:   &TransactionSession{},
 		nonceMap:  make(map[string]*nonceInfo),
 		rcLimit:   rcInfo{value: 1.0, absolute: false},
+	}
+}
+
+// AddCleanupCallback adds a cleanup callback to the execution environment
+func (ee *ExecutionEnvironment) AddCleanupCallback(c func()) {
+	ee.CleanupCallbacks = append(ee.CleanupCallbacks, c)
+}
+
+// ExecuteCleanup executes the cleanup callbacks
+func (ee *ExecutionEnvironment) ExecuteCleanup() {
+	for _, c := range ee.CleanupCallbacks {
+		c()
 	}
 }
 

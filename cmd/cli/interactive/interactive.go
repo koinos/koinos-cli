@@ -1,6 +1,7 @@
 package interactive
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -9,6 +10,14 @@ import (
 	"github.com/koinos/go-prompt/completer"
 	"github.com/koinos/koinos-cli/internal/cli"
 	"github.com/koinos/koinos-cli/internal/cliutil"
+)
+
+const (
+	// HistoryFilename is the name of the history file
+	HistoryFilename = ".history"
+
+	// HistorySize is the maximum number of history entries to keep
+	HistorySize = 256
 )
 
 // KoinosPrompt is an object to manage interactive mode
@@ -35,6 +44,9 @@ func NewKoinosPrompt(parser *cli.CommandParser, execEnv *cli.ExecutionEnvironmen
 	kp.gPrompt = prompt.New(kp.executor, kp.completer, prompt.OptionLivePrefix(kp.changeLivePrefix), prompt.OptionCompletionWordSeparator(completer.FilePathCompletionSeparator))
 	kp.fPath = &completer.FilePathCompleter{}
 
+	// Open the history file
+	kp.LoadHistory()
+
 	// Check for terminal unicode support
 	lang := strings.ToUpper(os.Getenv("LANG"))
 	kp.unicodeSupport = strings.Contains(lang, "UTF")
@@ -55,6 +67,54 @@ func NewKoinosPrompt(parser *cli.CommandParser, execEnv *cli.ExecutionEnvironmen
 	}
 
 	return kp
+}
+
+// LoadHistory loads the history file if it exists
+func (kp *KoinosPrompt) LoadHistory() {
+	// Load history file
+	f, err := os.Open(HistoryFilename)
+
+	if err != nil {
+		return
+	}
+
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+
+	var i int
+	for scanner.Scan() {
+		kp.gPrompt.History.Add(scanner.Text())
+		i++
+		if i > HistorySize {
+			break
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Println(err)
+	}
+}
+
+// SaveHistory saves the history file
+func (kp *KoinosPrompt) SaveHistory() {
+	f, err := os.Create(HistoryFilename)
+
+	if err != nil {
+		return
+	}
+
+	defer f.Close()
+
+	for i, line := range kp.gPrompt.History.Histories {
+		// Skip old history beyond the limit
+		if (len(kp.gPrompt.History.Histories) - i) > HistorySize {
+			continue
+		}
+		f.WriteString(line + "\n")
+	}
+
+	f.Sync()
 }
 
 func (kp *KoinosPrompt) generateSuggestions() {
@@ -122,5 +182,17 @@ func (kp *KoinosPrompt) executor(input string) {
 func (kp *KoinosPrompt) Run() {
 	fmt.Printf("Koinos CLI %s\n", cliutil.Version)
 	fmt.Println("Type \"list\" for a list of commands, \"help <command>\" for help on a specific command.")
+	fmt.Println("Type \"exit\" or press Ctrl-D to exit.")
+
+	kp.execEnv.AddCleanupCallback(func() {
+		fmt.Println("Saving history...")
+		kp.SaveHistory()
+	})
+
+	kp.execEnv.AddCleanupCallback(func() {
+		fmt.Println("Goodbye!")
+	})
+
 	kp.gPrompt.Run()
+	kp.execEnv.ExecuteCleanup()
 }

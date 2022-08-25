@@ -235,6 +235,10 @@ github.com/koinos/go-prompt v0.0.0-20220817232646-7b4cedd27357 h1:TVaPfJnxwoCA0h
 github.com/koinos/go-prompt v0.0.0-20220817232646-7b4cedd27357/go.mod h1:Q5ndhnCeUQKAlYSUuBwte5tJxSTopTRmRs0kSl9vmMY=
 github.com/koinos/go-prompt v0.0.0-20220818181004-5b1028a45a2f h1:b7s6B0NyISu+/ZzetpsosTteAakr9oJEeGlA+oM3N8U=
 github.com/koinos/go-prompt v0.0.0-20220818181004-5b1028a45a2f/go.mod h1:Q5ndhnCeUQKAlYSUuBwte5tJxSTopTRmRs0kSl9vmMY=
+github.com/koinos/go-prompt v0.0.0-20220825200636-8689e45e757a h1:cm9J8ptqiz1WeE9ZWZORIhy49vuQcRHe4aC1zvx0Aag=
+github.com/koinos/go-prompt v0.0.0-20220825200636-8689e45e757a/go.mod h1:Q5ndhnCeUQKAlYSUuBwte5tJxSTopTRmRs0kSl9vmMY=
+github.com/koinos/go-prompt v0.0.0-20220825215123-a25854447560 h1:ASbSCQ9RcI5JqqXurOQe2FxOMPomll7CHcBYiSHWVM0=
+github.com/koinos/go-prompt v0.0.0-20220825215123-a25854447560/go.mod h1:Q5ndhnCeUQKAlYSUuBwte5tJxSTopTRmRs0kSl9vmMY=
 github.com/koinos/koinos-proto-golang v0.0.0-20210817202730-232f9d89dd0b/go.mod h1:X0JDk9LJhh3zXCTtKc0OLL9zUGbVk1HIGPKi/WLpFuE=
 github.com/koinos/koinos-proto-golang v0.0.0-20211001200544-80b8dee87b36 h1:iwP2gr/1I4TLAAx1sbvoyFLR3hf6HR4bG+aR+oxXEIM=
 github.com/koinos/koinos-proto-golang v0.0.0-20211001200544-80b8dee87b36/go.mod h1:za0qDhkL4SFoDhKW0ZGde/t+SkIHlM1DtT4u9yz98mw=

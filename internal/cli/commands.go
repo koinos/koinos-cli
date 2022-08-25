@@ -305,6 +305,7 @@ func NewExitCommand(inv *CommandParseResult) Command {
 
 // Execute exits the CLI
 func (c *ExitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	ee.ExecuteCleanup()
 	os.Exit(0)
 	return nil, nil
 }
