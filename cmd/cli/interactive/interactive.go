@@ -111,10 +111,16 @@ func (kp *KoinosPrompt) SaveHistory() {
 		if (len(kp.gPrompt.History.Histories) - i) > HistorySize {
 			continue
 		}
-		f.WriteString(line + "\n")
+		_, err := f.WriteString(line + "\n")
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 
-	f.Sync()
+	err = f.Sync()
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func (kp *KoinosPrompt) generateSuggestions() {
