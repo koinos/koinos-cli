@@ -21,11 +21,13 @@ const (
 	fileOption             = "file"
 	versionOption          = "version"
 	forceInteractiveOption = "force-interactive"
+	rcFileOption           = "rc"
 )
 
 // Default options
 const (
-	rpcDefault = ""
+	rpcDefault    = ""
+	rcFileDefault = ".koinosrc"
 )
 
 func main() {
@@ -41,6 +43,7 @@ func main() {
 	fileCmd := flag.StringSliceP(fileOption, "f", nil, "File to execute")
 	versionCmd := flag.BoolP(versionOption, "v", false, "Display the version")
 	forceInteractive := flag.BoolP(forceInteractiveOption, "i", false, "Forces interactive mode. Useful for forcing a prompt when using the excute option")
+	rcFile := flag.StringP(rcFileOption, "R", rcFileDefault, "Runs an rc file before dropping to interactive mode. Equivalent to --file and --force-interactive combined. (default: .koinosrc)")
 
 	flag.Parse()
 
@@ -69,19 +72,26 @@ func main() {
 		}
 	}
 
-	// If the user submitted files, execute them
+	files := make([]string, 0)
+
+	if len(*rcFile) != 0 {
+		files = append(files, *rcFile)
+	}
+
 	if *fileCmd != nil {
-		for _, file := range *fileCmd {
-			data, err := ioutil.ReadFile(file)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-			lines := strings.Split(string(data), "\n")
-			for _, line := range lines {
-				results := cli.ParseAndInterpret(parser, cmdEnv, line)
-				results.Print()
-			}
+		files = append(files, *fileCmd...)
+	}
+
+	for _, file := range files {
+		data, err := ioutil.ReadFile(file)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			results := cli.ParseAndInterpret(parser, cmdEnv, line)
+			results.Print()
 		}
 	}
 
