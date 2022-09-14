@@ -64,6 +64,9 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 		}
 	} else { // Otherwise ask the RPC server for the ABI
+		if !ee.IsOnline() {
+			return nil, fmt.Errorf("%w: %s", cliutil.ErrOffline, "could not fetch contract ABI")
+		}
 		meta, err := ee.RPCClient.GetContractMeta(base58.Decode(c.Address))
 		if err != nil {
 			return nil, err
