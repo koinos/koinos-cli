@@ -362,10 +362,14 @@ func NewUploadContractCommand(inv *CommandParseResult) Command {
 	}
 }
 
-// Execute calls a contract
+// Execute uploads a contract
 func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsWalletOpen() {
 		return nil, fmt.Errorf("%w: cannot upload contract", cliutil.ErrWalletClosed)
+	}
+
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot upload contract", cliutil.ErrOffline)
 	}
 
 	// Check if the wallet already exists
@@ -712,6 +716,10 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		return nil, fmt.Errorf("%w: cannot call contract", cliutil.ErrWalletClosed)
 	}
 
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot call", cliutil.ErrOffline)
+	}
+
 	entryPoint, err := strconv.ParseUint(c.EntryPoint[2:], 16, 32)
 	if err != nil {
 		return nil, err
@@ -900,6 +908,10 @@ func NewReadCommand(inv *CommandParseResult) Command {
 
 // Execute reads from a contract
 func (c *ReadCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot read contract", cliutil.ErrOffline)
+	}
+
 	cid := base58.Decode(c.ContractID)
 	if len(cid) == 0 {
 		return nil, errors.New("could not parse contract id")
