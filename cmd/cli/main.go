@@ -85,7 +85,7 @@ func main() {
 	for _, file := range files {
 		// Make sure file exists
 		if _, err := os.Stat(file); os.IsNotExist(err) {
-			fmt.Printf("rc file %s not found\n", file)
+			fmt.Printf("rc file \"%s\" not found\n", file)
 			continue
 		}
 
