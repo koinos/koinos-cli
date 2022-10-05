@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/koinos/koinos-cli/cmd/cli/interactive"
 	"github.com/koinos/koinos-cli/internal/cli"
 	"github.com/koinos/koinos-cli/internal/cliutil"
+	util "github.com/koinos/koinos-util-golang"
 	"github.com/koinos/koinos-util-golang/rpc"
 	flag "github.com/spf13/pflag"
 )
@@ -26,8 +28,12 @@ const (
 
 // Default options
 const (
-	rpcDefault    = ""
-	rcFileDefault = ".koinosrc"
+	rpcDefault = ""
+)
+
+// Other constants
+const (
+	rcFileName = ".koinosrc"
 )
 
 func main() {
@@ -43,7 +49,6 @@ func main() {
 	fileCmd := flag.StringSliceP(fileOption, "f", nil, "File to execute")
 	versionCmd := flag.BoolP(versionOption, "v", false, "Display the version")
 	forceInteractive := flag.BoolP(forceInteractiveOption, "i", false, "Forces interactive mode. Useful for forcing a prompt when using the excute option")
-	rcFile := flag.StringP(rcFileOption, "R", rcFileDefault, "Runs an rc file before dropping to interactive mode. Equivalent to --file and --force-interactive combined. (default: .koinosrc)")
 
 	flag.Parse()
 
@@ -72,20 +77,16 @@ func main() {
 		}
 	}
 
-	files := make([]string, 0)
-
-	if len(*rcFile) != 0 {
-		files = append(files, *rcFile)
-	}
+	// Create list of files to execute, intialize with rc files
+	files := []string{path.Join(util.GetHomeDir(), rcFileName), rcFileName}
 
 	if *fileCmd != nil {
 		files = append(files, *fileCmd...)
 	}
 
 	for _, file := range files {
-		// Make sure file exists
+		// Make sure file exists, silently skip if not
 		if _, err := os.Stat(file); os.IsNotExist(err) {
-			fmt.Printf("rc file \"%s\" not found\n", file)
 			continue
 		}
 
