@@ -23,7 +23,6 @@ const (
 	fileOption             = "file"
 	versionOption          = "version"
 	forceInteractiveOption = "force-interactive"
-	rcFileOption           = "rc"
 )
 
 // Default options
