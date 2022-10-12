@@ -23,6 +23,7 @@ const (
 	fileOption             = "file"
 	versionOption          = "version"
 	forceInteractiveOption = "force-interactive"
+	forceTextPromptOption  = "force-text-prompt"
 )
 
 // Default options
@@ -48,6 +49,7 @@ func main() {
 	fileCmd := flag.StringSliceP(fileOption, "f", nil, "File to execute")
 	versionCmd := flag.BoolP(versionOption, "v", false, "Display the version")
 	forceInteractive := flag.BoolP(forceInteractiveOption, "i", false, "Forces interactive mode. Useful for forcing a prompt when using the excute option")
+	forceTextPrompt := flag.BoolP(forceTextPromptOption, "t", false, "Forces text prompt in interactive mode, rather than unicode symbols")
 
 	flag.Parse()
 
@@ -104,7 +106,7 @@ func main() {
 	// Run interactive mode if no commands given, or if forced
 	if *forceInteractive || (*executeCmd == nil && *fileCmd == nil) {
 		// Enter interactive mode
-		p := interactive.NewKoinosPrompt(parser, cmdEnv)
+		p := interactive.NewKoinosPrompt(parser, cmdEnv, *forceTextPrompt)
 		p.Run()
 	}
 }

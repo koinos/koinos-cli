@@ -30,14 +30,14 @@ type KoinosPrompt struct {
 }
 
 // NewKoinosPrompt creates a new interactive prompt object
-func NewKoinosPrompt(parser *cli.CommandParser, execEnv *cli.ExecutionEnvironment) *KoinosPrompt {
+func NewKoinosPrompt(parser *cli.CommandParser, execEnv *cli.ExecutionEnvironment, forceText bool) *KoinosPrompt {
 	kp := &KoinosPrompt{parser: parser, execEnv: execEnv, latestRevision: -1}
 	kp.gPrompt = prompt.New(kp.executor, kp.completer, prompt.OptionLivePrefix(kp.changeLivePrefix), prompt.OptionCompletionWordSeparator(completer.FilePathCompletionSeparator))
 	kp.fPath = &completer.FilePathCompleter{}
 
 	// Check for terminal unicode support
 	lang := strings.ToUpper(os.Getenv("LANG"))
-	kp.unicodeSupport = strings.Contains(lang, "UTF")
+	kp.unicodeSupport = strings.Contains(lang, "UTF") && !forceText
 
 	// Setup status characters
 	if kp.unicodeSupport {
