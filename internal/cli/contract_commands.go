@@ -67,7 +67,7 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		if !ee.IsOnline() {
 			return nil, fmt.Errorf("%w: %s", cliutil.ErrOffline, "could not fetch contract ABI")
 		}
-		meta, err := ee.RPCClient.GetContractMeta(base58.Decode(c.Address))
+		meta, err := ee.RPCClient.GetContractMeta(ctx, base58.Decode(c.Address))
 		if err != nil {
 			return nil, err
 		}
@@ -185,7 +185,7 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 	// Get the contractID
 	contractID := base58.Decode(contract.Address)
 
-	cResp, err := ee.RPCClient.ReadContract(argBytes, contractID, uint32(entryPoint))
+	cResp, err := ee.RPCClient.ReadContract(ctx, argBytes, contractID, uint32(entryPoint))
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +334,7 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		err := ee.SubmitTransaction(result, op)
+		err := ee.SubmitTransaction(ctx, result, op)
 		if err != nil {
 			return nil, fmt.Errorf("cannot make call, %w", err)
 		}

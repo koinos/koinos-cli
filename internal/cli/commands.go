@@ -110,6 +110,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", HexArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file (unlock also works)", false, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("unlock", "Synonym for open", true, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("payer", "Set the payer for transactions", false, NewOpenCommand, *NewOptionalCommandArg("payer", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("private", "Show the currently opened wallet's private key", false, NewPrivateCommand))
 	cs.AddCommand(NewCommandDeclaration("public", "Show the currently opened wallet's public key", false, NewPublicCommand))
 	cs.AddCommand(NewCommandDeclaration("rclimit", "Set or show the current rc limit. Give no limit to see current value. Give limit as either mana or a percent (i.e. 80%).", false, NewRcLimitCommand, *NewOptionalCommandArg("limit", StringArg)))
@@ -176,7 +177,7 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 		panic("Invalid KOIN contract ID")
 	}
 
-	balance, err := ee.RPCClient.GetAccountBalance(address, contractID, cliutil.KoinBalanceOfEntry)
+	balance, err := ee.RPCClient.GetAccountBalance(ctx, address, contractID, cliutil.KoinBalanceOfEntry)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +189,7 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	// Get Mana
-	mana, err := ee.RPCClient.GetAccountRc(address)
+	mana, err := ee.RPCClient.GetAccountRc(ctx, address)
 	if err != nil {
 		return nil, err
 	}
@@ -457,7 +458,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		err := ee.SubmitTransaction(result, op)
+		err := ee.SubmitTransaction(ctx, result, op)
 		if err != nil {
 			return nil, fmt.Errorf("cannot upload contract, %w", err)
 		}
@@ -754,7 +755,7 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		err := ee.SubmitTransaction(result, op)
+		err := ee.SubmitTransaction(ctx, result, op)
 		if err != nil {
 			return nil, fmt.Errorf("cannot call contract, %w", err)
 		}
@@ -843,7 +844,7 @@ func (c *RcLimitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 			return result, nil
 		}
 
-		limit, err := ee.RPCClient.GetAccountRc(ee.Key.AddressBytes())
+		limit, err := ee.RPCClient.GetAccountRc(ctx, ee.Key.AddressBytes())
 		if err != nil {
 			return nil, err
 		}
@@ -929,7 +930,7 @@ func (c *ReadCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		return nil, err
 	}
 
-	cResp, err := ee.RPCClient.ReadContract(argumentBytes, cid, uint32(entryPoint))
+	cResp, err := ee.RPCClient.ReadContract(ctx, argumentBytes, cid, uint32(entryPoint))
 	if err != nil {
 		return nil, err
 	}
@@ -1020,7 +1021,7 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 
 	// Fetch the account's balance
 	myAddress := ee.Key.AddressBytes()
-	balance, err := ee.RPCClient.GetAccountBalance(myAddress, contractID, cliutil.KoinBalanceOfEntry)
+	balance, err := ee.RPCClient.GetAccountBalance(ctx, myAddress, contractID, cliutil.KoinBalanceOfEntry)
 	if err != nil {
 		return nil, err
 	}
@@ -1069,7 +1070,7 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		err := ee.SubmitTransaction(result, op)
+		err := ee.SubmitTransaction(ctx, result, op)
 		if err != nil {
 			return nil, fmt.Errorf("cannot transfer, %w", err)
 		}
@@ -1151,7 +1152,7 @@ func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		err := ee.SubmitTransaction(result, op)
+		err := ee.SubmitTransaction(ctx, result, op)
 		if err != nil {
 			return nil, fmt.Errorf("cannot set system call, %w", err)
 		}
@@ -1220,7 +1221,7 @@ func (c *SetSystemContractCommand) Execute(ctx context.Context, ee *ExecutionEnv
 		result.AddMessage("Adding operation to transaction session")
 	}
 	if err != nil {
-		err := ee.SubmitTransaction(result, op)
+		err := ee.SubmitTransaction(ctx, result, op)
 		if err != nil {
 			return nil, fmt.Errorf("cannot set contract, %w", err)
 		}
@@ -1280,7 +1281,7 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 				ops[i] = reqs[i].Op
 			}
 
-			err := ee.SubmitTransaction(result, ops...)
+			err := ee.SubmitTransaction(ctx, result, ops...)
 			if err != nil {
 				return nil, fmt.Errorf("error submitting transaction, %w", err)
 			}
