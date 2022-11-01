@@ -96,13 +96,23 @@ func (ee *ExecutionEnvironment) CloseWallet() {
 	ee.Key = nil
 }
 
+// IsSelfPaying returns a bool representing whether or not the user is self paying
+func (ee *ExecutionEnvironment) IsSelfPaying() bool {
+	return ee.payer == SelfPayer
+}
+
 // GetPayer returns the current payer address
-func (ee *ExecutionEnvironment) GetPayer() []byte {
-	if ee.payer == SelfPayer {
+func (ee *ExecutionEnvironment) GetPayerAddress() []byte {
+	if ee.IsSelfPaying() {
 		return ee.Key.AddressBytes()
 	}
 
 	return base58.Decode(ee.payer)
+}
+
+// SetPayer sets the payer
+func (ee *ExecutionEnvironment) SetPayer(payer string) {
+	ee.payer = payer
 }
 
 // ResetNonce resets the nonce
@@ -168,7 +178,7 @@ func (ee *ExecutionEnvironment) SubmitTransaction(ctx context.Context, result *E
 		return err
 	}
 
-	receipt, err := ee.RPCClient.SubmitTransactionWithPayer(ctx, ops, ee.Key, subParams, ee.GetPayer(), true)
+	receipt, err := ee.RPCClient.SubmitTransactionWithPayer(ctx, ops, ee.Key, subParams, ee.GetPayerAddress(), true)
 	if err != nil {
 		ee.ResetNonce()
 		return err

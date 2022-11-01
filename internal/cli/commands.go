@@ -110,7 +110,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", HexArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file (unlock also works)", false, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("unlock", "Synonym for open", true, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
-	cs.AddCommand(NewCommandDeclaration("payer", "Set the payer for transactions", false, NewOpenCommand, *NewOptionalCommandArg("payer", AddressArg)))
+	cs.AddCommand(NewCommandDeclaration("payer", "Set the payer for transactions", false, NewPayerCommand, *NewOptionalCommandArg("payer", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("private", "Show the currently opened wallet's private key", false, NewPrivateCommand))
 	cs.AddCommand(NewCommandDeclaration("public", "Show the currently opened wallet's public key", false, NewPublicCommand))
 	cs.AddCommand(NewCommandDeclaration("rclimit", "Set or show the current rc limit. Give no limit to see current value. Give limit as either mana or a percent (i.e. 80%).", false, NewRcLimitCommand, *NewOptionalCommandArg("limit", StringArg)))
@@ -811,6 +811,45 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Opened wallet: %s", c.Filename))
 
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Payer Command
+// ----------------------------------------------------------------------------
+
+// PayerCommand is a command shows or sets the current payer
+type PayerCommand struct {
+	Payer *string
+}
+
+// NewPayerCommand creates a new payer command object
+func NewPayerCommand(inv *CommandParseResult) Command {
+	payerString := inv.Args["payer"]
+	return &PayerCommand{Payer: payerString}
+}
+
+// Execute shows wallet address
+func (c *PayerCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	result := NewExecutionResult()
+
+	// If the payer string is null, then we are showing the current payer
+	if c.Payer == nil {
+		if ee.IsSelfPaying() {
+			if ee.IsWalletOpen() {
+				result.AddMessage(fmt.Sprintf("Payer: me (%s)", base58.Encode(ee.GetPayerAddress())))
+			} else {
+				result.AddMessage("Payer: me")
+			}
+		} else {
+			result.AddMessage(fmt.Sprintf("Payer: %s", base58.Encode(ee.GetPayerAddress())))
+		}
+
+		return result, nil
+	}
+
+	// Otherwise, we are setting the payer
+	ee.SetPayer(*c.Payer)
 	return result, nil
 }
 
