@@ -14,12 +14,12 @@ import (
 
 const (
 	// Version number (this should probably not live here)
-	Version = "v0.4.0"
+	Version = "v1.0.0"
 )
 
 // Hardcoded Koin contract constants
 const (
-	KoinSymbol         = "tKOIN"
+	KoinSymbol         = "KOIN"
 	ManaSymbol         = "mana"
 	KoinPrecision      = 8
 	KoinContractID     = "19JntSm8pSNETT9aHTwAUHC5RMoaSmgZPJ"

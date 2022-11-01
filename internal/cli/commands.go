@@ -19,7 +19,6 @@ import (
 	"github.com/koinos/koinos-proto-golang/koinos/chain"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
-	util "github.com/koinos/koinos-util-golang"
 	"github.com/koinos/koinos-util-golang/rpc"
 	"github.com/shopspring/decimal"
 
@@ -110,7 +109,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", HexArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file (unlock also works)", false, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("unlock", "Synonym for open", true, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
-	cs.AddCommand(NewCommandDeclaration("payer", "Set the payer address for transactions. 'me' will default to current wallet. Leave address blank to view.", false, NewPayerCommand, *NewOptionalCommandArg("payer", AddressArg)))
+	cs.AddCommand(NewCommandDeclaration("payer", "Set the payer address for transactions. 'me' will default to current wallet. Blank address to view", false, NewPayerCommand, *NewOptionalCommandArg("payer", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("private", "Show the currently opened wallet's private key", false, NewPrivateCommand))
 	cs.AddCommand(NewCommandDeclaration("public", "Show the currently opened wallet's public key", false, NewPublicCommand))
 	cs.AddCommand(NewCommandDeclaration("rclimit", "Set or show the current rc limit. Give no limit to see current value. Give limit as either mana or a percent (i.e. 80%).", false, NewRcLimitCommand, *NewOptionalCommandArg("limit", StringArg)))
@@ -183,7 +182,7 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	// Build the result
-	dec, err := util.SatoshiToDecimal(balance, cliutil.KoinPrecision)
+	dec, err := lutil.SatoshiToDecimal(balance, cliutil.KoinPrecision)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +194,7 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	// Build the mana result
-	manaDec, err := util.SatoshiToDecimal(mana, cliutil.KoinPrecision)
+	manaDec, err := lutil.SatoshiToDecimal(mana, cliutil.KoinPrecision)
 	if err != nil {
 		return nil, err
 	}
@@ -325,7 +324,7 @@ func NewGenerateKeyCommand(inv *CommandParseResult) Command {
 
 // Execute generates anonymous keys
 func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	k, err := util.GenerateKoinosKey()
+	k, err := lutil.GenerateKoinosKey()
 	if err != nil {
 		return nil, err
 	}
@@ -888,7 +887,7 @@ func (c *RcLimitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 			return nil, err
 		}
 
-		dAmount, err := util.SatoshiToDecimal(limit, cliutil.KoinPrecision)
+		dAmount, err := lutil.SatoshiToDecimal(limit, cliutil.KoinPrecision)
 		if err != nil {
 			return nil, err
 		}
@@ -1041,14 +1040,14 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	}
 
 	// Convert the amount to satoshis
-	sAmount, err := util.DecimalToSatoshi(&dAmount, cliutil.KoinPrecision)
+	sAmount, err := lutil.DecimalToSatoshi(&dAmount, cliutil.KoinPrecision)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidAmount, err.Error())
 	}
 
 	// Ensure a transfer greater than zero
 	if sAmount <= 0 {
-		minimalAmount, _ := util.SatoshiToDecimal(1, cliutil.KoinPrecision)
+		minimalAmount, _ := lutil.SatoshiToDecimal(1, cliutil.KoinPrecision)
 		return nil, fmt.Errorf("%w: cannot transfer %s %s, amount should be greater than minimal %s (1e-%d) %s", cliutil.ErrInvalidAmount, dAmount, cliutil.KoinSymbol, minimalAmount, cliutil.KoinPrecision, cliutil.KoinSymbol)
 	}
 
@@ -1064,7 +1063,7 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	if err != nil {
 		return nil, err
 	}
-	dBalance, err := util.SatoshiToDecimal(balance, cliutil.KoinPrecision)
+	dBalance, err := lutil.SatoshiToDecimal(balance, cliutil.KoinPrecision)
 	if err != nil {
 		return nil, err
 	}
