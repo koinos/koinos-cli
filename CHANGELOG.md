@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0]
+
+### Added
+
+- `payer` command which sets the current transaction payer
+
 ## [v0.4.0]
 
 ### Added
@@ -26,6 +32,6 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- Transfer checks balance to ensure there is enough tKOIN
+- Transfer checks balance to ensure there is enough KOIN
 - balance command will now use the open wallet's address is none is given
 - open, import, and create now check the environment variable `WALLET_PASS` if no password is given
