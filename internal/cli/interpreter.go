@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	util "github.com/koinos/koinos-util-golang"
@@ -19,6 +20,7 @@ import (
 const (
 	// NonceCheckTime is the time between nonce checks
 	NonceCheckTime = time.Second * 30
+	SelfPayer      = "me"
 )
 
 // Command is the interface that all commands must implement
@@ -68,6 +70,7 @@ type ExecutionEnvironment struct {
 	Session   *TransactionSession
 	nonceMap  map[string]*nonceInfo
 	rcLimit   rcInfo
+	payer     string
 }
 
 // NewExecutionEnvironment creates a new ExecutionEnvironment object
@@ -79,6 +82,7 @@ func NewExecutionEnvironment(rpcClient *rpc.KoinosRPCClient, parser *CommandPars
 		Session:   &TransactionSession{},
 		nonceMap:  make(map[string]*nonceInfo),
 		rcLimit:   rcInfo{value: 1.0, absolute: false},
+		payer:     SelfPayer,
 	}
 }
 
@@ -92,6 +96,25 @@ func (ee *ExecutionEnvironment) CloseWallet() {
 	ee.Key = nil
 }
 
+// IsSelfPaying returns a bool representing whether or not the user is self paying
+func (ee *ExecutionEnvironment) IsSelfPaying() bool {
+	return ee.payer == SelfPayer
+}
+
+// GetPayer returns the current payer address
+func (ee *ExecutionEnvironment) GetPayerAddress() []byte {
+	if ee.IsSelfPaying() {
+		return ee.Key.AddressBytes()
+	}
+
+	return base58.Decode(ee.payer)
+}
+
+// SetPayer sets the payer
+func (ee *ExecutionEnvironment) SetPayer(payer string) {
+	ee.payer = payer
+}
+
 // ResetNonce resets the nonce
 func (ee *ExecutionEnvironment) ResetNonce() {
 	if nInfo, exists := ee.nonceMap[string(ee.Key.AddressBytes())]; exists {
@@ -101,7 +124,7 @@ func (ee *ExecutionEnvironment) ResetNonce() {
 }
 
 // GetNonce returns the current nonce
-func (ee *ExecutionEnvironment) GetNonce() (uint64, error) {
+func (ee *ExecutionEnvironment) GetNonce(ctx context.Context) (uint64, error) {
 	nInfo, exists := ee.nonceMap[string(ee.Key.AddressBytes())]
 
 	if !exists {
@@ -110,7 +133,7 @@ func (ee *ExecutionEnvironment) GetNonce() (uint64, error) {
 	}
 
 	if nInfo.nonceTime.IsZero() || time.Since(nInfo.nonceTime) > NonceCheckTime {
-		nonce, err := ee.RPCClient.GetAccountNonce(ee.Key.AddressBytes())
+		nonce, err := ee.RPCClient.GetAccountNonce(ctx, ee.Key.AddressBytes())
 		if err != nil {
 			return 0, err
 		}
@@ -125,7 +148,7 @@ func (ee *ExecutionEnvironment) GetNonce() (uint64, error) {
 }
 
 // GetRcLimit returns the current RC limit
-func (ee *ExecutionEnvironment) GetRcLimit() (uint64, error) {
+func (ee *ExecutionEnvironment) GetRcLimit(ctx context.Context) (uint64, error) {
 	if ee.rcLimit.absolute {
 		dAmount := decimal.NewFromFloat(ee.rcLimit.value)
 
@@ -138,7 +161,7 @@ func (ee *ExecutionEnvironment) GetRcLimit() (uint64, error) {
 	}
 
 	// else it's relative
-	limit, err := ee.RPCClient.GetAccountRc(ee.Key.AddressBytes())
+	limit, err := ee.RPCClient.GetAccountRc(ctx, ee.Key.AddressBytes())
 	if err != nil {
 		return 0, err
 	}
@@ -148,14 +171,14 @@ func (ee *ExecutionEnvironment) GetRcLimit() (uint64, error) {
 }
 
 // SubmitTransaction is a utility function to submit a transaction from a command
-func (ee *ExecutionEnvironment) SubmitTransaction(result *ExecutionResult, ops ...*protocol.Operation) error {
+func (ee *ExecutionEnvironment) SubmitTransaction(ctx context.Context, result *ExecutionResult, ops ...*protocol.Operation) error {
 	// Fetch the nonce
-	subParams, err := ee.GetSubmissionParams()
+	subParams, err := ee.GetSubmissionParams(ctx)
 	if err != nil {
 		return err
 	}
 
-	receipt, err := ee.RPCClient.SubmitTransaction(ops, ee.Key, subParams, true)
+	receipt, err := ee.RPCClient.SubmitTransactionWithPayer(ctx, ops, ee.Key, subParams, ee.GetPayerAddress(), true)
 	if err != nil {
 		ee.ResetNonce()
 		return err
@@ -167,13 +190,13 @@ func (ee *ExecutionEnvironment) SubmitTransaction(result *ExecutionResult, ops .
 }
 
 // GetSubmissionParams returns the submission parameters for a command
-func (ee *ExecutionEnvironment) GetSubmissionParams() (*rpc.SubmissionParams, error) {
-	nonce, err := ee.GetNonce()
+func (ee *ExecutionEnvironment) GetSubmissionParams(ctx context.Context) (*rpc.SubmissionParams, error) {
+	nonce, err := ee.GetNonce(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	rcLimit, err := ee.GetRcLimit()
+	rcLimit, err := ee.GetRcLimit(ctx)
 	if err != nil {
 		return nil, err
 	}
