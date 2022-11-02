@@ -22,7 +22,7 @@ import (
 	"github.com/koinos/koinos-util-golang/rpc"
 	"github.com/shopspring/decimal"
 
-	lutil "github.com/koinos/koinos-util-golang"
+	util "github.com/koinos/koinos-util-golang"
 )
 
 // CommandSet represents a set of commands for the parser
@@ -182,7 +182,7 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	// Build the result
-	dec, err := lutil.SatoshiToDecimal(balance, cliutil.KoinPrecision)
+	dec, err := util.SatoshiToDecimal(balance, cliutil.KoinPrecision)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	// Build the mana result
-	manaDec, err := lutil.SatoshiToDecimal(mana, cliutil.KoinPrecision)
+	manaDec, err := util.SatoshiToDecimal(mana, cliutil.KoinPrecision)
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +324,7 @@ func NewGenerateKeyCommand(inv *CommandParseResult) Command {
 
 // Execute generates anonymous keys
 func (c *GenerateKeyCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	k, err := lutil.GenerateKoinosKey()
+	k, err := util.GenerateKoinosKey()
 	if err != nil {
 		return nil, err
 	}
@@ -490,7 +490,7 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	}
 
 	// Generate new key
-	key, err := lutil.GenerateKoinosKey()
+	key, err := util.GenerateKoinosKey()
 	if err != nil {
 		return nil, err
 	}
@@ -547,13 +547,13 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	}
 
 	// Convert the private key to bytes
-	keyBytes, err := lutil.DecodeWIF(c.PrivateKey)
+	keyBytes, err := util.DecodeWIF(c.PrivateKey)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create the key
-	key, err := lutil.NewKoinosKeysFromBytes(keyBytes)
+	key, err := util.NewKoinosKeysFromBytes(keyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -799,7 +799,7 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	}
 
 	// Create the key object
-	key, err := lutil.NewKoinosKeysFromBytes(keyBytes)
+	key, err := util.NewKoinosKeysFromBytes(keyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -887,7 +887,7 @@ func (c *RcLimitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 			return nil, err
 		}
 
-		dAmount, err := lutil.SatoshiToDecimal(limit, cliutil.KoinPrecision)
+		dAmount, err := util.SatoshiToDecimal(limit, cliutil.KoinPrecision)
 		if err != nil {
 			return nil, err
 		}
@@ -1040,14 +1040,14 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	}
 
 	// Convert the amount to satoshis
-	sAmount, err := lutil.DecimalToSatoshi(&dAmount, cliutil.KoinPrecision)
+	sAmount, err := util.DecimalToSatoshi(&dAmount, cliutil.KoinPrecision)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidAmount, err.Error())
 	}
 
 	// Ensure a transfer greater than zero
 	if sAmount <= 0 {
-		minimalAmount, _ := lutil.SatoshiToDecimal(1, cliutil.KoinPrecision)
+		minimalAmount, _ := util.SatoshiToDecimal(1, cliutil.KoinPrecision)
 		return nil, fmt.Errorf("%w: cannot transfer %s %s, amount should be greater than minimal %s (1e-%d) %s", cliutil.ErrInvalidAmount, dAmount, cliutil.KoinSymbol, minimalAmount, cliutil.KoinPrecision, cliutil.KoinSymbol)
 	}
 
@@ -1063,7 +1063,7 @@ func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 	if err != nil {
 		return nil, err
 	}
-	dBalance, err := lutil.SatoshiToDecimal(balance, cliutil.KoinPrecision)
+	dBalance, err := util.SatoshiToDecimal(balance, cliutil.KoinPrecision)
 	if err != nil {
 		return nil, err
 	}
