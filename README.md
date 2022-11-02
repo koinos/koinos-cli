@@ -72,7 +72,7 @@ Any of the commands which take a password may be called with it omitted. In this
 
 To check the balance of a given public address, use the command `balance <address>`.
 
-To transfer tKOIN from the currently open wallet, use the command `transfer <amount> <address>`.
+To transfer KOIN from the currently open wallet, use the command `transfer <amount> <address>`.
 
 ## Smart contract management
 
@@ -150,7 +150,7 @@ Example:
 Began transaction session
 
 🔓 📄 > transfer 1.0 1BLUi4ogqptnyBnSuKFyWMxEyVJzxiZWhM
-Transferring 1 tKOIN to 1BLUi4ogqptnyBnSuKFyWMxEyVJzxiZWhM
+Transferring 1 KOIN to 1BLUi4ogqptnyBnSuKFyWMxEyVJzxiZWhM
 Adding operation to transaction session
 
 🔓 📄 > upload token.wasm
@@ -158,14 +158,14 @@ Contract uploaded with address 15XjYr9DkyrxaY2mgjRiRLpYww8cHquW4U
 Submitted transaction with ID 0x12202687e8f3ccf8175e7b63a24862ee15b5481ce484ee128eeccba60b68ec69d2ae
 
 🔓 📄 > transfer 25.0 15Pb7o5GFBB56njFNvU2fAfa9Mm7rmsJH1
-Transferring 25 tKOIN to 15Pb7o5GFBB56njFNvU2fAfa9Mm7rmsJH1
+Transferring 25 KOIN to 15Pb7o5GFBB56njFNvU2fAfa9Mm7rmsJH1
 Adding operation to transaction session
 
 🔓 📄 > session view
 Transaction Session (2 operations):
-0: Transfer 1 tKOIN to 1BLUi4ogqptnyBnSuKFyWMxEyVJzxiZWhM
+0: Transfer 1 KOIN to 1BLUi4ogqptnyBnSuKFyWMxEyVJzxiZWhM
 1: Upload contract with address 15XjYr9DkyrxaY2mgjRiRLpYww8cHquW4U
-2: Transfer 25 tKOIN to 15Pb7o5GFBB56njFNvU2fAfa9Mm7rmsJH1
+2: Transfer 25 KOIN to 15Pb7o5GFBB56njFNvU2fAfa9Mm7rmsJH1
 
 🔓 📄 > session submit
 Submitted transaction with ID 0x12202a7e68e58223a143106cb293e44c491132c4c6b075b9cc6657ededc7ebd142b2 (3 operations)

@@ -19,11 +19,10 @@ import (
 	"github.com/koinos/koinos-proto-golang/koinos/chain"
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
-	util "github.com/koinos/koinos-util-golang"
 	"github.com/koinos/koinos-util-golang/rpc"
 	"github.com/shopspring/decimal"
 
-	lutil "github.com/koinos/koinos-util-golang"
+	util "github.com/koinos/koinos-util-golang"
 )
 
 // CommandSet represents a set of commands for the parser
@@ -110,7 +109,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", HexArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file (unlock also works)", false, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("unlock", "Synonym for open", true, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
-	cs.AddCommand(NewCommandDeclaration("payer", "Set the payer address for transactions. 'me' will default to current wallet. Leave address blank to view.", false, NewPayerCommand, *NewOptionalCommandArg("payer", AddressArg)))
+	cs.AddCommand(NewCommandDeclaration("payer", "Set the payer address for transactions. 'me' will default to current wallet. Blank address to view", false, NewPayerCommand, *NewOptionalCommandArg("payer", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("private", "Show the currently opened wallet's private key", false, NewPrivateCommand))
 	cs.AddCommand(NewCommandDeclaration("public", "Show the currently opened wallet's public key", false, NewPublicCommand))
 	cs.AddCommand(NewCommandDeclaration("rclimit", "Set or show the current rc limit. Give no limit to see current value. Give limit as either mana or a percent (i.e. 80%).", false, NewRcLimitCommand, *NewOptionalCommandArg("limit", StringArg)))
@@ -491,7 +490,7 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	}
 
 	// Generate new key
-	key, err := lutil.GenerateKoinosKey()
+	key, err := util.GenerateKoinosKey()
 	if err != nil {
 		return nil, err
 	}
@@ -548,13 +547,13 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	}
 
 	// Convert the private key to bytes
-	keyBytes, err := lutil.DecodeWIF(c.PrivateKey)
+	keyBytes, err := util.DecodeWIF(c.PrivateKey)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create the key
-	key, err := lutil.NewKoinosKeysFromBytes(keyBytes)
+	key, err := util.NewKoinosKeysFromBytes(keyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -800,7 +799,7 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	}
 
 	// Create the key object
-	key, err := lutil.NewKoinosKeysFromBytes(keyBytes)
+	key, err := util.NewKoinosKeysFromBytes(keyBytes)
 	if err != nil {
 		return nil, err
 	}
