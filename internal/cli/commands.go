@@ -164,6 +164,11 @@ func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 
 		address = ee.Key.AddressBytes()
 	} else {
+		// check first if address is potentially valid
+		if !util.CheckIsValidAddress(*c.AddressString) {
+			return nil, errors.New("address invalid format")
+		}
+
 		address = base58.Decode(*c.AddressString)
 		if len(address) == 0 {
 			return nil, errors.New("could not parse address")
