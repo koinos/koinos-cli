@@ -1373,7 +1373,7 @@ func NewGetAccountRcCommand(inv *CommandParseResult) Command {
 // Execute the retrieval of a given addresses resource credits
 func (c *GetAccountRcCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsOnline() {
-		return nil, fmt.Errorf("%w: cannot get account rcs", cliutil.ErrOffline)
+		return nil, fmt.Errorf("%w: cannot get account rc", cliutil.ErrOffline)
 	}
 
 	address := base58.Decode(*c.Address)
