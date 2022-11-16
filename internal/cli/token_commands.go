@@ -169,7 +169,7 @@ func (c *RegisterTokenCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 	NewTransferCommand := func(inv *CommandParseResult) Command {
 		return NewTokenTransferCommand(inv, contractID, *precision, *symbol)
 	}
-	cmd = NewCommandDeclaration(fmt.Sprintf("%s.transfer", c.Name), "Transfers the token", false, NewTransferCommand, *NewCommandArg("to", AddressArg), *NewCommandArg("amount", AddressArg))
+	cmd = NewCommandDeclaration(fmt.Sprintf("%s.transfer", c.Name), "Transfers the token", false, NewTransferCommand, *NewCommandArg("to", AddressArg), *NewCommandArg("amount", AmountArg))
 	ee.Parser.Commands.AddCommand(cmd)
 
 	err = ee.Contracts.Add(c.Name, c.Address, nil, nil)
