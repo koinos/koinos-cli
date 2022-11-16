@@ -112,6 +112,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("read", "Read from a smart contract", false, NewReadCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("register", "Register a smart contract's commands", false, NewRegisterCommand, *NewCommandArg("name", ContractNameArg), *NewCommandArg("address", AddressArg), *NewOptionalCommandArg("abi-filename", FileArg)))
 	cs.AddCommand(NewCommandDeclaration("register_token", "Register a token's commands", false, NewRegisterTokenCommand, *NewCommandArg("name", ContractNameArg), *NewCommandArg("address", AddressArg), *NewOptionalCommandArg("symbol", StringArg), *NewOptionalCommandArg("precision", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("get_account_rc", "Get the current resource credits for a given address", false, NewGetAccountRcCommand, *NewCommandArg("address", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", AddressArg), *NewCommandArg("entry-point", HexArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_contract", "Change a contract's permission level between user and system", false, NewSetSystemContractCommand, *NewCommandArg("contract-id", AddressArg), *NewCommandArg("system-contract", BoolArg)))
 	cs.AddCommand(NewCommandDeclaration("session", "Create or manage a transaction session (begin, submit, cancel, or view)", false, NewSessionCommand, *NewCommandArg("command", StringArg)))
@@ -1162,6 +1163,45 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	default:
 		return nil, fmt.Errorf("unknown command %s, options are (begin, submit, cancel, view)", c.Command)
 	}
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// GetAccountRcs Command
+// ----------------------------------------------------------------------------
+
+// GetAccountRcCommand is a command that retrieves a given accounts resource credits
+type GetAccountRcCommand struct {
+	Address *string
+}
+
+// NewGetAccountRcCommand creates a new GetAccountRcsCommand object
+func NewGetAccountRcCommand(inv *CommandParseResult) Command {
+	address := inv.Args["address"]
+	return &GetAccountRcCommand{Address: address}
+}
+
+// Execute the retrieval of a given addresses resource credits
+func (c *GetAccountRcCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot get account rc", cliutil.ErrOffline)
+	}
+
+	address := base58.Decode(*c.Address)
+	if len(address) == 0 {
+		return nil, errors.New("could not parse address")
+	}
+
+	rc, err := ee.RPCClient.GetAccountRc(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+
+	message := fmt.Sprintf("%v rc", rc)
+
+	result := NewExecutionResult()
+	result.AddMessage(message)
 
 	return result, nil
 }
