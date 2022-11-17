@@ -12,12 +12,9 @@ import (
 	"strconv"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/koinos/chain"
-	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/koinos/koinos-util-golang/rpc"
 	"github.com/shopspring/decimal"
@@ -95,7 +92,6 @@ func NewKoinosCommandSet() *CommandSet {
 	cs := NewCommandSet()
 
 	cs.AddCommand(NewCommandDeclaration("address", "Show the currently opened wallet's address", false, NewAddressCommand))
-	cs.AddCommand(NewCommandDeclaration("balance", "Check the balance at an address", false, NewBalanceCommand, *NewOptionalCommandArg("owner", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("connect", "Connect to an RPC endpoint", false, NewConnectCommand, *NewCommandArg("url", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("close", "Close the currently open wallet (lock also works)", false, NewCloseCommand))
 	cs.AddCommand(NewCommandDeclaration("lock", "Synonym for close", true, NewCloseCommand))
@@ -115,7 +111,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("rclimit", "Set or show the current rc limit. Give no limit to see current value. Give limit as either mana or a percent (i.e. 80%).", false, NewRcLimitCommand, *NewOptionalCommandArg("limit", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("read", "Read from a smart contract", false, NewReadCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", StringArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("register", "Register a smart contract's commands", false, NewRegisterCommand, *NewCommandArg("name", ContractNameArg), *NewCommandArg("address", AddressArg), *NewOptionalCommandArg("abi-filename", FileArg)))
-	cs.AddCommand(NewCommandDeclaration("transfer", "Transfer token from an open wallet to a given address", false, NewTransferCommand, *NewCommandArg("value", AmountArg), *NewCommandArg("to", AddressArg)))
+	cs.AddCommand(NewCommandDeclaration("register_token", "Register a token's commands", false, NewRegisterTokenCommand, *NewCommandArg("name", ContractNameArg), *NewCommandArg("address", AddressArg), *NewOptionalCommandArg("symbol", StringArg), *NewOptionalCommandArg("precision", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("get_account_rc", "Get the current resource credits for a given address", false, NewGetAccountRcCommand, *NewCommandArg("address", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", AddressArg), *NewCommandArg("entry-point", HexArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_contract", "Change a contract's permission level between user and system", false, NewSetSystemContractCommand, *NewCommandArg("contract-id", AddressArg), *NewCommandArg("system-contract", BoolArg)))
@@ -132,80 +128,6 @@ func NewKoinosCommandSet() *CommandSet {
 // ----------------------------------------------------------------------------
 
 // All commands should be implemented here
-
-// ----------------------------------------------------------------------------
-// Balance Command
-// ----------------------------------------------------------------------------
-
-// BalanceCommand is a command that checks the balance of an address
-type BalanceCommand struct {
-	AddressString *string
-}
-
-// NewBalanceCommand creates a new balance object
-func NewBalanceCommand(inv *CommandParseResult) Command {
-	addressString := inv.Args["owner"]
-	return &BalanceCommand{AddressString: addressString}
-}
-
-// Execute fetches the balance
-func (c *BalanceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	if !ee.IsOnline() {
-		return nil, fmt.Errorf("%w: cannot check balance", cliutil.ErrOffline)
-	}
-
-	var address []byte
-	var err error
-
-	// Get current account balance if empty address
-	if c.AddressString == nil {
-		if !ee.IsWalletOpen() {
-			return nil, fmt.Errorf("%w: must give an address", cliutil.ErrWalletClosed)
-		}
-
-		address = ee.Key.AddressBytes()
-	} else {
-		address = base58.Decode(*c.AddressString)
-		if len(address) == 0 {
-			return nil, errors.New("could not parse address")
-		}
-	}
-
-	// Setup command execution environment
-	contractID := base58.Decode(cliutil.KoinContractID)
-	if len(contractID) == 0 {
-		panic("Invalid KOIN contract ID")
-	}
-
-	balance, err := ee.RPCClient.GetAccountBalance(ctx, address, contractID, cliutil.KoinBalanceOfEntry)
-	if err != nil {
-		return nil, err
-	}
-
-	// Build the result
-	dec, err := util.SatoshiToDecimal(balance, cliutil.KoinPrecision)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get Mana
-	mana, err := ee.RPCClient.GetAccountRc(ctx, address)
-	if err != nil {
-		return nil, err
-	}
-
-	// Build the mana result
-	manaDec, err := util.SatoshiToDecimal(mana, cliutil.KoinPrecision)
-	if err != nil {
-		return nil, err
-	}
-
-	er := NewExecutionResult()
-	er.AddMessage(fmt.Sprintf("%v %s", dec, cliutil.KoinSymbol))
-	er.AddMessage(fmt.Sprintf("%v %s", manaDec, cliutil.ManaSymbol))
-
-	return er, nil
-}
 
 // ----------------------------------------------------------------------------
 // Close Command
@@ -1004,116 +926,6 @@ func (c *SleepCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*
 	result := NewExecutionResult()
 	result.AddMessage(fmt.Sprintf("Slept for %s", c.Duration))
 	time.Sleep(c.Duration)
-
-	return result, nil
-}
-
-// ----------------------------------------------------------------------------
-// Transfer
-// ----------------------------------------------------------------------------
-
-// TransferCommand is a command that closes an open wallet
-type TransferCommand struct {
-	Address string
-	Amount  string
-}
-
-// NewTransferCommand creates a new close object
-func NewTransferCommand(inv *CommandParseResult) Command {
-	addressString := inv.Args["to"]
-	return &TransferCommand{Address: *addressString, Amount: *inv.Args["value"]}
-}
-
-// Execute transfers token
-func (c *TransferCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	if !ee.IsWalletOpen() {
-		return nil, fmt.Errorf("%w: cannot transfer", cliutil.ErrWalletClosed)
-	}
-
-	if !ee.IsOnline() {
-		return nil, fmt.Errorf("%w: cannot transfer", cliutil.ErrOffline)
-	}
-
-	// Convert the amount to a decimal
-	dAmount, err := decimal.NewFromString(c.Amount)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidAmount, err.Error())
-	}
-
-	// Convert the amount to satoshis
-	sAmount, err := util.DecimalToSatoshi(&dAmount, cliutil.KoinPrecision)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidAmount, err.Error())
-	}
-
-	// Ensure a transfer greater than zero
-	if sAmount <= 0 {
-		minimalAmount, _ := util.SatoshiToDecimal(1, cliutil.KoinPrecision)
-		return nil, fmt.Errorf("%w: cannot transfer %s %s, amount should be greater than minimal %s (1e-%d) %s", cliutil.ErrInvalidAmount, dAmount, cliutil.KoinSymbol, minimalAmount, cliutil.KoinPrecision, cliutil.KoinSymbol)
-	}
-
-	// Setup command execution environment
-	contractID := base58.Decode(cliutil.KoinContractID)
-	if len(contractID) == 0 {
-		panic("Invalid KOIN contract ID")
-	}
-
-	// Fetch the account's balance
-	myAddress := ee.Key.AddressBytes()
-	balance, err := ee.RPCClient.GetAccountBalance(ctx, myAddress, contractID, cliutil.KoinBalanceOfEntry)
-	if err != nil {
-		return nil, err
-	}
-	dBalance, err := util.SatoshiToDecimal(balance, cliutil.KoinPrecision)
-	if err != nil {
-		return nil, err
-	}
-
-	// Ensure a transfer greater than opened account balance
-
-	if balance <= sAmount {
-		return nil, fmt.Errorf("%w: insufficient balance %s %s on opened wallet %s, cannot transfer %s %s", cliutil.ErrInvalidAmount, dBalance, cliutil.KoinSymbol, base58.Encode(myAddress), dAmount, cliutil.KoinSymbol)
-	}
-
-	toAddress := base58.Decode(c.Address)
-	if len(toAddress) == 0 {
-		return nil, errors.New("could not parse address")
-	}
-
-	transferArgs := &token.TransferArguments{
-		From:  myAddress,
-		To:    toAddress,
-		Value: uint64(sAmount),
-	}
-
-	args, err := proto.Marshal(transferArgs)
-	if err != nil {
-		return nil, err
-	}
-
-	op := &protocol.Operation{
-		Op: &protocol.Operation_CallContract{
-			CallContract: &protocol.CallContractOperation{
-				ContractId: contractID,
-				EntryPoint: cliutil.KoinTransferEntry,
-				Args:       args,
-			},
-		},
-	}
-
-	result := NewExecutionResult()
-	result.AddMessage(fmt.Sprintf("Transferring %s %s to %s", dAmount, cliutil.KoinSymbol, c.Address))
-
-	err = ee.Session.AddOperation(op, fmt.Sprintf("Transfer %s %s to %s", dAmount, cliutil.KoinSymbol, c.Address))
-	if err == nil {
-		result.AddMessage("Adding operation to transaction session")
-	}
-	if err != nil {
-		err := ee.SubmitTransaction(ctx, result, op)
-		if err != nil {
-			return nil, fmt.Errorf("cannot transfer, %w", err)
-		}
-	}
 
 	return result, nil
 }
