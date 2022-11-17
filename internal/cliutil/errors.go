@@ -61,4 +61,7 @@ var (
 
 	// ErrContract is returned when a contract is already registered
 	ErrContract = errors.New("contract error")
+
+	// ErrInvalidAddrFormat is returned when an address is in invalid format
+	ErrInvalidAddrFormat = errors.New("invalid address format")
 )

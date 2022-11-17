@@ -153,7 +153,7 @@ func NewCommandParser(commands *CommandSet) *CommandParser {
 	parser.commandNameRE = regexp.MustCompile(fmt.Sprintf(`^(%s+\.)?%s+`, CommandNameTokens, CommandNameTokens))
 	parser.skipRE = regexp.MustCompile(`^\s*`)
 	parser.terminatorRE = regexp.MustCompile(`^(;|$)`)
-	parser.addressRE = regexp.MustCompile(`^[1-9A-HJ-NP-Za-km-z]+`)
+	parser.addressRE = regexp.MustCompile(`^[1][a-km-zA-HJ-NP-Z1-9]{32,34}$`)
 	parser.simpleStringRE = regexp.MustCompile(`^[^\s"\';]+`)
 	parser.amountRE = regexp.MustCompile(`^((\d+(\.\d*)?)|(\.\d+))`)
 	parser.uintRE = regexp.MustCompile(`^[+]?[0-9]+`)
@@ -311,7 +311,7 @@ func (p *CommandParser) parseAddress(input []byte) ([]byte, int, error) {
 	// Parse address
 	m := p.addressRE.Find(input)
 	if m == nil {
-		return nil, 0, fmt.Errorf("%w", cliutil.ErrInvalidParam)
+		return nil, 0, fmt.Errorf("%w", cliutil.ErrInvalidAddrFormat)
 	}
 
 	return m, len(m), nil
