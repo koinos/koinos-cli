@@ -1168,15 +1168,15 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 }
 
 // ----------------------------------------------------------------------------
-// GetAccountRcs Command
+// AccountRc Command
 // ----------------------------------------------------------------------------
 
-// GetAccountRcCommand is a command that retrieves a given accounts resource credits
+// AccountRcCommand is a command that retrieves a given accounts resource credits
 type AccountRcCommand struct {
 	Address *string
 }
 
-// NewGetAccountRcCommand creates a new GetAccountRcsCommand object
+// NewAccountRcCommand creates a new GetAccountRcsCommand object
 func NewAccountRcCommand(inv *CommandParseResult) Command {
 	return &AccountRcCommand{Address: inv.Args["address"]}
 }
