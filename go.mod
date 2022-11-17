@@ -8,7 +8,7 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/koinos/go-prompt v0.0.0-20220818181004-5b1028a45a2f
 	github.com/koinos/koinos-proto-golang v1.0.0
-	github.com/koinos/koinos-util-golang v1.0.0
+	github.com/koinos/koinos-util-golang v1.0.1-0.20221111012015-8ea25320f099
 	github.com/minio/sio v0.3.0
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/pflag v1.0.5

@@ -287,7 +287,7 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		return nil, fmt.Errorf("%w: cannot execute method", cliutil.ErrWalletClosed)
 	}
 
-	if !ee.IsOnline() {
+	if !ee.IsOnline() && !ee.Session.IsValid() {
 		return nil, fmt.Errorf("%w: cannot execute method", cliutil.ErrOffline)
 	}
 
