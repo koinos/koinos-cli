@@ -38,7 +38,7 @@ const (
 
 func main() {
 	// Optionally load .env file
-	godotenv.Load()
+	_ = godotenv.Load()
 
 	// Setup command line options
 	rpcAddress := flag.StringP(rpcOption, "r", rpcDefault, "RPC server URL")
