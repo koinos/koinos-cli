@@ -96,10 +96,21 @@ func main() {
 			fmt.Println(err)
 			os.Exit(1)
 		}
+
+		results := make([]string, 0)
+
 		lines := strings.Split(string(data), "\n")
 		for _, line := range lines {
-			results := cli.ParseAndInterpret(parser, cmdEnv, line)
-			results.Print()
+			ir := cli.ParseAndInterpret(parser, cmdEnv, line)
+			results = append(results, ir.Results...)
+		}
+
+		for _, result := range results {
+			fmt.Println(result)
+		}
+
+		if len(results) > 0 {
+			fmt.Println()
 		}
 	}
 
