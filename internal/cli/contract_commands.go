@@ -253,6 +253,10 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 			value = protoreflect.ValueOfBytes(b)
 		}
 
+		if fd.IsList() && value.List().Len() == 0 {
+			continue
+		}
+
 		// Set the value on the message
 		dMsg.Set(fd, value)
 	}
