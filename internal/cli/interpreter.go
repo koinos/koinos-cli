@@ -13,7 +13,7 @@ import (
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	util "github.com/koinos/koinos-util-golang"
 	"github.com/koinos/koinos-util-golang/rpc"
-	"github.com/shopspring/decimal"
+	"github.com/koinos/koinos-util-golang/transaction"
 )
 
 // Command execution code
@@ -56,7 +56,7 @@ func (er *ExecutionResult) Print() {
 }
 
 type rcInfo struct {
-	value    float64
+	value    uint64
 	absolute bool
 }
 
@@ -87,7 +87,7 @@ func NewExecutionEnvironment(rpcClient *rpc.KoinosRPCClient, parser *CommandPars
 		Contracts: make(map[string]*ContractInfo),
 		Session:   &TransactionSession{},
 		nonceMap:  make(map[string]*nonceInfo),
-		rcLimit:   rcInfo{value: 1.0, absolute: false},
+		rcLimit:   rcInfo{value: 100000000, absolute: false},
 		payer:     SelfPayer,
 		chainID:   AutoChainID,
 		nonceMode: AutoNonce,
@@ -185,14 +185,7 @@ func (ee *ExecutionEnvironment) GetChainID(ctx context.Context) ([]byte, error) 
 // GetRcLimit returns the current RC limit
 func (ee *ExecutionEnvironment) GetRcLimit(ctx context.Context) (uint64, error) {
 	if ee.rcLimit.absolute {
-		dAmount := decimal.NewFromFloat(ee.rcLimit.value)
-
-		val, err := util.DecimalToSatoshi(&dAmount, cliutil.KoinPrecision)
-		if err != nil {
-			return 0, fmt.Errorf("%w: %s", cliutil.ErrInvalidAmount, err.Error())
-		}
-
-		return val, nil
+		return ee.rcLimit.value, nil
 	}
 
 	// else it's relative
@@ -201,45 +194,69 @@ func (ee *ExecutionEnvironment) GetRcLimit(ctx context.Context) (uint64, error) 
 		return 0, err
 	}
 
-	val := uint64(float64(limit) * ee.rcLimit.value)
-	return val, nil
+	mult, err := util.SatoshiToDecimal(ee.rcLimit.value, cliutil.KoinPrecision)
+	if err != nil {
+		return 0, err
+	}
+
+	limitDec, err := util.SatoshiToDecimal(limit, cliutil.KoinPrecision)
+	if err != nil {
+		return 0, err
+	}
+
+	val := limitDec.Mul(*mult)
+	return util.DecimalToSatoshi(&val, cliutil.KoinPrecision)
 }
 
 // SubmitTransaction is a utility function to submit a transaction from a command
 func (ee *ExecutionEnvironment) SubmitTransaction(ctx context.Context, result *ExecutionResult, ops ...*protocol.Operation) error {
-	// Fetch the nonce
-	subParams, err := ee.GetSubmissionParams(ctx)
+
+	transaction, err := ee.CreateTransaction(ctx, true, ops...)
 	if err != nil {
 		return err
 	}
 
-	receipt, err := ee.RPCClient.SubmitTransactionOpsWithPayer(ctx, ops, ee.Key, subParams, ee.GetPayerAddress(), true)
+	receipt, err := ee.RPCClient.SubmitTransaction(ctx, transaction, true)
 	if err != nil {
 		ee.ResetNonce()
 		return err
 	}
 
-	result.AddMessage(cliutil.TransactionReceiptToString(receipt, len(ops)))
+	result.AddMessage(cliutil.TransactionReceiptToString(receipt, len(transaction.Operations)))
 
 	return nil
 }
 
-// GetSubmissionParams returns the submission parameters for a command
-func (ee *ExecutionEnvironment) GetSubmissionParams(ctx context.Context) (*rpc.SubmissionParams, error) {
+func (ee *ExecutionEnvironment) CreateTransaction(ctx context.Context, signed bool, ops ...*protocol.Operation) (*protocol.Transaction, error) {
 	nonce, err := ee.GetNextNonce(ctx, true)
 	if err != nil {
 		return nil, err
 	}
 
-	rcLimit, err := ee.GetRcLimit(ctx)
-	if err != nil {
-		return nil, err
+	payer := ee.GetPayerAddress()
+
+	var chainID []byte
+	if !ee.IsChainIDAuto() {
+		chainID, err = base64.StdEncoding.DecodeString(ee.chainID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return &rpc.SubmissionParams{
-		Nonce:   nonce,
-		RCLimit: rcLimit,
-	}, nil
+	tb := transaction.TransactionBuilder{}
+
+	if ee.IsOnline() {
+		tb.SetRPCClient(ee.RPCClient)
+	}
+
+	tb.SetKey(ee.Key)
+	tb.AddOperations(ops...)
+	tb.SetNonce(nonce)
+	tb.SetPayer(payer)
+	tb.SetRCLimit(ee.rcLimit.value, ee.rcLimit.absolute)
+	tb.SetChainID(chainID)
+
+	return tb.Build(ctx, signed)
 }
 
 // IsWalletOpen returns a bool representing whether or not there is an open wallet
@@ -250,32 +267,6 @@ func (ee *ExecutionEnvironment) IsWalletOpen() bool {
 // IsOnline returns a bool representing whether or not the wallet is online
 func (ee *ExecutionEnvironment) IsOnline() bool {
 	return ee.RPCClient != nil
-}
-
-func (ee *ExecutionEnvironment) CreateSignedTransaction(ctx context.Context, ops ...*protocol.Operation) (*protocol.Transaction, error) {
-	nonce, err := ee.GetNextNonce(ctx, true)
-	if err != nil {
-		return nil, err
-	}
-
-	rcLimit, err := ee.GetRcLimit(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	chainID, err := ee.GetChainID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	payer := ee.GetPayerAddress()
-
-	txn, err := util.CreateSignedTransaction(ctx, ops, ee.Key, nonce, rcLimit, chainID, payer)
-	if err != nil {
-		return nil, fmt.Errorf("cannot submit transaction session, %w", err)
-	}
-
-	return txn, nil
 }
 
 // CommandDeclaration is a struct that declares a command

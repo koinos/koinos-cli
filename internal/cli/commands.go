@@ -110,7 +110,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file (unlock also works)", false, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("unlock", "Synonym for open", true, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("nonce", "Set nonce for transactions. 'auto' will default to querying for nonce. Blank nonce to view", false, NewNonceCommand, *NewOptionalCommandArg("nonce", StringArg)))
-	cs.AddCommand(NewCommandDeclaration("chainid", "Set chain id in base64 for transactions. 'auto' will default to querying for chain id. Blank id to view", false, NewChainIDCommand, *NewOptionalCommandArg("id", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("chain_id", "Set chain id in base64 for transactions. 'auto' will default to querying for chain id. Blank id to view", false, NewChainIDCommand, *NewOptionalCommandArg("id", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("payer", "Set the payer address for transactions. 'me' will default to current wallet. Blank address to view", false, NewPayerCommand, *NewOptionalCommandArg("payer", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("private", "Show the currently opened wallet's private key", false, NewPrivateCommand))
 	cs.AddCommand(NewCommandDeclaration("public", "Show the currently opened wallet's public key", false, NewPublicCommand))
@@ -121,7 +121,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", AddressArg), *NewCommandArg("entry-point", HexArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_contract", "Change a contract's permission level between user and system", false, NewSetSystemContractCommand, *NewCommandArg("contract-id", AddressArg), *NewCommandArg("system-contract", BoolArg)))
 	cs.AddCommand(NewCommandDeclaration("session", "Create or manage a transaction session (begin, submit, cancel, or view)", false, NewSessionCommand, *NewCommandArg("command", StringArg)))
-	cs.AddCommand(NewCommandDeclaration("submit", "Submit a transaction from base64 data", false, NewSubmitCommand, *NewCommandArg("transaction", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("submit_transaction", "Submit a transaction from base64 data", false, NewSubmitCommand, *NewCommandArg("transaction", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("sleep", "Sleep for the given number seconds", true, NewSleepCommand, *NewCommandArg("seconds", AmountArg)))
 	cs.AddCommand(NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	cs.AddCommand(NewCommandDeclaration("quit", "Synonym for exit", true, NewExitCommand))
@@ -1031,14 +1031,19 @@ func (c *RcLimitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	result := NewExecutionResult()
 	// If no limit given, display current
 	if c.limit == nil {
+		decVal, err := util.SatoshiToDecimal(ee.rcLimit.value, cliutil.KoinPrecision)
+		if err != nil {
+			return nil, err
+		}
+
 		if ee.rcLimit.absolute {
-			result.AddMessage(fmt.Sprintf("Current rc limit: %f", ee.rcLimit.value))
+			result.AddMessage(fmt.Sprintf("Current rc limit: %v", decVal))
 			return result, nil
 		}
 
 		// Otherwise its relative
 		if !ee.IsOnline() || !ee.IsWalletOpen() {
-			result.AddMessage(fmt.Sprintf("Current rc limit: %f%%", ee.rcLimit.value*100))
+			result.AddMessage(fmt.Sprintf("Current rc limit: %v%%", decVal.Mul(decimal.NewFromFloat(100.0))))
 			return result, nil
 		}
 
@@ -1052,39 +1057,51 @@ func (c *RcLimitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 			return nil, err
 		}
 
-		f, _ := dAmount.Mul(decimal.NewFromFloat(ee.rcLimit.value)).Float64()
-		result.AddMessage(fmt.Sprintf("Current rc limit: %f%% (%f)", ee.rcLimit.value*100, f))
+		f, _ := dAmount.Mul(*decVal).Float64()
+		result.AddMessage(fmt.Sprintf("Current rc limit: %v%% (%f)", decVal.Mul(decimal.NewFromFloat(100.0)), f))
 		return result, nil
 	}
 
 	// Otherwise we are setting the limit
 	s := *c.limit
 	if s[len(s)-1] == '%' {
-		res, err := strconv.ParseFloat(s[:len(s)-1], 64)
+		res, err := decimal.NewFromString(s[:len(s)-1])
 		if err != nil {
 			return nil, err
 		}
 
 		// Check bounds
-		if res < 0 || res > 100 {
+		if res.LessThan(decimal.NewFromFloat(0.0)) || res.GreaterThan(decimal.NewFromFloat(100.0)) {
 			return nil, fmt.Errorf("%w: percentage rc limit must be between 0%% and 100%%", cliutil.ErrInvalidParam)
 		}
 
-		ee.rcLimit.value = res / 100.0
+		v := res.Div(decimal.NewFromFloat(100.0))
+		relative, err := util.DecimalToSatoshi(&v, cliutil.KoinPrecision)
+		if err != nil {
+			return nil, err
+		}
+
+		ee.rcLimit.value = relative
 		ee.rcLimit.absolute = false
-		result.AddMessage(fmt.Sprintf("Set rc limit to %f%%", res))
+		result.AddMessage(fmt.Sprintf("Set rc limit to %v%%", res))
 		return result, nil
 	}
 
 	// Otherwise we are setting the absolute limit
-	res, err := strconv.ParseFloat(s, 64)
+	res, err := decimal.NewFromString(s)
 	if err != nil {
 		return nil, err
 	}
 
-	ee.rcLimit.value = res
+	// Convert res to satoshis
+	absolute, err := util.DecimalToSatoshi(&res, cliutil.KoinPrecision)
+	if err != nil {
+		return nil, err
+	}
+
+	ee.rcLimit.value = absolute
 	ee.rcLimit.absolute = true
-	result.AddMessage(fmt.Sprintf("Set rc limit to %f", res))
+	result.AddMessage(fmt.Sprintf("Set rc limit to %v", res))
 
 	return result, nil
 }
@@ -1499,7 +1516,7 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 			}
 
 			if offline {
-				txn, err := ee.CreateSignedTransaction(ctx, ops...)
+				txn, err := ee.CreateTransaction(ctx, true, ops...)
 				if err != nil {
 					return nil, fmt.Errorf("cannot submit transaction session, %w", err)
 				}
