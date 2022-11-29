@@ -146,33 +146,33 @@ func (ee *ExecutionEnvironment) GetNextNonce(ctx context.Context, update bool) (
 		if err != nil {
 			return nil, err
 		}
-	}
+	} else {
+		nInfo, exists := ee.nonceMap[string(ee.Key.AddressBytes())]
 
-	nInfo, exists := ee.nonceMap[string(ee.Key.AddressBytes())]
-
-	if !exists {
-		nInfo = &nonceInfo{}
-		ee.nonceMap[string(ee.Key.AddressBytes())] = nInfo
-	}
-
-	if nInfo.nonceTime.IsZero() || time.Since(nInfo.nonceTime) > NonceCheckTime {
-		if !ee.IsOnline() {
-			return nil, fmt.Errorf("%w: cannot retrieve account nonce", cliutil.ErrOffline)
+		if !exists {
+			nInfo = &nonceInfo{}
+			ee.nonceMap[string(ee.Key.AddressBytes())] = nInfo
 		}
 
-		nonce, err := ee.RPCClient.GetAccountNonce(ctx, ee.Key.AddressBytes())
-		if err != nil {
-			return nil, err
+		if nInfo.nonceTime.IsZero() || time.Since(nInfo.nonceTime) > NonceCheckTime {
+			if !ee.IsOnline() {
+				return nil, fmt.Errorf("%w: cannot retrieve account nonce", cliutil.ErrOffline)
+			}
+
+			nonce, err = ee.RPCClient.GetAccountNonce(ctx, ee.Key.AddressBytes())
+			if err != nil {
+				return nil, err
+			}
+
+			nInfo.nonceTime = time.Now()
+			atomic.StoreUint64(&nInfo.currentNonce, nonce)
 		}
 
-		nInfo.nonceTime = time.Now()
-		atomic.StoreUint64(&nInfo.currentNonce, nonce)
-	}
-
-	nonce = nInfo.currentNonce + 1
-	if update {
-		nInfo.nonceTime = time.Now()
-		atomic.AddUint64(&nInfo.currentNonce, 1)
+		nonce = nInfo.currentNonce + 1
+		if update {
+			nInfo.nonceTime = time.Now()
+			atomic.AddUint64(&nInfo.currentNonce, 1)
+		}
 	}
 
 	nonceBytes, err := util.UInt64ToNonceBytes(nonce)
@@ -237,7 +237,10 @@ func (ee *ExecutionEnvironment) SubmitTransaction(ctx context.Context, result *E
 		return err
 	}
 
-	transaction.SignTransaction(trx, ee.Key)
+	err = transaction.SignTransaction(trx, ee.Key)
+	if err != nil {
+		return err
+	}
 
 	if !ee.IsOnline() {
 		return fmt.Errorf("%w: cannot submit transaction", cliutil.ErrOffline)
@@ -262,6 +265,9 @@ func (ee *ExecutionEnvironment) CreateTransaction(ctx context.Context, ops ...*p
 	trx.Operations = append(trx.Operations, ops...)
 
 	chainId, err := ee.GetChainID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	trx.Header.ChainId = chainId
 
 	nonce, err := ee.GetNextNonce(ctx, true)
