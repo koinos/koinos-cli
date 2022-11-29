@@ -232,27 +232,29 @@ func (ee *ExecutionEnvironment) GetRcLimit(ctx context.Context) (uint64, error) 
 // SubmitTransaction is a utility function to submit a transaction from a command
 func (ee *ExecutionEnvironment) SubmitTransaction(ctx context.Context, result *ExecutionResult, ops ...*protocol.Operation) error {
 
-	transaction, err := ee.CreateTransaction(ctx, ops...)
+	trx, err := ee.CreateTransaction(ctx, ops...)
 	if err != nil {
 		return err
 	}
 
+	transaction.SignTransaction(trx, ee.Key)
+
 	if !ee.IsOnline() {
 		return fmt.Errorf("%w: cannot submit transaction", cliutil.ErrOffline)
 	}
-	receipt, err := ee.RPCClient.SubmitTransaction(ctx, transaction, true)
+	receipt, err := ee.RPCClient.SubmitTransaction(ctx, trx, true)
 	if err != nil {
 		ee.ResetNonce()
 		return err
 	}
 
-	result.AddMessage(cliutil.TransactionReceiptToString(receipt, len(transaction.Operations)))
+	result.AddMessage(cliutil.TransactionReceiptToString(receipt, len(trx.Operations)))
 
 	return nil
 }
 
 func (ee *ExecutionEnvironment) CreateTransaction(ctx context.Context, ops ...*protocol.Operation) (*protocol.Transaction, error) {
-	trx := &protocol.Transaction{}
+	trx := &protocol.Transaction{Header: &protocol.TransactionHeader{}}
 
 	trx.Header.Payer = ee.GetPayerAddress()
 
