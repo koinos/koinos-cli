@@ -227,6 +227,8 @@ github.com/koinos/go-prompt v0.0.0-20220818181004-5b1028a45a2f h1:b7s6B0NyISu+/Z
 github.com/koinos/go-prompt v0.0.0-20220818181004-5b1028a45a2f/go.mod h1:Q5ndhnCeUQKAlYSUuBwte5tJxSTopTRmRs0kSl9vmMY=
 github.com/koinos/koinos-proto-golang v1.0.0 h1:N8haj+tMRLc/a1j636wjryoaxW+aJwKKSdZ01CRJoOU=
 github.com/koinos/koinos-proto-golang v1.0.0/go.mod h1:ZonOOdmZcuEbRdOqqdfYRA2I4szYHy5aKzUveMWXBog=
+github.com/koinos/koinos-proto-golang v1.0.1-0.20221123003957-336b725f600d h1:IgJ7WzGRVwe2/XJfPwK/YxUAy7LubjhbMSDeCgy6sHU=
+github.com/koinos/koinos-proto-golang v1.0.1-0.20221123003957-336b725f600d/go.mod h1:ZonOOdmZcuEbRdOqqdfYRA2I4szYHy5aKzUveMWXBog=
 github.com/koinos/koinos-util-golang v1.0.0 h1:OIwBG7L8dLFh3xWwyE2EYd9XRnhH3UnwboddOX1j86w=
 github.com/koinos/koinos-util-golang v1.0.0/go.mod h1:E7vZAMfTX7I3r+nKvbO08YsKDb3YxyuVaKV04Kuf3AI=
 github.com/koinos/koinos-util-golang v1.0.1-0.20221110025346-7a3a57a88bb7 h1:2qVcQKSPgwyPTKVD2Qg11zeiiTfGQHPLFfUE0lawbcQ=
@@ -239,6 +241,8 @@ github.com/koinos/koinos-util-golang v1.0.1-0.20221121233815-850e83d6fe91 h1:nZo
 github.com/koinos/koinos-util-golang v1.0.1-0.20221121233815-850e83d6fe91/go.mod h1:E7vZAMfTX7I3r+nKvbO08YsKDb3YxyuVaKV04Kuf3AI=
 github.com/koinos/koinos-util-golang v1.0.1-0.20221123012450-cf6abb87a831 h1:QtW4KSuUKBgQ3O+i6jwwTV5U7LHl1dJQR6eTza/2STI=
 github.com/koinos/koinos-util-golang v1.0.1-0.20221123012450-cf6abb87a831/go.mod h1:E7vZAMfTX7I3r+nKvbO08YsKDb3YxyuVaKV04Kuf3AI=
+github.com/koinos/koinos-util-golang v1.0.1-0.20221129180306-52fb7d793e71 h1:xGrpTOyMW6HkmktvjV+pDhO+R2oBMxCrA/CP4Vg24dg=
+github.com/koinos/koinos-util-golang v1.0.1-0.20221129180306-52fb7d793e71/go.mod h1:Vh7/QpPKO0wvq0W2MRAXilhKG8PM3tRXGD9Jtqi0IDs=
 github.com/koinos/protobuf-go v1.27.2-0.20211026185306-2456c83214fe h1:PJ+2AnN4ibN2WxldiClplZZosQNPnXj7S5vOeFNtV+M=
 github.com/koinos/protobuf-go v1.27.2-0.20211026185306-2456c83214fe/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=

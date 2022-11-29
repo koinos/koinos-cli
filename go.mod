@@ -7,8 +7,8 @@ require (
 	github.com/ethereum/go-ethereum v1.10.9 // indirect
 	github.com/joho/godotenv v1.3.0
 	github.com/koinos/go-prompt v0.0.0-20220818181004-5b1028a45a2f
-	github.com/koinos/koinos-proto-golang v1.0.0
-	github.com/koinos/koinos-util-golang v1.0.1-0.20221123012450-cf6abb87a831
+	github.com/koinos/koinos-proto-golang v1.0.1-0.20221123003957-336b725f600d
+	github.com/koinos/koinos-util-golang v1.0.1-0.20221129180306-52fb7d793e71
 	github.com/minio/sio v0.3.0
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/pflag v1.0.5
