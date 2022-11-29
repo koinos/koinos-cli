@@ -137,9 +137,15 @@ func (ee *ExecutionEnvironment) IsNonceAuto() bool {
 }
 
 // GetNextNonce returns the current nonce
-func (ee *ExecutionEnvironment) GetNextNonce(ctx context.Context, update bool) (uint64, error) {
+func (ee *ExecutionEnvironment) GetNextNonce(ctx context.Context, update bool) ([]byte, error) {
+	var nonce uint64
+	var err error
+
 	if !ee.IsNonceAuto() {
-		return strconv.ParseUint(ee.nonceMode, 10, 64)
+		nonce, err = strconv.ParseUint(ee.nonceMode, 10, 64)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	nInfo, exists := ee.nonceMap[string(ee.Key.AddressBytes())]
@@ -150,22 +156,31 @@ func (ee *ExecutionEnvironment) GetNextNonce(ctx context.Context, update bool) (
 	}
 
 	if nInfo.nonceTime.IsZero() || time.Since(nInfo.nonceTime) > NonceCheckTime {
+		if !ee.IsOnline() {
+			return nil, fmt.Errorf("%w: cannot retrieve account nonce", cliutil.ErrOffline)
+		}
+
 		nonce, err := ee.RPCClient.GetAccountNonce(ctx, ee.Key.AddressBytes())
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 
 		nInfo.nonceTime = time.Now()
 		atomic.StoreUint64(&nInfo.currentNonce, nonce)
 	}
 
-	nonce := nInfo.currentNonce + 1
+	nonce = nInfo.currentNonce + 1
 	if update {
 		nInfo.nonceTime = time.Now()
 		atomic.AddUint64(&nInfo.currentNonce, 1)
 	}
 
-	return nonce, nil
+	nonceBytes, err := util.UInt64ToNonceBytes(nonce)
+	if err != nil {
+		return nil, err
+	}
+
+	return nonceBytes, nil
 }
 
 // IsChainIDAuto returns a bool representing whether or not the chain ID is being automatically fetched
@@ -176,6 +191,9 @@ func (ee *ExecutionEnvironment) IsChainIDAuto() bool {
 // GetChainID returns the current chain ID
 func (ee *ExecutionEnvironment) GetChainID(ctx context.Context) ([]byte, error) {
 	if ee.IsChainIDAuto() {
+		if !ee.IsOnline() {
+			return nil, fmt.Errorf("%w: cannot retrieve chain id", cliutil.ErrOffline)
+		}
 		return ee.RPCClient.GetChainID(ctx)
 	}
 
@@ -189,6 +207,9 @@ func (ee *ExecutionEnvironment) GetRcLimit(ctx context.Context) (uint64, error) 
 	}
 
 	// else it's relative
+	if !ee.IsOnline() {
+		return 0, fmt.Errorf("%w: cannot retrieve account rc", cliutil.ErrOffline)
+	}
 	limit, err := ee.RPCClient.GetAccountRc(ctx, ee.Key.AddressBytes())
 	if err != nil {
 		return 0, err
@@ -211,11 +232,14 @@ func (ee *ExecutionEnvironment) GetRcLimit(ctx context.Context) (uint64, error) 
 // SubmitTransaction is a utility function to submit a transaction from a command
 func (ee *ExecutionEnvironment) SubmitTransaction(ctx context.Context, result *ExecutionResult, ops ...*protocol.Operation) error {
 
-	transaction, err := ee.CreateTransaction(ctx, true, ops...)
+	transaction, err := ee.CreateTransaction(ctx, ops...)
 	if err != nil {
 		return err
 	}
 
+	if !ee.IsOnline() {
+		return fmt.Errorf("%w: cannot submit transaction", cliutil.ErrOffline)
+	}
 	receipt, err := ee.RPCClient.SubmitTransaction(ctx, transaction, true)
 	if err != nil {
 		ee.ResetNonce()
@@ -227,36 +251,62 @@ func (ee *ExecutionEnvironment) SubmitTransaction(ctx context.Context, result *E
 	return nil
 }
 
-func (ee *ExecutionEnvironment) CreateTransaction(ctx context.Context, signed bool, ops ...*protocol.Operation) (*protocol.Transaction, error) {
+func (ee *ExecutionEnvironment) CreateTransaction(ctx context.Context, ops ...*protocol.Operation) (*protocol.Transaction, error) {
+	trx := &protocol.Transaction{}
+
+	trx.Header.Payer = ee.GetPayerAddress()
+
+	trx.Operations = make([]*protocol.Operation, 0)
+	trx.Operations = append(trx.Operations, ops...)
+
+	chainId, err := ee.GetChainID(ctx)
+	trx.Header.ChainId = chainId
+
 	nonce, err := ee.GetNextNonce(ctx, true)
 	if err != nil {
 		return nil, err
 	}
 
-	payer := ee.GetPayerAddress()
+	trx.Header.Nonce = nonce
 
-	var chainID []byte
-	if !ee.IsChainIDAuto() {
-		chainID, err = base64.StdEncoding.DecodeString(ee.chainID)
+	if ee.rcLimit.absolute {
+		trx.Header.RcLimit = ee.rcLimit.value
+	} else {
+		if !ee.IsOnline() {
+			return nil, fmt.Errorf("%w: cannot retrieve account rc", cliutil.ErrOffline)
+		}
+
+		rcLimitVal, err := ee.RPCClient.GetAccountRc(ctx, ee.GetPayerAddress())
 		if err != nil {
 			return nil, err
 		}
+
+		rcDec, err := util.SatoshiToDecimal(rcLimitVal, 8)
+		if err != nil {
+			return nil, err
+		}
+
+		fracDec, err := util.SatoshiToDecimal(ee.rcLimit.value, 8)
+		if err != nil {
+			return nil, err
+		}
+
+		rcLimitDec := rcDec.Mul(*fracDec)
+
+		rcLimit, err := util.DecimalToSatoshi(&rcLimitDec, 8)
+		if err != nil {
+			return nil, err
+		}
+
+		trx.Header.RcLimit = rcLimit
 	}
 
-	tb := transaction.TransactionBuilder{}
-
-	if ee.IsOnline() {
-		tb.SetRPCClient(ee.RPCClient)
+	err = transaction.PrepareTransaction(ctx, trx, ee.RPCClient)
+	if err != nil {
+		return nil, err
 	}
 
-	tb.SetKey(ee.Key)
-	tb.AddOperations(ops...)
-	tb.SetNonce(nonce)
-	tb.SetPayer(payer)
-	tb.SetRCLimit(ee.rcLimit.value, ee.rcLimit.absolute)
-	tb.SetChainID(chainID)
-
-	return tb.Build(ctx, signed)
+	return trx, nil
 }
 
 // IsWalletOpen returns a bool representing whether or not there is an open wallet

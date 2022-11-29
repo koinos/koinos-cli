@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/koinos/koinos-cli/internal/cliutil"
+	cliutil "github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/koinos/chain"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/koinos/koinos-util-golang/rpc"
@@ -1326,7 +1326,7 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 			}
 
 			if offline {
-				txn, err := ee.CreateTransaction(ctx, true, ops...)
+				txn, err := ee.CreateTransaction(ctx, ops...)
 				if err != nil {
 					return nil, fmt.Errorf("cannot submit transaction session, %w", err)
 				}
