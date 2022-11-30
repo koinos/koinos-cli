@@ -476,7 +476,7 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	}
 
 	// Create the key
-	key, err := util.NewKoinosKeysFromBytes(keyBytes)
+	key, err := util.NewKoinosKeyFromBytes(keyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -722,7 +722,7 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	}
 
 	// Create the key object
-	key, err := util.NewKoinosKeysFromBytes(keyBytes)
+	key, err := util.NewKoinosKeyFromBytes(keyBytes)
 	if err != nil {
 		return nil, err
 	}

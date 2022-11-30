@@ -19,6 +19,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // ABI is the ABI of the contract
@@ -53,8 +54,32 @@ func (abi *ABI) GetFiles() (*protoregistry.Files, error) {
 	protocolFile := protodesc.ToFileDescriptorProto((&protocol.Block{}).ProtoReflect().Descriptor().ParentFile())
 	fileMap[*protocolFile.Name] = protocolFile
 
+	authorityFile := protodesc.ToFileDescriptorProto((&chain.CallData{}).ProtoReflect().Descriptor().ParentFile())
+	fileMap[*authorityFile.Name] = authorityFile
+
 	chainFile := protodesc.ToFileDescriptorProto((&chain.DatabaseKey{}).ProtoReflect().Descriptor().ParentFile())
 	fileMap[*chainFile.Name] = chainFile
+
+	errorFile := protodesc.ToFileDescriptorProto(chain.ErrorCode.Descriptor(chain.ErrorCode_authorization_failure).ParentFile())
+	fileMap[*errorFile.Name] = errorFile
+
+	eventsFile := protodesc.ToFileDescriptorProto((&chain.SetSystemCallEvent{}).ProtoReflect().Descriptor().ParentFile())
+	fileMap[*eventsFile.Name] = eventsFile
+
+	objectSpacesFile := protodesc.ToFileDescriptorProto(chain.SystemSpaceId.Descriptor(chain.SystemSpaceId(chain.SystemSpaceId_contract_bytecode)).ParentFile())
+	fileMap[*objectSpacesFile.Name] = objectSpacesFile
+
+	systemCallIdFile := protodesc.ToFileDescriptorProto(chain.SystemCallId.Descriptor(chain.SystemCallId(chain.SystemCallId_apply_block)).ParentFile())
+	fileMap[*systemCallIdFile.Name] = systemCallIdFile
+
+	systemCallsFile := protodesc.ToFileDescriptorProto((&chain.NopArguments{}).ProtoReflect().Descriptor().ParentFile())
+	fileMap[*systemCallsFile.Name] = systemCallsFile
+
+	valueFile := protodesc.ToFileDescriptorProto((&chain.ValueType{}).ProtoReflect().Descriptor().ParentFile())
+	fileMap[*valueFile.Name] = valueFile
+
+	anyFile := protodesc.ToFileDescriptorProto((&anypb.Any{}).ProtoReflect().Descriptor().ParentFile())
+	fileMap[*anyFile.Name] = anyFile
 
 	var fds descriptorpb.FileDescriptorSet
 	err := proto.Unmarshal(abi.Types, &fds)
@@ -250,6 +275,9 @@ func parseABIFields(md protoreflect.MessageDescriptor, root string) ([]CommandAr
 				}
 			}
 
+		case protoreflect.EnumKind:
+			t = StringArg
+
 		case protoreflect.MessageKind:
 			cmds, err := parseABIFields(fd.Message(), name)
 			if err != nil {
@@ -360,6 +388,14 @@ func dataToMessage(data map[string]*string, md protoreflect.MessageDescriptor, r
 			}
 
 			value = protoreflect.ValueOfBytes(b)
+
+		case protoreflect.EnumKind:
+			enum := fd.Enum().Values().ByName(protoreflect.Name(inputValue))
+			if enum == nil {
+				return nil, fmt.Errorf("enum value for '%s' not found", inputValue)
+			}
+
+			value = protoreflect.ValueOfEnum(enum.Number())
 
 		case protoreflect.MessageKind:
 			subMsg, err := dataToMessage(data, fd.Message(), name)
