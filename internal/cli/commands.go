@@ -118,6 +118,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", AddressArg), *NewCommandArg("entry-point", HexArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_contract", "Change a contract's permission level between user and system", false, NewSetSystemContractCommand, *NewCommandArg("contract-id", AddressArg), *NewCommandArg("system-contract", BoolArg)))
 	cs.AddCommand(NewCommandDeclaration("session", "Create or manage a transaction session (begin, submit, cancel, or view)", false, NewSessionCommand, *NewCommandArg("command", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("sign", "Signs a transaction with the open wallet, adding it to the transaction", true, NewSignTransactionCommand, *NewCommandArg("transaction", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("submit_transaction", "Submit a transaction from base64 data", false, NewSubmitTransactionCommand, *NewCommandArg("transaction", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("sleep", "Sleep for the given number seconds", true, NewSleepCommand, *NewCommandArg("seconds", AmountArg)))
 	cs.AddCommand(NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
@@ -1362,6 +1363,57 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	default:
 		return nil, fmt.Errorf("unknown command %s, options are (begin, submit, cancel, view)", c.Command)
 	}
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Sign Command
+// ----------------------------------------------------------------------------
+
+// SignTransactionCommand is a command that signs a transaction with the open wallet
+type SignTransactionCommand struct {
+	Transaction string
+}
+
+// NewSignTransactionCommand signs a transacion
+func NewSignTransactionCommand(inv *CommandParseResult) Command {
+	return &SignTransactionCommand{
+		Transaction: *inv.Args["transaction"],
+	}
+}
+
+// Execute signs a transaction
+func (c *SignTransactionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot sign transaction", cliutil.ErrWalletClosed)
+	}
+
+	trxBytes, err := base64.URLEncoding.DecodeString(c.Transaction)
+	if err != nil {
+		return nil, err
+	}
+
+	var trx *protocol.Transaction
+	err = proto.Unmarshal(trxBytes, trx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = util.SignTransaction(ee.Key.PrivateBytes(), trx)
+	if err != nil {
+		return nil, err
+	}
+
+	trxBytes, err = proto.Marshal(trx)
+	if err != nil {
+		return nil, err
+	}
+
+	encodedTrx := base64.URLEncoding.EncodeToString(trxBytes)
+
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Signed Transaction: %v", encodedTrx))
 
 	return result, nil
 }
