@@ -6,7 +6,7 @@ require (
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/ethereum/go-ethereum v1.10.9 // indirect
 	github.com/joho/godotenv v1.3.0
-	github.com/koinos/go-prompt v0.0.0-20220818181004-5b1028a45a2f
+	github.com/koinos/go-prompt v0.0.0-20221201222302-dba4c3542a91
 	github.com/koinos/koinos-proto-golang v1.0.1-0.20221123003957-336b725f600d
 	github.com/koinos/koinos-util-golang v1.0.1-0.20221123010835-d34cde17793e
 	github.com/minio/sio v0.3.0
