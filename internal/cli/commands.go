@@ -16,7 +16,6 @@ import (
 	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/koinos/chain"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
-	"github.com/koinos/koinos-util-golang/rpc"
 	"github.com/shopspring/decimal"
 	"google.golang.org/protobuf/proto"
 
@@ -177,7 +176,7 @@ func NewConnectCommand(inv *CommandParseResult) Command {
 
 // Execute connects to an RPC endpoint
 func (c *ConnectCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	rpc := rpc.NewKoinosRPCClient(c.URL)
+	rpc := cliutil.NewKoinosRPCClient(c.URL)
 	ee.RPCClient = rpc
 
 	// TODO: Ensure connection (some sort of ping?)

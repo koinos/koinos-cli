@@ -12,7 +12,6 @@ import (
 	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	util "github.com/koinos/koinos-util-golang"
-	"github.com/koinos/koinos-util-golang/rpc"
 	"github.com/shopspring/decimal"
 )
 
@@ -67,7 +66,7 @@ type nonceInfo struct {
 
 // ExecutionEnvironment is a struct that holds the environment for command execution.
 type ExecutionEnvironment struct {
-	RPCClient *rpc.KoinosRPCClient
+	RPCClient *cliutil.KoinosRPCClient
 	Key       *util.KoinosKey
 	Parser    *CommandParser
 	Contracts Contracts
@@ -80,7 +79,7 @@ type ExecutionEnvironment struct {
 }
 
 // NewExecutionEnvironment creates a new ExecutionEnvironment object
-func NewExecutionEnvironment(rpcClient *rpc.KoinosRPCClient, parser *CommandParser) *ExecutionEnvironment {
+func NewExecutionEnvironment(rpcClient *cliutil.KoinosRPCClient, parser *CommandParser) *ExecutionEnvironment {
 	return &ExecutionEnvironment{
 		RPCClient: rpcClient,
 		Parser:    parser,
@@ -225,7 +224,7 @@ func (ee *ExecutionEnvironment) SubmitTransaction(ctx context.Context, result *E
 }
 
 // GetSubmissionParams returns the submission parameters for a command
-func (ee *ExecutionEnvironment) GetSubmissionParams(ctx context.Context) (*rpc.SubmissionParams, error) {
+func (ee *ExecutionEnvironment) GetSubmissionParams(ctx context.Context) (*cliutil.SubmissionParams, error) {
 	nonce, err := ee.GetNextNonce(ctx, true)
 	if err != nil {
 		return nil, err
@@ -236,7 +235,7 @@ func (ee *ExecutionEnvironment) GetSubmissionParams(ctx context.Context) (*rpc.S
 		return nil, err
 	}
 
-	return &rpc.SubmissionParams{
+	return &cliutil.SubmissionParams{
 		Nonce:   nonce,
 		RCLimit: rcLimit,
 	}, nil
@@ -270,7 +269,7 @@ func (ee *ExecutionEnvironment) CreateSignedTransaction(ctx context.Context, ops
 
 	payer := ee.GetPayerAddress()
 
-	txn, err := util.CreateSignedTransaction(ctx, ops, ee.Key, nonce, rcLimit, chainID, payer)
+	txn, err := cliutil.CreateSignedTransaction(ctx, ops, ee.Key, nonce, rcLimit, chainID, payer)
 	if err != nil {
 		return nil, fmt.Errorf("cannot submit transaction session, %w", err)
 	}

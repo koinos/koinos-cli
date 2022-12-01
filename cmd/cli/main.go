@@ -12,7 +12,6 @@ import (
 	"github.com/koinos/koinos-cli/internal/cli"
 	"github.com/koinos/koinos-cli/internal/cliutil"
 	util "github.com/koinos/koinos-util-golang"
-	"github.com/koinos/koinos-util-golang/rpc"
 	flag "github.com/spf13/pflag"
 )
 
@@ -56,9 +55,9 @@ func main() {
 	}
 
 	// Setup client
-	var client *rpc.KoinosRPCClient
+	var client *cliutil.KoinosRPCClient
 	if *rpcAddress != "" {
-		client = rpc.NewKoinosRPCClient(*rpcAddress)
+		client = cliutil.NewKoinosRPCClient(*rpcAddress)
 	}
 
 	// Construct the command parser
