@@ -178,7 +178,7 @@ func (ee *ExecutionEnvironment) GetChainID(ctx context.Context) ([]byte, error) 
 		return ee.RPCClient.GetChainID(ctx)
 	}
 
-	return base64.StdEncoding.DecodeString(ee.chainID)
+	return base64.URLEncoding.DecodeString(ee.chainID)
 }
 
 // GetRcLimit returns the current RC limit

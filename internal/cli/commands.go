@@ -118,7 +118,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", AddressArg), *NewCommandArg("entry-point", HexArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_contract", "Change a contract's permission level between user and system", false, NewSetSystemContractCommand, *NewCommandArg("contract-id", AddressArg), *NewCommandArg("system-contract", BoolArg)))
 	cs.AddCommand(NewCommandDeclaration("session", "Create or manage a transaction session (begin, submit, cancel, or view)", false, NewSessionCommand, *NewCommandArg("command", StringArg)))
-	cs.AddCommand(NewCommandDeclaration("submit_transaction", "Submit a transaction from base64 data", false, NewSubmitCommand, *NewCommandArg("transaction", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("submit_transaction", "Submit a transaction from base64 data", false, NewSubmitTransactionCommand, *NewCommandArg("transaction", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("sleep", "Sleep for the given number seconds", true, NewSleepCommand, *NewCommandArg("seconds", AmountArg)))
 	cs.AddCommand(NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	cs.AddCommand(NewCommandDeclaration("quit", "Synonym for exit", true, NewExitCommand))
@@ -617,29 +617,29 @@ func (c *HelpCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 }
 
 // ----------------------------------------------------------------------------
-// Submit Command
+// Submit Transaction Command
 // ----------------------------------------------------------------------------
 
-// ConnectCommand is a command that connects to an RPC endpoint
-type SubmitCommand struct {
+// SubmitTransactionCommand is a command that submits a given transaction to the blockchain
+type SubmitTransactionCommand struct {
 	Transaction string
 }
 
-// NewConnectCommand creates a new connect object
-func NewSubmitCommand(inv *CommandParseResult) Command {
-	return &SubmitCommand{Transaction: *inv.Args["transaction"]}
+// NewSubmitTransactionCommand creates a new submit transaction command object
+func NewSubmitTransactionCommand(inv *CommandParseResult) Command {
+	return &SubmitTransactionCommand{Transaction: *inv.Args["transaction"]}
 }
 
-// Execute connects to an RPC endpoint
-func (c *SubmitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+// Execute submits a transaction to the blockchain
+func (c *SubmitTransactionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	result := NewExecutionResult()
 
 	if !ee.IsOnline() {
 		return nil, fmt.Errorf("%w: cannot submit transaction", cliutil.ErrOffline)
 	}
 
-	// Unmarshal the transaction
-	data, err := base64.StdEncoding.DecodeString(c.Transaction)
+	// Decode the transaction
+	data, err := base64.URLEncoding.DecodeString(c.Transaction)
 	if err != nil {
 		return nil, err
 	}
@@ -826,18 +826,18 @@ func (c *PayerCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*
 // Nonce Command
 // ----------------------------------------------------------------------------
 
-// NonceCommand is a command shows or sets the current payer
+// NonceCommand is a command that shows or sets the current nonce
 type NonceCommand struct {
 	Nonce *string
 }
 
-// NewPayerCommand creates a new payer command object
+// NewNonceCommand creates a new nonce command object
 func NewNonceCommand(inv *CommandParseResult) Command {
 	nonceString := inv.Args["nonce"]
 	return &NonceCommand{Nonce: nonceString}
 }
 
-// Execute shows wallet address
+// Execute shows or sets the current nonce
 func (c *NonceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	result := NewExecutionResult()
 
@@ -887,18 +887,18 @@ func (c *NonceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*
 // ChainID Command
 // ----------------------------------------------------------------------------
 
-// NonceCommand is a command shows or sets the current payer
+// ChainIDCommand is a command that shows or sets the current chain ID
 type ChainIDCommand struct {
 	ID *string
 }
 
-// NewPayerCommand creates a new payer command object
+// NewChainIDCommand creates a new chain ID command object
 func NewChainIDCommand(inv *CommandParseResult) Command {
 	nonceString := inv.Args["id"]
 	return &ChainIDCommand{ID: nonceString}
 }
 
-// Execute shows wallet address
+// Execute shows or sets the current chain ID
 func (c *ChainIDCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	result := NewExecutionResult()
 
@@ -909,7 +909,7 @@ func (c *ChainIDCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 			if err != nil {
 				return nil, err
 			}
-			result.AddMessage(fmt.Sprintf("Chain ID: auto ( %s )", base64.StdEncoding.EncodeToString(chainID)))
+			result.AddMessage(fmt.Sprintf("Chain ID: auto ( %s )", base64.URLEncoding.EncodeToString(chainID)))
 		} else {
 			result.AddMessage(fmt.Sprintf("Chain ID: %s", ee.chainID))
 		}
@@ -925,7 +925,7 @@ func (c *ChainIDCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	}
 
 	// Make sure the chain id is valid base64
-	_, err := base64.StdEncoding.DecodeString(*c.ID)
+	_, err := base64.URLEncoding.DecodeString(*c.ID)
 	if err != nil {
 		return nil, fmt.Errorf("%w: chain id must either be a base64 string or \"auto\"", cliutil.ErrInvalidParam)
 	}
@@ -1116,7 +1116,7 @@ func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		return nil, fmt.Errorf("%w: cannot call contract", cliutil.ErrWalletClosed)
 	}
 
-	if !ee.IsOnline() && !ee.Session.IsValid() {
+	if !ee.IsOnline() {
 		return nil, fmt.Errorf("%w: cannot call contract", cliutil.ErrOffline)
 	}
 
@@ -1196,7 +1196,7 @@ func (c *SetSystemContractCommand) Execute(ctx context.Context, ee *ExecutionEnv
 		return nil, fmt.Errorf("%w: cannot set system contract", cliutil.ErrWalletClosed)
 	}
 
-	if !ee.IsOnline() && !ee.Session.IsValid() {
+	if !ee.IsOnline() {
 		return nil, fmt.Errorf("%w: cannot set system contract", cliutil.ErrOffline)
 	}
 
@@ -1328,7 +1328,7 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 				}
 
 				result.AddMessage("\nBase64:")
-				result.AddMessage(base64.StdEncoding.EncodeToString(data))
+				result.AddMessage(base64.URLEncoding.EncodeToString(data))
 			} else {
 				err := ee.SubmitTransaction(ctx, result, ops...)
 				if err != nil {
