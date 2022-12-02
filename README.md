@@ -8,6 +8,20 @@ The latest release can be downloaded from [GitHub](https://github.com/koinos/koi
 
 Start the CLI with the binary included in the archive.
 
+## Building from source
+
+These are optional build instructions if you prefer to build from source or if you need to build for systems where the provided binary is not compatible.
+
+You need a sufficiently up-to-date version of the Go programming language to build this project. On Ubuntu 22.04 or later, the version installed by `apt install golang` suffices. On other operating systems or older versions of Ubuntu, you may need to download Go from the [official website](https://go.dev/doc/install).
+
+Once installed, you can build the project with the following command:
+
+```
+go build -o koinos-cli ./cmd/cli
+```
+
+The executable will be in the same directory and can be run with the command `./koinos-cli`
+
 ## Basic usage
 
 When running the wallet, it will start in interactive mode. Press tab or type `list` to see a list of possible commands.
