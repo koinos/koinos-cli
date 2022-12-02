@@ -11,7 +11,6 @@ import (
 	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	util "github.com/koinos/koinos-util-golang"
-	"github.com/koinos/koinos-util-golang/rpc"
 	"github.com/shopspring/decimal"
 	"google.golang.org/protobuf/proto"
 )
@@ -24,7 +23,7 @@ const (
 	TokenDecimalsEntry    = uint32(0xee80fd2f)
 )
 
-func retrieveSymbol(ctx context.Context, client *rpc.KoinosRPCClient, contractID []byte) (*string, error) {
+func retrieveSymbol(ctx context.Context, client *cliutil.KoinosRPCClient, contractID []byte) (*string, error) {
 	symbolArguments := token.SymbolArguments{}
 
 	args, err := proto.Marshal(&symbolArguments)
@@ -46,7 +45,7 @@ func retrieveSymbol(ctx context.Context, client *rpc.KoinosRPCClient, contractID
 	return &symbolResult.Value, nil
 }
 
-func retrieveDecimals(ctx context.Context, client *rpc.KoinosRPCClient, contractID []byte) (*int, error) {
+func retrieveDecimals(ctx context.Context, client *cliutil.KoinosRPCClient, contractID []byte) (*int, error) {
 	decimalsArguments := token.DecimalsArguments{}
 
 	args, err := proto.Marshal(&decimalsArguments)
@@ -70,7 +69,7 @@ func retrieveDecimals(ctx context.Context, client *rpc.KoinosRPCClient, contract
 	return &value, nil
 }
 
-func retrieveBalance(ctx context.Context, client *rpc.KoinosRPCClient, contractID []byte, address []byte) (*uint64, error) {
+func retrieveBalance(ctx context.Context, client *cliutil.KoinosRPCClient, contractID []byte, address []byte) (*uint64, error) {
 	balanceOfArguments := token.BalanceOfArguments{}
 	balanceOfArguments.Owner = address
 

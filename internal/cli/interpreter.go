@@ -2,7 +2,9 @@ package cli
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -10,7 +12,6 @@ import (
 	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	util "github.com/koinos/koinos-util-golang"
-	"github.com/koinos/koinos-util-golang/rpc"
 	"github.com/shopspring/decimal"
 )
 
@@ -21,6 +22,8 @@ const (
 	// NonceCheckTime is the time between nonce checks
 	NonceCheckTime = time.Second * 30
 	SelfPayer      = "me"
+	AutoNonce      = "auto"
+	AutoChainID    = "auto"
 )
 
 // Command is the interface that all commands must implement
@@ -63,18 +66,20 @@ type nonceInfo struct {
 
 // ExecutionEnvironment is a struct that holds the environment for command execution.
 type ExecutionEnvironment struct {
-	RPCClient *rpc.KoinosRPCClient
+	RPCClient *cliutil.KoinosRPCClient
 	Key       *util.KoinosKey
 	Parser    *CommandParser
 	Contracts Contracts
 	Session   *TransactionSession
 	nonceMap  map[string]*nonceInfo
+	nonceMode string
 	rcLimit   rcInfo
 	payer     string
+	chainID   string
 }
 
 // NewExecutionEnvironment creates a new ExecutionEnvironment object
-func NewExecutionEnvironment(rpcClient *rpc.KoinosRPCClient, parser *CommandParser) *ExecutionEnvironment {
+func NewExecutionEnvironment(rpcClient *cliutil.KoinosRPCClient, parser *CommandParser) *ExecutionEnvironment {
 	return &ExecutionEnvironment{
 		RPCClient: rpcClient,
 		Parser:    parser,
@@ -83,6 +88,8 @@ func NewExecutionEnvironment(rpcClient *rpc.KoinosRPCClient, parser *CommandPars
 		nonceMap:  make(map[string]*nonceInfo),
 		rcLimit:   rcInfo{value: 1.0, absolute: false},
 		payer:     SelfPayer,
+		chainID:   AutoChainID,
+		nonceMode: AutoNonce,
 	}
 }
 
@@ -123,8 +130,17 @@ func (ee *ExecutionEnvironment) ResetNonce() {
 	}
 }
 
-// GetNonce returns the current nonce
-func (ee *ExecutionEnvironment) GetNonce(ctx context.Context) (uint64, error) {
+// IsNonceAuto returns a bool representing whether or not the nonce is being automatically fetched
+func (ee *ExecutionEnvironment) IsNonceAuto() bool {
+	return ee.nonceMode == AutoNonce
+}
+
+// GetNextNonce returns the current nonce
+func (ee *ExecutionEnvironment) GetNextNonce(ctx context.Context, update bool) (uint64, error) {
+	if !ee.IsNonceAuto() {
+		return strconv.ParseUint(ee.nonceMode, 10, 64)
+	}
+
 	nInfo, exists := ee.nonceMap[string(ee.Key.AddressBytes())]
 
 	if !exists {
@@ -138,13 +154,31 @@ func (ee *ExecutionEnvironment) GetNonce(ctx context.Context) (uint64, error) {
 			return 0, err
 		}
 
+		nInfo.nonceTime = time.Now()
 		atomic.StoreUint64(&nInfo.currentNonce, nonce)
 	}
 
-	nInfo.nonceTime = time.Now()
+	nonce := nInfo.currentNonce + 1
+	if update {
+		nInfo.nonceTime = time.Now()
+		atomic.AddUint64(&nInfo.currentNonce, 1)
+	}
 
-	atomic.AddUint64(&nInfo.currentNonce, 1)
-	return nInfo.currentNonce, nil
+	return nonce, nil
+}
+
+// IsChainIDAuto returns a bool representing whether or not the chain ID is being automatically fetched
+func (ee *ExecutionEnvironment) IsChainIDAuto() bool {
+	return ee.chainID == AutoChainID
+}
+
+// GetChainID returns the current chain ID
+func (ee *ExecutionEnvironment) GetChainID(ctx context.Context) ([]byte, error) {
+	if ee.IsChainIDAuto() {
+		return ee.RPCClient.GetChainID(ctx)
+	}
+
+	return base64.URLEncoding.DecodeString(ee.chainID)
 }
 
 // GetRcLimit returns the current RC limit
@@ -178,7 +212,7 @@ func (ee *ExecutionEnvironment) SubmitTransaction(ctx context.Context, result *E
 		return err
 	}
 
-	receipt, err := ee.RPCClient.SubmitTransactionWithPayer(ctx, ops, ee.Key, subParams, ee.GetPayerAddress(), true)
+	receipt, err := ee.RPCClient.SubmitTransactionOpsWithPayer(ctx, ops, ee.Key, subParams, ee.GetPayerAddress(), true)
 	if err != nil {
 		ee.ResetNonce()
 		return err
@@ -190,8 +224,8 @@ func (ee *ExecutionEnvironment) SubmitTransaction(ctx context.Context, result *E
 }
 
 // GetSubmissionParams returns the submission parameters for a command
-func (ee *ExecutionEnvironment) GetSubmissionParams(ctx context.Context) (*rpc.SubmissionParams, error) {
-	nonce, err := ee.GetNonce(ctx)
+func (ee *ExecutionEnvironment) GetSubmissionParams(ctx context.Context) (*cliutil.SubmissionParams, error) {
+	nonce, err := ee.GetNextNonce(ctx, true)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +235,7 @@ func (ee *ExecutionEnvironment) GetSubmissionParams(ctx context.Context) (*rpc.S
 		return nil, err
 	}
 
-	return &rpc.SubmissionParams{
+	return &cliutil.SubmissionParams{
 		Nonce:   nonce,
 		RCLimit: rcLimit,
 	}, nil
@@ -215,6 +249,32 @@ func (ee *ExecutionEnvironment) IsWalletOpen() bool {
 // IsOnline returns a bool representing whether or not the wallet is online
 func (ee *ExecutionEnvironment) IsOnline() bool {
 	return ee.RPCClient != nil
+}
+
+func (ee *ExecutionEnvironment) CreateSignedTransaction(ctx context.Context, ops ...*protocol.Operation) (*protocol.Transaction, error) {
+	nonce, err := ee.GetNextNonce(ctx, true)
+	if err != nil {
+		return nil, err
+	}
+
+	rcLimit, err := ee.GetRcLimit(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	chainID, err := ee.GetChainID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	payer := ee.GetPayerAddress()
+
+	txn, err := cliutil.CreateSignedTransaction(ctx, ops, ee.Key, nonce, rcLimit, chainID, payer)
+	if err != nil {
+		return nil, fmt.Errorf("cannot submit transaction session, %w", err)
+	}
+
+	return txn, nil
 }
 
 // CommandDeclaration is a struct that declares a command

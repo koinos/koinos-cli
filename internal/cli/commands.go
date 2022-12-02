@@ -16,8 +16,8 @@ import (
 	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/koinos/chain"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
-	"github.com/koinos/koinos-util-golang/rpc"
 	"github.com/shopspring/decimal"
+	"google.golang.org/protobuf/proto"
 
 	util "github.com/koinos/koinos-util-golang"
 )
@@ -105,6 +105,8 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("call", "Call a smart contract", false, NewCallCommand, *NewCommandArg("contract-id", StringArg), *NewCommandArg("entry-point", HexArg), *NewCommandArg("arguments", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("open", "Open a wallet file (unlock also works)", false, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("unlock", "Synonym for open", true, NewOpenCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("nonce", "Set nonce for transactions. 'auto' will default to querying for nonce. Blank nonce to view", false, NewNonceCommand, *NewOptionalCommandArg("nonce", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("chain_id", "Set chain id in base64 for transactions. 'auto' will default to querying for chain id. Blank id to view", false, NewChainIDCommand, *NewOptionalCommandArg("id", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("payer", "Set the payer address for transactions. 'me' will default to current wallet. Blank address to view", false, NewPayerCommand, *NewOptionalCommandArg("payer", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("private", "Show the currently opened wallet's private key", false, NewPrivateCommand))
 	cs.AddCommand(NewCommandDeclaration("public", "Show the currently opened wallet's public key", false, NewPublicCommand))
@@ -116,6 +118,8 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", AddressArg), *NewCommandArg("entry-point", HexArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_contract", "Change a contract's permission level between user and system", false, NewSetSystemContractCommand, *NewCommandArg("contract-id", AddressArg), *NewCommandArg("system-contract", BoolArg)))
 	cs.AddCommand(NewCommandDeclaration("session", "Create or manage a transaction session (begin, submit, cancel, or view)", false, NewSessionCommand, *NewCommandArg("command", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("sign_transaction", "Signs a transaction with the open wallet, adding it to the transaction", true, NewSignTransactionCommand, *NewCommandArg("transaction", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("submit_transaction", "Submit a transaction from base64 data", false, NewSubmitTransactionCommand, *NewCommandArg("transaction", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("sleep", "Sleep for the given number seconds", true, NewSleepCommand, *NewCommandArg("seconds", AmountArg)))
 	cs.AddCommand(NewCommandDeclaration("exit", "Exit the wallet (quit also works)", false, NewExitCommand))
 	cs.AddCommand(NewCommandDeclaration("quit", "Synonym for exit", true, NewExitCommand))
@@ -173,7 +177,7 @@ func NewConnectCommand(inv *CommandParseResult) Command {
 
 // Execute connects to an RPC endpoint
 func (c *ConnectCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	rpc := rpc.NewKoinosRPCClient(c.URL)
+	rpc := cliutil.NewKoinosRPCClient(c.URL)
 	ee.RPCClient = rpc
 
 	// TODO: Ensure connection (some sort of ping?)
@@ -291,7 +295,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 		return nil, fmt.Errorf("%w: cannot upload contract", cliutil.ErrWalletClosed)
 	}
 
-	if !ee.IsOnline() {
+	if !ee.IsOnline() && !ee.Session.IsValid() {
 		return nil, fmt.Errorf("%w: cannot upload contract", cliutil.ErrOffline)
 	}
 
@@ -614,10 +618,54 @@ func (c *HelpCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 }
 
 // ----------------------------------------------------------------------------
+// Submit Transaction Command
+// ----------------------------------------------------------------------------
+
+// SubmitTransactionCommand is a command that submits a given transaction to the blockchain
+type SubmitTransactionCommand struct {
+	Transaction string
+}
+
+// NewSubmitTransactionCommand creates a new submit transaction command object
+func NewSubmitTransactionCommand(inv *CommandParseResult) Command {
+	return &SubmitTransactionCommand{Transaction: *inv.Args["transaction"]}
+}
+
+// Execute submits a transaction to the blockchain
+func (c *SubmitTransactionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	result := NewExecutionResult()
+
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot submit transaction", cliutil.ErrOffline)
+	}
+
+	// Decode the transaction
+	data, err := base64.URLEncoding.DecodeString(c.Transaction)
+	if err != nil {
+		return nil, err
+	}
+
+	transaction := &protocol.Transaction{}
+	err = proto.Unmarshal(data, transaction)
+	if err != nil {
+		return nil, err
+	}
+
+	receipt, err := ee.RPCClient.SubmitTransaction(ctx, transaction, true)
+	if err != nil {
+		return nil, err
+	}
+
+	result.AddMessage(cliutil.TransactionReceiptToString(receipt, len(transaction.GetOperations())))
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
 // Call Command
 // ----------------------------------------------------------------------------
 
-// CallCommand is a command that shows the currently opened wallet's address and private key
+// CallCommand is a command that calls a contract method
 type CallCommand struct {
 	ContractID string
 	EntryPoint string
@@ -639,7 +687,7 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 		return nil, fmt.Errorf("%w: cannot call contract", cliutil.ErrWalletClosed)
 	}
 
-	if !ee.IsOnline() {
+	if !ee.IsOnline() && !ee.Session.IsValid() {
 		return nil, fmt.Errorf("%w: cannot call", cliutil.ErrOffline)
 	}
 
@@ -772,6 +820,119 @@ func (c *PayerCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*
 
 	// Otherwise, we are setting the payer
 	ee.SetPayer(*c.Payer)
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Nonce Command
+// ----------------------------------------------------------------------------
+
+// NonceCommand is a command that shows or sets the current nonce
+type NonceCommand struct {
+	Nonce *string
+}
+
+// NewNonceCommand creates a new nonce command object
+func NewNonceCommand(inv *CommandParseResult) Command {
+	nonceString := inv.Args["nonce"]
+	return &NonceCommand{Nonce: nonceString}
+}
+
+// Execute shows or sets the current nonce
+func (c *NonceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	result := NewExecutionResult()
+
+	// If the nonce string is null, then we are showing the current nonce
+	if c.Nonce == nil {
+		if ee.IsNonceAuto() {
+			if ee.IsOnline() && ee.IsWalletOpen() {
+				nonce, err := ee.GetNextNonce(ctx, false)
+				if err != nil {
+					return nil, err
+				}
+				result.AddMessage(fmt.Sprintf("Nonce: auto (next nonce: %d)", nonce))
+			} else {
+				result.AddMessage("Nonce: auto")
+			}
+		} else {
+			n, err := ee.GetNextNonce(ctx, false)
+			if err != nil {
+				return nil, err
+			}
+			result.AddMessage(fmt.Sprintf("Nonce: %d", n))
+		}
+
+		return result, nil
+	}
+
+	// Otherwise, we are setting the nonce
+
+	// If it's auto just set that
+	if *c.Nonce == AutoNonce {
+		ee.nonceMode = AutoNonce
+		return result, nil
+	}
+
+	// Otherwise, parse the nonce to make sure it is correct
+	_, err := strconv.ParseUint(*c.Nonce, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("%w: nonce must either be an integer number or \"auto\"", cliutil.ErrInvalidParam)
+	}
+
+	ee.nonceMode = *c.Nonce
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// ChainID Command
+// ----------------------------------------------------------------------------
+
+// ChainIDCommand is a command that shows or sets the current chain ID
+type ChainIDCommand struct {
+	ID *string
+}
+
+// NewChainIDCommand creates a new chain ID command object
+func NewChainIDCommand(inv *CommandParseResult) Command {
+	nonceString := inv.Args["id"]
+	return &ChainIDCommand{ID: nonceString}
+}
+
+// Execute shows or sets the current chain ID
+func (c *ChainIDCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	result := NewExecutionResult()
+
+	// If the id string is null, then we are showing the current chain id
+	if c.ID == nil {
+		if ee.IsChainIDAuto() && ee.IsOnline() {
+			chainID, err := ee.GetChainID(ctx)
+			if err != nil {
+				return nil, err
+			}
+			result.AddMessage(fmt.Sprintf("Chain ID: auto ( %s )", base64.URLEncoding.EncodeToString(chainID)))
+		} else {
+			result.AddMessage(fmt.Sprintf("Chain ID: %s", ee.chainID))
+		}
+		return result, nil
+	}
+
+	// Otherwise, we are setting the chain id
+
+	// If it's auto just set that
+	if *c.ID == AutoChainID {
+		ee.chainID = AutoChainID
+		return result, nil
+	}
+
+	// Make sure the chain id is valid base64
+	_, err := base64.URLEncoding.DecodeString(*c.ID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: chain id must either be a base64 string or \"auto\"", cliutil.ErrInvalidParam)
+	}
+
+	ee.chainID = *c.ID
+
 	return result, nil
 }
 
@@ -956,7 +1117,7 @@ func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		return nil, fmt.Errorf("%w: cannot call contract", cliutil.ErrWalletClosed)
 	}
 
-	if !ee.IsOnline() {
+	if !ee.IsOnline() && !ee.Session.IsValid() {
 		return nil, fmt.Errorf("%w: cannot call contract", cliutil.ErrOffline)
 	}
 
@@ -1036,7 +1197,7 @@ func (c *SetSystemContractCommand) Execute(ctx context.Context, ee *ExecutionEnv
 		return nil, fmt.Errorf("%w: cannot set system contract", cliutil.ErrWalletClosed)
 	}
 
-	if !ee.IsOnline() {
+	if !ee.IsOnline() && !ee.Session.IsValid() {
 		return nil, fmt.Errorf("%w: cannot set system contract", cliutil.ErrOffline)
 	}
 
@@ -1117,8 +1278,23 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 			return nil, fmt.Errorf("%w: cannot submit session", cliutil.ErrWalletClosed)
 		}
 
+		var offline bool = false
+
 		if !ee.IsOnline() {
-			return nil, fmt.Errorf("%w: cannot submit session", cliutil.ErrOffline)
+			if ee.IsNonceAuto() {
+				return nil, fmt.Errorf("%w: cannot submit offline session if nonce is auto", cliutil.ErrOffline)
+			}
+
+			if ee.IsChainIDAuto() {
+				return nil, fmt.Errorf("%w: cannot submit offline session if chain id is auto", cliutil.ErrOffline)
+			}
+
+			if !ee.rcLimit.absolute {
+				return nil, fmt.Errorf("%w: cannot submit offline session if resource limit is a percentage", cliutil.ErrOffline)
+			}
+
+			// Set offline flag and continue
+			offline = true
 		}
 
 		reqs, err := ee.Session.GetOperations()
@@ -1132,9 +1308,33 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 				ops[i] = reqs[i].Op
 			}
 
-			err := ee.SubmitTransaction(ctx, result, ops...)
-			if err != nil {
-				return nil, fmt.Errorf("error submitting transaction, %w", err)
+			if offline {
+				txn, err := ee.CreateSignedTransaction(ctx, ops...)
+				if err != nil {
+					return nil, fmt.Errorf("cannot submit transaction session, %w", err)
+				}
+
+				// Convert to json
+				result.AddMessage("JSON:")
+				txnJSON, err := json.MarshalIndent(txn, "", "  ")
+				if err != nil {
+					return nil, fmt.Errorf("cannot submit transaction session, %w", err)
+				}
+				result.AddMessage(string(txnJSON))
+
+				// Convert to base64
+				data, err := proto.Marshal(txn)
+				if err != nil {
+					return nil, fmt.Errorf("cannot submit transaction session, %w", err)
+				}
+
+				result.AddMessage("\nBase64:")
+				result.AddMessage(base64.URLEncoding.EncodeToString(data))
+			} else {
+				err := ee.SubmitTransaction(ctx, result, ops...)
+				if err != nil {
+					return nil, fmt.Errorf("error submitting transaction, %w", err)
+				}
 			}
 		} else {
 			result.AddMessage("Cancelling transaction because session has 0 operations")
@@ -1163,6 +1363,62 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	default:
 		return nil, fmt.Errorf("unknown command %s, options are (begin, submit, cancel, view)", c.Command)
 	}
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// Sign Command
+// ----------------------------------------------------------------------------
+
+// SignTransactionCommand is a command that signs a transaction with the open wallet
+type SignTransactionCommand struct {
+	Transaction string
+}
+
+// NewSignTransactionCommand signs a transacion
+func NewSignTransactionCommand(inv *CommandParseResult) Command {
+	return &SignTransactionCommand{
+		Transaction: *inv.Args["transaction"],
+	}
+}
+
+// Execute signs a transaction
+func (c *SignTransactionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot sign transaction", cliutil.ErrWalletClosed)
+	}
+
+	trxBytes, err := base64.URLEncoding.DecodeString(c.Transaction)
+	if err != nil {
+		return nil, err
+	}
+
+	trx := &protocol.Transaction{}
+	err = proto.Unmarshal(trxBytes, trx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = util.SignTransaction(ee.Key.PrivateBytes(), trx)
+	if err != nil {
+		return nil, err
+	}
+
+	trxBytes, err = proto.Marshal(trx)
+	if err != nil {
+		return nil, err
+	}
+
+	jsonTrx, err := json.MarshalIndent(trx, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+
+	encodedTrx := base64.URLEncoding.EncodeToString(trxBytes)
+
+	result := NewExecutionResult()
+	result.AddMessage(fmt.Sprintf("Signed Transaction:\nJSON:\n%v\nBase64:\n%v", string(jsonTrx), encodedTrx))
 
 	return result, nil
 }
