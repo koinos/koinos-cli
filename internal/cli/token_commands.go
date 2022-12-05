@@ -340,7 +340,7 @@ func (c *TokenTransferCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		return nil, err
 	}
 
-	if *balance <= satoshiAmount {
+	if *balance < satoshiAmount {
 		return nil, fmt.Errorf("%w: insufficient balance %s %s on opened wallet %s, cannot transfer %s %s", cliutil.ErrInvalidAmount, decimalBalance, c.Symbol, base58.Encode(walletAddress), decimalAmount, c.Symbol)
 	}
 
