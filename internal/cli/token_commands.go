@@ -309,7 +309,7 @@ func (c *TokenTransferCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 		return nil, fmt.Errorf("%w: cannot transfer", cliutil.ErrWalletClosed)
 	}
 
-	if !ee.IsOnline() {
+	if !ee.IsOnline() && !ee.Session.IsValid() {
 		return nil, fmt.Errorf("%w: cannot transfer", cliutil.ErrOffline)
 	}
 
