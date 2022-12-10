@@ -330,18 +330,20 @@ func (c *TokenTransferCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 
 	walletAddress := ee.Key.AddressBytes()
 
-	balance, err := retrieveBalance(ctx, ee.RPCClient, c.ContractID, walletAddress)
-	if err != nil {
-		return nil, err
-	}
+	if ee.IsOnline() {
+		balance, err := retrieveBalance(ctx, ee.RPCClient, c.ContractID, walletAddress)
+		if err != nil {
+			return nil, err
+		}
 
-	decimalBalance, err := util.SatoshiToDecimal(*balance, c.Precision)
-	if err != nil {
-		return nil, err
-	}
+		decimalBalance, err := util.SatoshiToDecimal(*balance, c.Precision)
+		if err != nil {
+			return nil, err
+		}
 
-	if *balance < satoshiAmount {
-		return nil, fmt.Errorf("%w: insufficient balance %s %s on opened wallet %s, cannot transfer %s %s", cliutil.ErrInvalidAmount, decimalBalance, c.Symbol, base58.Encode(walletAddress), decimalAmount, c.Symbol)
+		if *balance < satoshiAmount {
+			return nil, fmt.Errorf("%w: insufficient balance %s %s on opened wallet %s, cannot transfer %s %s", cliutil.ErrInvalidAmount, decimalBalance, c.Symbol, base58.Encode(walletAddress), decimalAmount, c.Symbol)
+		}
 	}
 
 	toAddress := base58.Decode(c.Address)
