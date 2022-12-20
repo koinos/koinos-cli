@@ -910,7 +910,7 @@ func (c *ChainIDCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 			if err != nil {
 				return nil, err
 			}
-			result.AddMessage(fmt.Sprintf("Chain ID: auto ( %s )", base64.URLEncoding.EncodeToString(chainID)))
+			result.AddMessage(fmt.Sprintf("Chain ID: auto (%s)", base64.URLEncoding.EncodeToString(chainID)))
 		} else {
 			result.AddMessage(fmt.Sprintf("Chain ID: %s", ee.chainID))
 		}
