@@ -956,59 +956,85 @@ func (c *RcLimitCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 	// If no limit given, display current
 	if c.limit == nil {
 		if ee.rcLimit.absolute {
-			result.AddMessage(fmt.Sprintf("Current rc limit: %f", ee.rcLimit.value))
+			decAmount, err := util.SatoshiToDecimal(ee.rcLimit.value, cliutil.KoinPrecision)
+			if err != nil {
+				return nil, err
+			}
+			result.AddMessage(fmt.Sprintf("Current rc limit: %v", decAmount))
 			return result, nil
 		}
 
 		// Otherwise its relative
 		if !ee.IsOnline() || !ee.IsWalletOpen() {
-			result.AddMessage(fmt.Sprintf("Current rc limit: %f%%", ee.rcLimit.value*100))
+			decAmount, err := util.SatoshiToDecimal(ee.rcLimit.value, cliutil.KoinPrecision)
+			resultVal := decimal.NewFromFloat(100).Mul(*decAmount)
+			if err != nil {
+				return nil, err
+			}
+			result.AddMessage(fmt.Sprintf("Current rc limit: %v%%", resultVal))
 			return result, nil
 		}
 
-		limit, err := ee.RPCClient.GetAccountRc(ctx, ee.Key.AddressBytes())
+		amount, err := ee.GetRcLimit(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		dAmount, err := util.SatoshiToDecimal(limit, cliutil.KoinPrecision)
+		decAmount, err := util.SatoshiToDecimal(amount, cliutil.KoinPrecision)
 		if err != nil {
 			return nil, err
 		}
 
-		f, _ := dAmount.Mul(decimal.NewFromFloat(ee.rcLimit.value)).Float64()
-		result.AddMessage(fmt.Sprintf("Current rc limit: %f%% (%f)", ee.rcLimit.value*100, f))
+		decLimit, err := util.SatoshiToDecimal(ee.rcLimit.value, cliutil.KoinPrecision)
+		if err != nil {
+			return nil, err
+		}
+
+		result.AddMessage(fmt.Sprintf("Current rc limit: %v%% (%v)", decLimit.Mul(decimal.NewFromInt(100)), decAmount))
 		return result, nil
 	}
 
 	// Otherwise we are setting the limit
 	s := *c.limit
 	if s[len(s)-1] == '%' {
-		res, err := strconv.ParseFloat(s[:len(s)-1], 64)
+		res, err := decimal.NewFromString(s[:len(s)-1])
 		if err != nil {
 			return nil, err
 		}
 
 		// Check bounds
-		if res < 0 || res > 100 {
+		if res.LessThan(decimal.NewFromInt(0)) || res.GreaterThan(decimal.NewFromInt(100)) {
 			return nil, fmt.Errorf("%w: percentage rc limit must be between 0%% and 100%%", cliutil.ErrInvalidParam)
 		}
 
-		ee.rcLimit.value = res / 100.0
+		// Convert to decimal
+		resFrac := res.Div(decimal.NewFromInt(100))
+		val, err := util.DecimalToSatoshi(&resFrac, cliutil.KoinPrecision)
+		if err != nil {
+			return nil, err
+		}
+
+		ee.rcLimit.value = val
 		ee.rcLimit.absolute = false
-		result.AddMessage(fmt.Sprintf("Set rc limit to %f%%", res))
+		result.AddMessage(fmt.Sprintf("Set rc limit to %v%%", res))
 		return result, nil
 	}
 
 	// Otherwise we are setting the absolute limit
-	res, err := strconv.ParseFloat(s, 64)
+	res, err := decimal.NewFromString(s)
 	if err != nil {
 		return nil, err
 	}
 
-	ee.rcLimit.value = res
+	// Convert to satoshi
+	val, err := util.DecimalToSatoshi(&res, cliutil.KoinPrecision)
+	if err != nil {
+		return nil, err
+	}
+
+	ee.rcLimit.value = val
 	ee.rcLimit.absolute = true
-	result.AddMessage(fmt.Sprintf("Set rc limit to %f", res))
+	result.AddMessage(fmt.Sprintf("Set rc limit to %v", res))
 
 	return result, nil
 }
