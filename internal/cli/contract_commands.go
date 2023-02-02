@@ -204,8 +204,22 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 
 	er := NewExecutionResult()
 
+	DecodeMessageBytes(dMsg, md)
+
+	b, err := text.MarshalPretty(dMsg)
+	if err != nil {
+		return nil, err
+	}
+
+	er.AddMessage(string(b))
+
+	return er, nil
+}
+
+func DecodeMessageBytes(dMsg *dynamicpb.Message, md protoreflect.MessageDescriptor) (protoreflect.Message, error) {
 	l := md.Fields().Len()
 	for i := 0; i < l; i++ {
+		modified := false
 		fd := md.Fields().Get(i)
 		value := dMsg.Get(fd)
 
@@ -222,35 +236,30 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 
 				switch koinos.BytesType(enum) {
 				case koinos.BytesType_HEX, koinos.BytesType_BLOCK_ID, koinos.BytesType_TRANSACTION_ID:
-					b = []byte(hex.EncodeToString(value.Bytes()))
-					if len(b) == 0 && len(value.Bytes()) != 0 {
-						err = fmt.Errorf("error encoding hex")
+					b, err = hex.DecodeString(string(value.Bytes()))
+					if err != nil {
+						return nil, err
 					}
 				case koinos.BytesType_BASE58, koinos.BytesType_CONTRACT_ID, koinos.BytesType_ADDRESS:
-					b = []byte(base58.Encode(value.Bytes()))
-					if len(b) == 0 && len(value.Bytes()) != 0 {
-						err = fmt.Errorf("error encoding base58")
-					}
+					b = base58.Decode(string(value.Bytes()))
+
 				case koinos.BytesType_BASE64:
 					fallthrough
 				default:
-					b = []byte(base64.URLEncoding.EncodeToString(value.Bytes()))
-					if len(b) == 0 && len(value.Bytes()) != 0 {
-						err = fmt.Errorf("error encoding base64")
+					b, err = base64.URLEncoding.DecodeString(string(value.Bytes()))
+					if err != nil {
+						return nil, err
 					}
 				}
 			} else {
-				b = []byte(base64.URLEncoding.EncodeToString(value.Bytes()))
-				if len(b) == 0 && len(value.Bytes()) != 0 {
-					err = fmt.Errorf("error encoding base64")
+				b, err = base64.URLEncoding.DecodeString(string(value.Bytes()))
+				if err != nil {
+					return nil, err
 				}
 			}
 
-			if err != nil {
-				return nil, err
-			}
-
 			value = protoreflect.ValueOfBytes(b)
+			modified = true
 		}
 
 		if fd.IsList() && value.List().Len() == 0 {
@@ -258,17 +267,12 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 		}
 
 		// Set the value on the message
-		dMsg.Set(fd, value)
+		if modified {
+			dMsg.Set(fd, value)
+		}
 	}
 
-	b, err := text.MarshalPretty(dMsg)
-	if err != nil {
-		return nil, err
-	}
-
-	er.AddMessage(string(b))
-
-	return er, nil
+	return dMsg, nil
 }
 
 // ----------------------------------------------------------------------------
