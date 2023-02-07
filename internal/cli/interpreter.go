@@ -12,7 +12,6 @@ import (
 	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	util "github.com/koinos/koinos-util-golang"
-	"github.com/shopspring/decimal"
 )
 
 // Command execution code
@@ -55,7 +54,7 @@ func (er *ExecutionResult) Print() {
 }
 
 type rcInfo struct {
-	value    float64
+	value    uint64
 	absolute bool
 }
 
@@ -86,7 +85,7 @@ func NewExecutionEnvironment(rpcClient *cliutil.KoinosRPCClient, parser *Command
 		Contracts: make(map[string]*ContractInfo),
 		Session:   &TransactionSession{},
 		nonceMap:  make(map[string]*nonceInfo),
-		rcLimit:   rcInfo{value: 1.0, absolute: false},
+		rcLimit:   rcInfo{value: 100000000, absolute: false},
 		payer:     SelfPayer,
 		chainID:   AutoChainID,
 		nonceMode: AutoNonce,
@@ -184,14 +183,7 @@ func (ee *ExecutionEnvironment) GetChainID(ctx context.Context) ([]byte, error) 
 // GetRcLimit returns the current RC limit
 func (ee *ExecutionEnvironment) GetRcLimit(ctx context.Context) (uint64, error) {
 	if ee.rcLimit.absolute {
-		dAmount := decimal.NewFromFloat(ee.rcLimit.value)
-
-		val, err := util.DecimalToSatoshi(&dAmount, cliutil.KoinPrecision)
-		if err != nil {
-			return 0, fmt.Errorf("%w: %s", cliutil.ErrInvalidAmount, err.Error())
-		}
-
-		return val, nil
+		return ee.rcLimit.value, nil
 	}
 
 	// else it's relative
@@ -200,8 +192,23 @@ func (ee *ExecutionEnvironment) GetRcLimit(ctx context.Context) (uint64, error) 
 		return 0, err
 	}
 
-	val := uint64(float64(limit) * ee.rcLimit.value)
-	return val, nil
+	decLimit, err := util.SatoshiToDecimal(limit, 8)
+	if err != nil {
+		return 0, err
+	}
+
+	decVal, err := util.SatoshiToDecimal(ee.rcLimit.value, 8)
+	if err != nil {
+		return 0, err
+	}
+
+	decResult := decLimit.Mul(*decVal)
+	res, err := util.DecimalToSatoshi(&decResult, 8)
+	if err != nil {
+		return 0, err
+	}
+
+	return res, nil
 }
 
 // SubmitTransaction is a utility function to submit a transaction from a command
