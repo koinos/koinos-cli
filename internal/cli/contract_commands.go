@@ -204,7 +204,10 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 
 	er := NewExecutionResult()
 
-	DecodeMessageBytes(dMsg, md)
+	err = DecodeMessageBytes(dMsg, md)
+	if err != nil {
+		return nil, err
+	}
 
 	b, err := text.MarshalPretty(dMsg)
 	if err != nil {
@@ -216,7 +219,7 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 	return er, nil
 }
 
-func DecodeMessageBytes(dMsg *dynamicpb.Message, md protoreflect.MessageDescriptor) (protoreflect.Message, error) {
+func DecodeMessageBytes(dMsg *dynamicpb.Message, md protoreflect.MessageDescriptor) error {
 	l := md.Fields().Len()
 	for i := 0; i < l; i++ {
 		modified := false
@@ -238,7 +241,7 @@ func DecodeMessageBytes(dMsg *dynamicpb.Message, md protoreflect.MessageDescript
 				case koinos.BytesType_HEX, koinos.BytesType_BLOCK_ID, koinos.BytesType_TRANSACTION_ID:
 					b, err = hex.DecodeString(string(value.Bytes()))
 					if err != nil {
-						return nil, err
+						return err
 					}
 				case koinos.BytesType_BASE58, koinos.BytesType_CONTRACT_ID, koinos.BytesType_ADDRESS:
 					b = base58.Decode(string(value.Bytes()))
@@ -248,13 +251,13 @@ func DecodeMessageBytes(dMsg *dynamicpb.Message, md protoreflect.MessageDescript
 				default:
 					b, err = base64.URLEncoding.DecodeString(string(value.Bytes()))
 					if err != nil {
-						return nil, err
+						return err
 					}
 				}
 			} else {
 				b, err = base64.URLEncoding.DecodeString(string(value.Bytes()))
 				if err != nil {
-					return nil, err
+					return err
 				}
 			}
 
@@ -272,7 +275,7 @@ func DecodeMessageBytes(dMsg *dynamicpb.Message, md protoreflect.MessageDescript
 		}
 	}
 
-	return dMsg, nil
+	return nil
 }
 
 // ----------------------------------------------------------------------------
