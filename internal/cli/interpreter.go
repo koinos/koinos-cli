@@ -12,6 +12,7 @@ import (
 	"github.com/koinos/koinos-cli/internal/cliutil"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	util "github.com/koinos/koinos-util-golang"
+	"github.com/shopspring/decimal"
 )
 
 // Command execution code
@@ -32,7 +33,8 @@ type Command interface {
 
 // ExecutionResult is the result of a command execution
 type ExecutionResult struct {
-	Message []string
+	Message      []string
+	ErrorMessage []string
 }
 
 // NewExecutionResult creates a new execution result object
@@ -46,9 +48,20 @@ func (er *ExecutionResult) AddMessage(m ...string) {
 	er.Message = append(er.Message, m...)
 }
 
+func (er *ExecutionResult) AddErrorMessage(m ...string) {
+	er.ErrorMessage = append(er.ErrorMessage, m...)
+}
+
 // Print prints each message in the execution result
 func (er *ExecutionResult) Print() {
 	for _, m := range er.Message {
+		fmt.Println(m)
+	}
+}
+
+// PrintError prints each error message in the execution result
+func (er *ExecutionResult) PrintError() {
+	for _, m := range er.ErrorMessage {
 		fmt.Println(m)
 	}
 }
@@ -85,7 +98,7 @@ func NewExecutionEnvironment(rpcClient *cliutil.KoinosRPCClient, parser *Command
 		Contracts: make(map[string]*ContractInfo),
 		Session:   &TransactionSession{},
 		nonceMap:  make(map[string]*nonceInfo),
-		rcLimit:   rcInfo{value: 100000000, absolute: false},
+		rcLimit:   rcInfo{value: 10000000, absolute: false},
 		payer:     SelfPayer,
 		chainID:   AutoChainID,
 		nonceMode: AutoNonce,
@@ -222,10 +235,50 @@ func (ee *ExecutionEnvironment) SubmitTransaction(ctx context.Context, result *E
 	receipt, err := ee.RPCClient.SubmitTransactionOpsWithPayer(ctx, ops, ee.Key, subParams, ee.GetPayerAddress(), true)
 	if err != nil {
 		ee.ResetNonce()
+		if err.Error() == "insufficient rc" {
+			ee.createInsufficientRCMessage(ctx, result)
+		}
 		return err
 	}
 
 	result.AddMessage(cliutil.TransactionReceiptToString(receipt, len(ops)))
+
+	return nil
+}
+
+func (ee *ExecutionEnvironment) createInsufficientRCMessage(ctx context.Context, result *ExecutionResult) error {
+	if ee.rcLimit.absolute {
+		rc, err := ee.RPCClient.GetAccountRc(ctx, ee.Key.AddressBytes())
+		if err != nil {
+			return err
+		}
+		if ee.rcLimit.value < rc {
+			decValue, err := util.SatoshiToDecimal(ee.rcLimit.value, cliutil.KoinPrecision)
+			if err != nil {
+				return err
+			}
+			decRc, err := util.SatoshiToDecimal(rc, cliutil.KoinPrecision)
+			if err != nil {
+				return err
+			}
+			result.AddErrorMessage(fmt.Sprintf("Current RC limit: %v, RC available: %v", decValue, decRc))
+			result.AddErrorMessage(fmt.Sprintf("Try using a higher RC limit. Example: rclimit %v", decRc))
+		} else {
+			result.AddErrorMessage(fmt.Sprint("You are already using the maximum RC limit, more RC is required to submit this transaction."))
+		}
+	} else {
+		if ee.rcLimit.value < 100000000 {
+			decAmount, err := util.SatoshiToDecimal(ee.rcLimit.value, cliutil.KoinPrecision)
+			resultVal := decimal.NewFromFloat(100).Mul(*decAmount)
+			if err != nil {
+				return err
+			}
+			result.AddErrorMessage(fmt.Sprintf("Current rc limit: %v%%", resultVal))
+			result.AddErrorMessage(fmt.Sprint("Try using a higher RC limit. Example: rclimit 100%"))
+		} else {
+			result.AddErrorMessage(fmt.Sprint("You are already using the maximum RC limit, more RC is required to submit this transaction."))
+		}
+	}
 
 	return nil
 }
@@ -401,6 +454,9 @@ func (pr *ParseResults) Interpret(ee *ExecutionEnvironment) *InterpretResults {
 		result, err := cmd.Execute(context.Background(), ee)
 		if err != nil {
 			output.AddResult(err.Error())
+			if result != nil {
+				output.AddResult(result.ErrorMessage...)
+			}
 		} else {
 			output.AddResult(result.Message...)
 		}

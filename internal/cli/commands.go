@@ -386,7 +386,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 	if err != nil {
 		err := ee.SubmitTransaction(ctx, result, op)
 		if err != nil {
-			return nil, fmt.Errorf("cannot upload contract, %w", err)
+			return result, fmt.Errorf("cannot upload contract, %w", err)
 		}
 	}
 
@@ -653,7 +653,7 @@ func (c *SubmitTransactionCommand) Execute(ctx context.Context, ee *ExecutionEnv
 
 	receipt, err := ee.RPCClient.SubmitTransaction(ctx, transaction, true)
 	if err != nil {
-		return nil, err
+		return result, err
 	}
 
 	result.AddMessage(cliutil.TransactionReceiptToString(receipt, len(transaction.GetOperations())))
@@ -727,7 +727,7 @@ func (c *CallCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	if err != nil {
 		err := ee.SubmitTransaction(ctx, result, op)
 		if err != nil {
-			return nil, fmt.Errorf("cannot call contract, %w", err)
+			return result, fmt.Errorf("cannot call contract, %w", err)
 		}
 	}
 
@@ -1192,7 +1192,7 @@ func (c *SetSystemCallCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 	if err != nil {
 		err := ee.SubmitTransaction(ctx, result, op)
 		if err != nil {
-			return nil, fmt.Errorf("cannot set system call, %w", err)
+			return result, fmt.Errorf("cannot set system call, %w", err)
 		}
 	}
 
@@ -1261,7 +1261,7 @@ func (c *SetSystemContractCommand) Execute(ctx context.Context, ee *ExecutionEnv
 	if err != nil {
 		err := ee.SubmitTransaction(ctx, result, op)
 		if err != nil {
-			return nil, fmt.Errorf("cannot set contract, %w", err)
+			return result, fmt.Errorf("cannot set contract, %w", err)
 		}
 	}
 
@@ -1359,7 +1359,7 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 			} else {
 				err := ee.SubmitTransaction(ctx, result, ops...)
 				if err != nil {
-					return nil, fmt.Errorf("error submitting transaction, %w", err)
+					return result, fmt.Errorf("error submitting transaction, %w", err)
 				}
 			}
 		} else {
