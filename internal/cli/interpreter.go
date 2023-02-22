@@ -236,7 +236,10 @@ func (ee *ExecutionEnvironment) SubmitTransaction(ctx context.Context, result *E
 	if err != nil {
 		ee.ResetNonce()
 		if err.Error() == "insufficient rc" {
-			ee.createInsufficientRCMessage(ctx, result)
+			err2 := ee.createInsufficientRCMessage(ctx, result)
+			if err2 != nil {
+				return err2
+			}
 		}
 		return err
 	}
@@ -264,7 +267,7 @@ func (ee *ExecutionEnvironment) createInsufficientRCMessage(ctx context.Context,
 			result.AddErrorMessage(fmt.Sprintf("Current RC limit: %v, RC available: %v", decValue, decRc))
 			result.AddErrorMessage(fmt.Sprintf("Try using a higher RC limit. Example: rclimit %v", decRc))
 		} else {
-			result.AddErrorMessage(fmt.Sprint("You are already using the maximum RC limit, more RC is required to submit this transaction."))
+			result.AddErrorMessage("You are already using the maximum RC limit, more RC is required to submit this transaction.")
 		}
 	} else {
 		if ee.rcLimit.value < 100000000 {
@@ -274,9 +277,9 @@ func (ee *ExecutionEnvironment) createInsufficientRCMessage(ctx context.Context,
 				return err
 			}
 			result.AddErrorMessage(fmt.Sprintf("Current rc limit: %v%%", resultVal))
-			result.AddErrorMessage(fmt.Sprint("Try using a higher RC limit. Example: rclimit 100%"))
+			result.AddErrorMessage("Try using a higher RC limit. Example: rclimit 100%")
 		} else {
-			result.AddErrorMessage(fmt.Sprint("You are already using the maximum RC limit, more RC is required to submit this transaction."))
+			result.AddErrorMessage("You are already using the maximum RC limit, more RC is required to submit this transaction.")
 		}
 	}
 
