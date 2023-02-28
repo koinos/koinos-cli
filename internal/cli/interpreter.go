@@ -264,8 +264,15 @@ func (ee *ExecutionEnvironment) createInsufficientRCMessage(ctx context.Context,
 			if err != nil {
 				return err
 			}
+
+			// Generate a suggested value of 2 times decValue, with a max of decRc
+			suggestVal := decimal.NewFromFloat(2).Mul(*decValue)
+			if suggestVal.GreaterThan(*decRc) {
+				suggestVal = *decRc
+			}
+
 			result.AddErrorMessage(fmt.Sprintf("Current RC limit: %v, RC available: %v", decValue, decRc))
-			result.AddErrorMessage(fmt.Sprintf("Try using a higher RC limit. Example: rclimit %v", decRc))
+			result.AddErrorMessage(fmt.Sprintf("Try using a higher RC limit. Example: rclimit %v", suggestVal))
 		} else {
 			result.AddErrorMessage("You are already using the maximum RC limit, more RC is required to submit this transaction.")
 		}
@@ -276,8 +283,15 @@ func (ee *ExecutionEnvironment) createInsufficientRCMessage(ctx context.Context,
 			if err != nil {
 				return err
 			}
+
+			// Generate a suggested value that is 2 times the current value, with a max of 100%
+			suggestVal := decimal.NewFromFloat(2).Mul(*decAmount).Mul(decimal.NewFromFloat(100))
+			if suggestVal.GreaterThan(decimal.NewFromFloat(100)) {
+				suggestVal = decimal.NewFromFloat(100)
+			}
+
 			result.AddErrorMessage(fmt.Sprintf("Current rc limit: %v%%", resultVal))
-			result.AddErrorMessage("Try using a higher RC limit. Example: rclimit 100%")
+			result.AddErrorMessage(fmt.Sprintf("Try using a higher RC limit. Example: rclimit %v%%", suggestVal))
 		} else {
 			result.AddErrorMessage("You are already using the maximum RC limit, more RC is required to submit this transaction.")
 		}
