@@ -14,7 +14,7 @@ import (
 
 const (
 	// Version number (this should probably not live here)
-	Version = "v1.0.0"
+	Version = "v2.0.0"
 )
 
 // Hardcoded Koin contract constants
