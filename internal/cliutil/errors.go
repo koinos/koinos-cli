@@ -61,4 +61,7 @@ var (
 
 	// ErrContract is returned when a contract is already registered
 	ErrContract = errors.New("contract error")
+
+	// ErrInsufficientRC is returned when not enough resource credits can be used to cover a transaction
+	ErrInsufficientRC = errors.New("insufficient rc")
 )

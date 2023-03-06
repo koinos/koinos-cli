@@ -347,7 +347,7 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 	if err != nil {
 		err := ee.SubmitTransaction(ctx, result, op)
 		if err != nil {
-			return nil, fmt.Errorf("cannot make call, %w", err)
+			return result, fmt.Errorf("cannot make call, %w", err)
 		}
 	}
 
