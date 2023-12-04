@@ -90,6 +90,9 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 
 	// Iterate through the methods and construct the commands
 	for name, method := range abi.Methods {
+		if len(method.Argument) == 0 {
+			method.Argument = "koinos.chain.nop_arguments"
+		}
 		d, err := files.FindDescriptorByName(protoreflect.FullName(method.Argument))
 		if err != nil {
 			return nil, fmt.Errorf("%w: could not find type %s", cliutil.ErrInvalidABI, method.Argument)
@@ -105,14 +108,17 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 		}
 
+		if len(method.Return) == 0 {
+			method.Return = "koinos.chain.nop_result"
+		}
 		d, err = files.FindDescriptorByName(protoreflect.FullName(method.Return))
 		if err != nil {
-			return nil, fmt.Errorf("%w: could not find type %s", cliutil.ErrInvalidABI, method.Argument)
+			return nil, fmt.Errorf("%w: could not find type %s", cliutil.ErrInvalidABI, method.Return)
 		}
 
 		_, ok = d.(protoreflect.MessageDescriptor)
 		if !ok {
-			return nil, fmt.Errorf("%w: %s is not a message", cliutil.ErrInvalidABI, method.Argument)
+			return nil, fmt.Errorf("%w: %s is not a message", cliutil.ErrInvalidABI, method.Return)
 		}
 
 		commandName := fmt.Sprintf("%s.%s", c.Name, name)
