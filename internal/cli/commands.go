@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli/internal/cliutil"
+	kjson "github.com/koinos/koinos-proto-golang/encoding/json"
 	"github.com/koinos/koinos-proto-golang/koinos/chain"
 	"github.com/koinos/koinos-proto-golang/koinos/protocol"
 	"github.com/shopspring/decimal"
@@ -1342,10 +1344,16 @@ func (c *SessionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) 
 
 				// Convert to json
 				result.AddMessage("JSON:")
-				txnJSON, err := json.MarshalIndent(txn, "", "  ")
+				unformatedTxnJSON, err := kjson.Marshal(txn)
 				if err != nil {
 					return nil, fmt.Errorf("cannot submit transaction session, %w", err)
 				}
+				buffer := bytes.NewBuffer(make([]byte, 0))
+				err = json.Indent(buffer, unformatedTxnJSON, "", "  ")
+				if err != nil {
+					return nil, fmt.Errorf("cannot submit transaction session, %w", err)
+				}
+				txnJSON := buffer.String()
 				result.AddMessage(string(txnJSON))
 
 				// Convert to base64
