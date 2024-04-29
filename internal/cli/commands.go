@@ -117,6 +117,7 @@ func NewKoinosCommandSet() *CommandSet {
 	cs.AddCommand(NewCommandDeclaration("register", "Register a smart contract's commands", false, NewRegisterCommand, *NewCommandArg("name", ContractNameArg), *NewCommandArg("address", AddressArg), *NewOptionalCommandArg("abi-filename", FileArg)))
 	cs.AddCommand(NewCommandDeclaration("register_token", "Register a token's commands", false, NewRegisterTokenCommand, *NewCommandArg("name", ContractNameArg), *NewCommandArg("address", AddressArg), *NewOptionalCommandArg("symbol", StringArg), *NewOptionalCommandArg("precision", StringArg)))
 	cs.AddCommand(NewCommandDeclaration("account_rc", "Get the current resource credits for a given address (open wallet if blank)", false, NewAccountRcCommand, *NewOptionalCommandArg("address", AddressArg)))
+	cs.AddCommand(NewCommandDeclaration("account_nonce", "Get the current nonce for a given address (open wallet if blank)", false, NewAccountNonceCommand, *NewOptionalCommandArg("address", AddressArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_call", "Set a system call to a new contract and entry point", false, NewSetSystemCallCommand, *NewCommandArg("system-call", StringArg), *NewCommandArg("contract-id", AddressArg), *NewCommandArg("entry-point", HexArg)))
 	cs.AddCommand(NewCommandDeclaration("set_system_contract", "Change a contract's permission level between user and system", false, NewSetSystemContractCommand, *NewCommandArg("contract-id", AddressArg), *NewCommandArg("system-contract", BoolArg)))
 	cs.AddCommand(NewCommandDeclaration("session", "Create or manage a transaction session (begin, submit, cancel, or view)", false, NewSessionCommand, *NewCommandArg("command", StringArg)))
@@ -1497,7 +1498,54 @@ func (c *AccountRcCommand) Execute(ctx context.Context, ee *ExecutionEnvironment
 		return nil, err
 	}
 
-	message := fmt.Sprintf("%v rc", rc)
+	message := fmt.Sprintf("%d.%08d rc", rc/100000000, rc%100000000)
+
+	result := NewExecutionResult()
+	result.AddMessage(message)
+
+	return result, nil
+}
+
+// ----------------------------------------------------------------------------
+// AccountNonce Command
+// ----------------------------------------------------------------------------
+
+// AccountNonceCommand is a command that retrieves a given accounts resource credits
+type AccountNonceCommand struct {
+	Address *string
+}
+
+// NewAccountNonceCommand creates a new GetAccountRcsCommand object
+func NewAccountNonceCommand(inv *CommandParseResult) Command {
+	return &AccountNonceCommand{Address: inv.Args["address"]}
+}
+
+// Execute the retrieval of a given addresses resource credits
+func (c *AccountNonceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsOnline() {
+		return nil, fmt.Errorf("%w: cannot get account rc", cliutil.ErrOffline)
+	}
+
+	var address []byte
+	if c.Address == nil {
+		if !ee.IsWalletOpen() {
+			return nil, fmt.Errorf("%w: cannot get account rc", cliutil.ErrWalletClosed)
+		}
+
+		address = ee.Key.AddressBytes()
+	} else {
+		address = base58.Decode(*c.Address)
+		if len(address) == 0 {
+			return nil, errors.New("could not parse address")
+		}
+	}
+
+	nonce, err := ee.RPCClient.GetAccountNonce(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+
+	message := fmt.Sprintf("%v", nonce+1)
 
 	result := NewExecutionResult()
 	result.AddMessage(message)
