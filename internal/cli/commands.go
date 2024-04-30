@@ -1510,26 +1510,26 @@ func (c *AccountRcCommand) Execute(ctx context.Context, ee *ExecutionEnvironment
 // AccountNonce Command
 // ----------------------------------------------------------------------------
 
-// AccountNonceCommand is a command that retrieves a given accounts resource credits
+// AccountNonceCommand is a command that retrieves a given accounts nonce
 type AccountNonceCommand struct {
 	Address *string
 }
 
-// NewAccountNonceCommand creates a new GetAccountRcsCommand object
+// NewAccountNonceCommand creates a new GetAccountNonceCommand object
 func NewAccountNonceCommand(inv *CommandParseResult) Command {
 	return &AccountNonceCommand{Address: inv.Args["address"]}
 }
 
-// Execute the retrieval of a given addresses resource credits
+// Execute the retrieval of a given addresses nonce
 func (c *AccountNonceCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
 	if !ee.IsOnline() {
-		return nil, fmt.Errorf("%w: cannot get account rc", cliutil.ErrOffline)
+		return nil, fmt.Errorf("%w: cannot get account nonce", cliutil.ErrOffline)
 	}
 
 	var address []byte
 	if c.Address == nil {
 		if !ee.IsWalletOpen() {
-			return nil, fmt.Errorf("%w: cannot get account rc", cliutil.ErrWalletClosed)
+			return nil, fmt.Errorf("%w: cannot get account nonce", cliutil.ErrWalletClosed)
 		}
 
 		address = ee.Key.AddressBytes()
