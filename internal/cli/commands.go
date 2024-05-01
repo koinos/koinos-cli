@@ -1545,7 +1545,7 @@ func (c *AccountNonceCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 		return nil, err
 	}
 
-	message := fmt.Sprintf("%v", nonce+1)
+	message := fmt.Sprintf("%v", nonce)
 
 	result := NewExecutionResult()
 	result.AddMessage(message)
