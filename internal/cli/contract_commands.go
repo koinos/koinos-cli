@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strconv"
 
@@ -59,7 +59,7 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 
 		defer jsonFile.Close()
 
-		abiBytes, err = ioutil.ReadAll(jsonFile)
+		abiBytes, err = io.ReadAll(jsonFile)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 		}
