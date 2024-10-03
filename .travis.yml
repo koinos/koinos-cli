@@ -21,8 +21,8 @@ jobs:
         - go get ./...
       script:
         - go build -ldflags="-X main.Commit=$(git rev-parse HEAD)" cmd/cli/main.go
-        - go test -v github.com/koinos/koinos-cli/internal/cli/... -coverprofile=.coverage.out -coverpkg=./koinos/cli
-        - gcov2lcov -infile=./build/coverage.out -outfile=coverage.info
+        - go test -v github.com/koinos/koinos-cli/internal/cli/... -coverprofile=coverage.out -coverpkg=./koinos/cli
+        - gcov2lcov -infile=coverage.out -outfile=coverage.info
         - golangci-lint run ./...
       after_success:
         - coveralls-lcov --repo-token "$COVERALLS_REPO_TOKEN" --service-name travis-pro coverage.info
