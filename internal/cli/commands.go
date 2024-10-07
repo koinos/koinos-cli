@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"sort"
 	"strconv"
@@ -307,7 +307,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 		return nil, fmt.Errorf("%w: %s", cliutil.ErrFileNotFound, c.Filename)
 	}
 
-	wasmBytes, err := ioutil.ReadFile(c.Filename)
+	wasmBytes, err := os.ReadFile(c.Filename)
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +327,7 @@ func (c *UploadContractCommand) Execute(ctx context.Context, ee *ExecutionEnviro
 
 		defer abiFile.Close()
 
-		abiBytes, err := ioutil.ReadAll(abiFile)
+		abiBytes, err := io.ReadAll(abiFile)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, err)
 		}

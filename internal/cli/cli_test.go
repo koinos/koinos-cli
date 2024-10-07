@@ -3,7 +3,6 @@ package cli
 import (
 	"bytes"
 	"errors"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -277,7 +276,7 @@ func TestWalletFile(t *testing.T) {
 	testKey := []byte{0x03, 0x02, 0x01, 0x0A, 0x0B, 0x0C}
 
 	// Storage of test bytes
-	file, err := ioutil.TempFile("", "wallet_test_*")
+	file, err := os.CreateTemp("", "wallet_test_*")
 	defer os.Remove(file.Name())
 	assert.NoError(t, err)
 
@@ -307,7 +306,7 @@ func TestWalletFile(t *testing.T) {
 	file.Close()
 
 	// Prevent an empty passphrase
-	errfile, err := ioutil.TempFile("", "wallet_test_*")
+	errfile, err := os.CreateTemp("", "wallet_test_*")
 	defer os.Remove(errfile.Name())
 
 	assert.NoError(t, err)
