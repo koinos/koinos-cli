@@ -125,7 +125,7 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 
 		// Create the command
 		var cmd *CommandDeclaration
-		if method.ReadOnly {
+		if method.ReadOnly || method.ReadOnlyOld {
 			cmd = NewCommandDeclaration(commandName, method.Description, false, NewReadContractCommand, params...)
 		} else {
 			cmd = NewCommandDeclaration(commandName, method.Description, false, NewWriteContractCommand, params...)
@@ -171,9 +171,18 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 
 	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
 
-	entryPoint, err := strconv.ParseUint(ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint[2:], 16, 32)
-	if err != nil {
-		return nil, err
+	entryPoint := uint64(0)
+
+	if abiEntryPoint := ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint; abiEntryPoint != 0 {
+		entryPoint = abiEntryPoint
+	} else if abiEntryPoint := ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPointOld; len(abiEntryPoint) > 0 {
+		if intEntryPoint, err := strconv.ParseUint(abiEntryPoint[2:], 16, 32); err != nil {
+			return nil, err
+		} else {
+			entryPoint = intEntryPoint
+		}
+	} else {
+		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, "method missing entry point")
 	}
 
 	// Form a protobuf message from the command input
@@ -310,9 +319,18 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 
 	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
 
-	entryPoint, err := strconv.ParseUint(ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint[2:], 16, 32)
-	if err != nil {
-		return nil, err
+	entryPoint := uint64(0)
+
+	if abiEntryPoint := ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint; abiEntryPoint != 0 {
+		entryPoint = abiEntryPoint
+	} else if abiEntryPoint := ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPointOld; len(abiEntryPoint) > 0 {
+		if intEntryPoint, err := strconv.ParseUint(abiEntryPoint[2:], 16, 32); err != nil {
+			return nil, err
+		} else {
+			entryPoint = intEntryPoint
+		}
+	} else {
+		return nil, fmt.Errorf("%w: %s", cliutil.ErrInvalidABI, "method missing entry point")
 	}
 
 	// Form a protobuf message from the command input

@@ -109,11 +109,13 @@ func (abi *ABI) GetFiles() (*protoregistry.Files, error) {
 
 // ABIMethod represents an ABI method descriptor
 type ABIMethod struct {
-	Argument    string `json:"argument"`
-	Return      string `json:"return"`
-	EntryPoint  string `json:"entry-point"`
-	Description string `json:"description"`
-	ReadOnly    bool   `json:"read-only"`
+	Argument      string `json:"argument"`
+	Return        string `json:"return"`
+	EntryPoint    uint64 `json:"entry_point"`
+	Description   string `json:"description"`
+	ReadOnly      bool   `json:"read_only"`
+	EntryPointOld string `json:"entry-point"`
+	ReadOnlyOld   bool   `json:"read-only"`
 }
 
 // ContractInfo represents the information about a contract
