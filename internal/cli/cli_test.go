@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/koinos/koinos-cli/internal/cliutil"
-	util "github.com/koinos/koinos-util-golang"
+	util "github.com/koinos/koinos-util-golang/v2"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )

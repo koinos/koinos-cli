@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/koinos/koinos-proto-golang/koinos/protocol"
-	util "github.com/koinos/koinos-util-golang"
+	"github.com/koinos/koinos-proto-golang/v2/koinos/protocol"
+	util "github.com/koinos/koinos-util-golang/v2"
 	"github.com/minio/sio"
 )
 

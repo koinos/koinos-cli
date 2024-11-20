@@ -15,13 +15,13 @@ import (
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli/internal/cliutil"
-	kjson "github.com/koinos/koinos-proto-golang/encoding/json"
-	"github.com/koinos/koinos-proto-golang/koinos/chain"
-	"github.com/koinos/koinos-proto-golang/koinos/protocol"
+	kjson "github.com/koinos/koinos-proto-golang/v2/encoding/json"
+	"github.com/koinos/koinos-proto-golang/v2/koinos/chain"
+	"github.com/koinos/koinos-proto-golang/v2/koinos/protocol"
 	"github.com/shopspring/decimal"
 	"google.golang.org/protobuf/proto"
 
-	util "github.com/koinos/koinos-util-golang"
+	util "github.com/koinos/koinos-util-golang/v2"
 )
 
 // CommandSet represents a set of commands for the parser

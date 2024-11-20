@@ -10,8 +10,8 @@ import (
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli/internal/cliutil"
-	"github.com/koinos/koinos-proto-golang/koinos/protocol"
-	util "github.com/koinos/koinos-util-golang"
+	"github.com/koinos/koinos-proto-golang/v2/koinos/protocol"
+	util "github.com/koinos/koinos-util-golang/v2"
 	"github.com/shopspring/decimal"
 )
 
@@ -161,9 +161,16 @@ func (ee *ExecutionEnvironment) GetNextNonce(ctx context.Context, update bool) (
 	}
 
 	if nInfo.nonceTime.IsZero() || time.Since(nInfo.nonceTime) > NonceCheckTime {
-		nonce, err := ee.RPCClient.GetAccountNonce(ctx, ee.Key.AddressBytes())
+		nonce, err := ee.RPCClient.GetPendingNonce(ctx, ee.Key.AddressBytes())
 		if err != nil {
 			return 0, err
+		}
+
+		if nonce == 0 {
+			nonce, err = ee.RPCClient.GetAccountNonce(ctx, ee.Key.AddressBytes())
+			if err != nil {
+				return 0, err
+			}
 		}
 
 		nInfo.nonceTime = time.Now()

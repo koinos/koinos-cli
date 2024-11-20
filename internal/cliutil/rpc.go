@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 
-	kjson "github.com/koinos/koinos-proto-golang/encoding/json"
-	"github.com/koinos/koinos-proto-golang/koinos/contract_meta_store"
-	"github.com/koinos/koinos-proto-golang/koinos/contracts/token"
-	"github.com/koinos/koinos-proto-golang/koinos/protocol"
-	"github.com/koinos/koinos-proto-golang/koinos/rpc/chain"
-	contract_meta_store_rpc "github.com/koinos/koinos-proto-golang/koinos/rpc/contract_meta_store"
-	util "github.com/koinos/koinos-util-golang"
+	kjson "github.com/koinos/koinos-proto-golang/v2/encoding/json"
+	"github.com/koinos/koinos-proto-golang/v2/koinos/contract_meta_store"
+	"github.com/koinos/koinos-proto-golang/v2/koinos/contracts/token"
+	"github.com/koinos/koinos-proto-golang/v2/koinos/protocol"
+	"github.com/koinos/koinos-proto-golang/v2/koinos/rpc/chain"
+	contract_meta_store_rpc "github.com/koinos/koinos-proto-golang/v2/koinos/rpc/contract_meta_store"
+	"github.com/koinos/koinos-proto-golang/v2/koinos/rpc/mempool"
+	util "github.com/koinos/koinos-util-golang/v2"
 	jsonrpc "github.com/ybbus/jsonrpc/v3"
 	"google.golang.org/protobuf/proto"
 )
@@ -23,6 +24,7 @@ const (
 	SubmitTransactionCall = "chain.submit_transaction"
 	GetChainIDCall        = "chain.get_chain_id"
 	GetContractMetaCall   = "contract_meta_store.get_contract_meta"
+	GetPendingNonceCall   = "mempool.get_pending_nonce"
 )
 
 // SubmissionParams is the parameters for a transaction submission
@@ -278,4 +280,30 @@ func (c *KoinosRPCClient) GetChainID(ctx context.Context) ([]byte, error) {
 	}
 
 	return cResp.ChainId, nil
+}
+
+// GetPendingNonce gets the pending nonce from the mempool
+func (c *KoinosRPCClient) GetPendingNonce(ctx context.Context, address []byte) (uint64, error) {
+	// Build the request
+	params := mempool.GetPendingNonceRequest{
+		Payee: address,
+	}
+
+	// Make the rpc call
+	var mResp mempool.GetPendingNonceResponse
+	err := c.Call(ctx, GetPendingNonceCall, &params, &mResp)
+	if err != nil {
+		return 0, err
+	}
+
+	if mResp.Nonce == nil {
+		return 0, nil
+	}
+
+	nonce, err := util.NonceBytesToUInt64(mResp.Nonce)
+	if err != nil {
+		return 0, err
+	}
+
+	return nonce, nil
 }

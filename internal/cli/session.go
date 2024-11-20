@@ -3,7 +3,7 @@ package cli
 import (
 	"errors"
 
-	"github.com/koinos/koinos-proto-golang/koinos/protocol"
+	"github.com/koinos/koinos-proto-golang/v2/koinos/protocol"
 )
 
 var (
