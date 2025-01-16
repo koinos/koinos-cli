@@ -6,9 +6,9 @@ import (
 	"crypto/sha256"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/koinos/koinos-proto-golang/koinos/canonical"
-	"github.com/koinos/koinos-proto-golang/koinos/protocol"
-	util "github.com/koinos/koinos-util-golang"
+	"github.com/koinos/koinos-proto-golang/v2/koinos/canonical"
+	"github.com/koinos/koinos-proto-golang/v2/koinos/protocol"
+	util "github.com/koinos/koinos-util-golang/v2"
 	"github.com/multiformats/go-multihash"
 )
 

@@ -10,7 +10,7 @@ import (
 	"github.com/koinos/koinos-cli/cmd/cli/interactive"
 	"github.com/koinos/koinos-cli/internal/cli"
 	"github.com/koinos/koinos-cli/internal/cliutil"
-	util "github.com/koinos/koinos-util-golang"
+	util "github.com/koinos/koinos-util-golang/v2"
 	flag "github.com/spf13/pflag"
 )
 
