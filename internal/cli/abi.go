@@ -111,7 +111,7 @@ func (abi *ABI) GetFiles() (*protoregistry.Files, error) {
 type ABIMethod struct {
 	Argument      string `json:"argument"`
 	Return        string `json:"return"`
-	EntryPoint    string `json:"entry_point"`
+	EntryPoint    uint32 `json:"entry_point"`
 	EntryPointOld string `json:"entry-point"`
 	Description   string `json:"description"`
 	ReadOnlyOld   bool   `json:"read_only"`
@@ -430,10 +430,8 @@ func ParseResultToMessage(cmd *CommandParseResult, contracts Contracts) (proto.M
 func GetEntryPoint(method *ABIMethod) (uint64, error) {
 	if len(method.EntryPointOld) > 2 && method.EntryPointOld[:2] == "0x" {
 		return strconv.ParseUint(method.EntryPointOld[2:], 16, 32)
-	} else if len(method.EntryPoint) > 2 && method.EntryPoint[:2] == "0x" {
-		return strconv.ParseUint(method.EntryPoint[2:], 16, 32)
 	} else {
-		return strconv.ParseUint(method.EntryPoint, 10, 32)
+		return uint64(method.EntryPoint), nil
 	}
 }
 

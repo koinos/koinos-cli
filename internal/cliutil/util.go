@@ -6,9 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"strconv"
 
-	"github.com/koinos/koinos-cli/internal/cli"
 	"github.com/koinos/koinos-proto-golang/v2/koinos/protocol"
 	util "github.com/koinos/koinos-util-golang/v2"
 	"github.com/minio/sio"
