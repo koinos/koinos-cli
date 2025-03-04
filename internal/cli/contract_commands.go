@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli/internal/cliutil"
@@ -125,7 +124,7 @@ func (c *RegisterCommand) Execute(ctx context.Context, ee *ExecutionEnvironment)
 
 		// Create the command
 		var cmd *CommandDeclaration
-		if method.ReadOnly {
+		if GetReadOnly(method) {
 			cmd = NewCommandDeclaration(commandName, method.Description, false, NewReadContractCommand, params...)
 		} else {
 			cmd = NewCommandDeclaration(commandName, method.Description, false, NewWriteContractCommand, params...)
@@ -171,7 +170,7 @@ func (c *ReadContractCommand) Execute(ctx context.Context, ee *ExecutionEnvironm
 
 	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
 
-	entryPoint, err := strconv.ParseUint(ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint[2:], 16, 32)
+	entryPoint, err := GetEntryPoint(ee.Contracts.GetMethod(c.ParseResult.CommandName))
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +309,7 @@ func (c *WriteContractCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 
 	contract := ee.Contracts.GetFromMethodName(c.ParseResult.CommandName)
 
-	entryPoint, err := strconv.ParseUint(ee.Contracts.GetMethod(c.ParseResult.CommandName).EntryPoint[2:], 16, 32)
+	entryPoint, err := GetEntryPoint(ee.Contracts.GetMethod(c.ParseResult.CommandName))
 	if err != nil {
 		return nil, err
 	}

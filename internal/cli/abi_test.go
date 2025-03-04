@@ -14,21 +14,48 @@ var (
 				"argument": "abi_test.empty_arguments",
 				"return": "abi_test.empty_result",
 				"description": "Empty arguments",
-				"entry_point": "0x2e1cfa82",
+				"entry_point": 773651074,
+				"read_only": false
+			},
+			"simple": {
+				"argument": "abi_test.simple_arguments",
+				"return": "abi_test.simple_result",
+				"description": "Simple arguments",
+				"entry_point": 2812517234,
+				"read_only": false
+			},
+			"nested": {
+				"argument": "abi_test.nested_arguments",
+				"return": "abi_test.nested_result",
+				"description": "Nested arguments",
+				"entry_point": 590701278,
+				"read_only": false
+			}
+		},
+		"types": "Cr4ECit0ZXN0X2FiaS9hc3NlbWJseS9wcm90by9jb25zdGVsbGF0aW9uLnByb3RvEghhYmlfdGVzdBoUa29pbm9zL29wdGlvbnMucHJvdG8iEQoPZW1wdHlfYXJndW1lbnRzIg4KDGVtcHR5X3Jlc3VsdCJOChBzaW1wbGVfYXJndW1lbnRzEg4KAmlkGAEgASgNUgJpZBISCgRuYW1lGAIgASgJUgRuYW1lEhYKBmFjdGl2ZRgDIAEoCFIGYWN0aXZlIg8KDXNpbXBsZV9yZXN1bHQiYgoQbmVzdGVkX2FyZ3VtZW50cxISCgRuYW1lGAEgASgJUgRuYW1lEiQKBGRhdGEYAiABKAsyEC5hYmlfdGVzdC5kYXRhX2NSBGRhdGESFAoFdmFsdWUYAyABKA1SBXZhbHVlIg8KDW5lc3RlZF9yZXN1bHQiRAoGZGF0YV9hEhQKBXZhbHVlGAEgASgNUgV2YWx1ZRISCgRuYW1lGAIgASgJUgRuYW1lEhAKA251bRgDIAEoCVIDbnVtIjQKBmRhdGFfYhIWCgZhY3RpdmUYASABKAhSBmFjdGl2ZRISCgRuYW1lGAIgASgJUgRuYW1lInIKBmRhdGFfYxISCgRuYW1lGAEgASgJUgRuYW1lEh4KAWEYAiABKAsyEC5hYmlfdGVzdC5kYXRhX2FSAWESFAoFdmFsdWUYAyABKA1SBXZhbHVlEh4KAWIYBCABKAsyEC5hYmlfdGVzdC5kYXRhX2JSAWJiBnByb3RvMw=="
+	}`
+
+	JSONABI_OLD = `{
+		"methods": {
+			"empty": {
+				"argument": "abi_test.empty_arguments",
+				"return": "abi_test.empty_result",
+				"description": "Empty arguments",
+				"entry-point": "0x2e1cfa82",
 				"read-only": false
 			},
 			"simple": {
 				"argument": "abi_test.simple_arguments",
 				"return": "abi_test.simple_result",
 				"description": "Simple arguments",
-				"entry_point": "0xa7a39b72",
+				"entry-point": "0xa7a39b72",
 				"read-only": false
 			},
 			"nested": {
 				"argument": "abi_test.nested_arguments",
 				"return": "abi_test.nested_result",
 				"description": "Nested arguments",
-				"entry_point": "0x233562de",
+				"entry-point": "0x233562de",
 				"read-only": false
 			}
 		},
@@ -36,16 +63,16 @@ var (
 	}`
 )
 
-func loadABI(t *testing.T) *ABI {
+func loadABI(t *testing.T, jsonABI string) *ABI {
 	var abi ABI
-	err := json.Unmarshal([]byte(JSONABI), &abi)
+	err := json.Unmarshal([]byte(jsonABI), &abi)
 	assert.NoError(t, err)
 	return &abi
 }
 
-func loadContracts(t *testing.T) Contracts {
+func loadContracts(t *testing.T, jsonABI string) Contracts {
 	contracts := Contracts(make(map[string]*ContractInfo))
-	abi := loadABI(t)
+	abi := loadABI(t, jsonABI)
 
 	files, err := abi.GetFiles()
 	assert.NoError(t, err)
@@ -68,7 +95,21 @@ func testMethod(t *testing.T, contracts Contracts, method string, expectedArgume
 }
 
 func TestABI(t *testing.T) {
-	contracts := loadContracts(t)
+	contracts := loadContracts(t, JSONABI)
+
+	// Test empty arguments
+	testMethod(t, contracts, "abi_test.empty", []string{})
+
+	// Test simple arguments
+	testMethod(t, contracts, "abi_test.simple", []string{"id", "name", "active"})
+
+	// Test nested arguments
+	testMethod(t, contracts, "abi_test.nested", []string{"name", "data.name", "data.a.value", "data.a.name", "data.a.num",
+		"data.value", "data.b.active", "data.b.name", "value"})
+}
+
+func TestABIOld(t *testing.T) {
+	contracts := loadContracts(t, JSONABI_OLD)
 
 	// Test empty arguments
 	testMethod(t, contracts, "abi_test.empty", []string{})
