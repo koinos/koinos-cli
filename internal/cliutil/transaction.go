@@ -106,3 +106,16 @@ func SignTransaction(key []byte, tx *protocol.Transaction) error {
 
 	return nil
 }
+
+// SignTransactionId signs the transaction ID with the given key
+func SignTransactionId(key []byte, tid []byte) ([]byte, error) {
+	privateKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), key)
+
+	// Decode to multihash ID
+	idBytes, err := multihash.Decode(tid)
+	if err != nil {
+		return nil, err
+	}
+
+	return btcec.SignCompact(btcec.S256(), privateKey, idBytes.Digest, true)
+}

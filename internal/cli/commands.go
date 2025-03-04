@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1418,13 +1419,8 @@ func NewSignTransactionCommand(inv *CommandParseResult) Command {
 	}
 }
 
-// Execute signs a transaction
-func (c *SignTransactionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	if !ee.IsWalletOpen() {
-		return nil, fmt.Errorf("%w: cannot sign transaction", cliutil.ErrWalletClosed)
-	}
-
-	trxBytes, err := base64.URLEncoding.DecodeString(c.Transaction)
+func parseTransaction(transaction string) (*protocol.Transaction, error) {
+	trxBytes, err := base64.URLEncoding.DecodeString(transaction)
 	if err != nil {
 		return nil, err
 	}
@@ -1435,25 +1431,58 @@ func (c *SignTransactionCommand) Execute(ctx context.Context, ee *ExecutionEnvir
 		return nil, err
 	}
 
-	err = util.SignTransaction(ee.Key.PrivateBytes(), trx)
+	return trx, nil
+}
+
+func parseTransactionId(tid string) ([]byte, error) {
+	return hex.DecodeString(tid[2:])
+}
+
+// Execute signs a transaction
+func (c *SignTransactionCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	if !ee.IsWalletOpen() {
+		return nil, fmt.Errorf("%w: cannot sign transaction", cliutil.ErrWalletClosed)
+	}
+
+	trx, err := parseTransaction(c.Transaction)
+	if err == nil {
+		err = util.SignTransaction(ee.Key.PrivateBytes(), trx)
+		if err != nil {
+			return nil, err
+		}
+
+		trxBytes, err := proto.Marshal(trx)
+		if err != nil {
+			return nil, err
+		}
+
+		jsonTrx, err := json.MarshalIndent(trx, "", "  ")
+		if err != nil {
+			return nil, err
+		}
+
+		encodedTrx := base64.URLEncoding.EncodeToString(trxBytes)
+
+		result := NewExecutionResult()
+		result.AddMessage(fmt.Sprintf("Signed Transaction:\nJSON:\n%v\nBase64:\n%v", string(jsonTrx), encodedTrx))
+
+		return result, nil
+	}
+
+	trxErr := err
+
+	tid, err := parseTransactionId(c.Transaction)
+	if err != nil {
+		return nil, trxErr
+	}
+
+	signature, err := cliutil.SignTransactionId(ee.Key.PrivateBytes(), tid)
 	if err != nil {
 		return nil, err
 	}
-
-	trxBytes, err = proto.Marshal(trx)
-	if err != nil {
-		return nil, err
-	}
-
-	jsonTrx, err := json.MarshalIndent(trx, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-
-	encodedTrx := base64.URLEncoding.EncodeToString(trxBytes)
 
 	result := NewExecutionResult()
-	result.AddMessage(fmt.Sprintf("Signed Transaction:\nJSON:\n%v\nBase64:\n%v", string(jsonTrx), encodedTrx))
+	result.AddMessage(fmt.Sprintf("Transaction Signature: %v", base64.URLEncoding.EncodeToString(signature)))
 
 	return result, nil
 }
