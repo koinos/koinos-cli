@@ -111,11 +111,11 @@ func (abi *ABI) GetFiles() (*protoregistry.Files, error) {
 type ABIMethod struct {
 	Argument      string `json:"argument"`
 	Return        string `json:"return"`
-	EntryPoint    uint32 `json:"entry_point"`
-	EntryPointOld string `json:"entry-point"`
+	EntryPoint    uint64 `json:"entry_point"`
 	Description   string `json:"description"`
-	ReadOnlyOld   bool   `json:"read_only"`
-	ReadOnly      bool   `json:"read-only"`
+	ReadOnly      bool   `json:"read_only"`
+	EntryPointOld string `json:"entry-point"`
+	ReadOnlyOld   bool   `json:"read-only"`
 }
 
 // ContractInfo represents the information about a contract
