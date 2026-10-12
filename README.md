@@ -29,27 +29,41 @@ signatures, contract arguments, and wallet fixtures when changing them.
 
 Type `list` to see available commands and `help <command>` for arguments. Tab
 completion includes registered contract commands and file paths. The prompt shows
-whether a node endpoint is configured, a wallet is open, and a transaction session
-is active. A configured endpoint does not establish that the node is reachable.
-Use `--force-text-prompt` if your terminal does not display the status symbols.
+the last verified network, an abbreviated wallet address when unlocked, and the
+number of pending operations. Type `status` for the full wallet address, endpoint,
+and chain identity. A successful connection check is not a continuous health check.
+The prompt always uses plain text; `--force-text-prompt` remains accepted for compatibility.
 
 ```text
-connect https://api.koinos.io/
+connect mainnet
+status
 disconnect
 exit
 ```
 
-`quit` also exits. `--rpc <url>` selects an initial endpoint. The included
+`quit` also exits. `--network mainnet`, `--network testnet`, or `--rpc <url>` selects
+an initial endpoint and verifies its chain ID, with a bounded connection wait.
+Named networks reject an unexpected chain identity. `connect` also accepts these
+network names or a custom URL. The included
 `.koinosrc` connects to the public Koinos endpoint and registers KOIN, VHP, and
-system contracts. Startup commands can change the endpoint; use `--no-rc` to skip
-both automatic startup files when selecting a different network explicitly.
+system contracts. Explicit `--network` or `--rpc` selection skips both automatic
+startup files so mainnet-specific settings cannot override the selected network.
+Use `--file` to run an explicit configuration for that network, including its token
+and contract registrations. Without either network flag, automatic startup files
+still run as before; `--no-rc` disables them.
+
+Changing connections during a transaction session is rejected. Switching to a
+different chain with registered contracts requires restarting the CLI for that
+network, so old contract addresses cannot silently carry over.
 
 For testnet, use the Koinos Foundation endpoint. This read-only example checks
 the chain ID without opening a wallet or submitting a transaction:
 
 ```sh
-./koinos-cli --no-rc --rpc https://testnet.koinosfoundation.org/jsonrpc --execute 'chain_id'
+./koinos-cli --network testnet --execute 'status'
 ```
+
+The testnet profile uses `https://testnet.koinosfoundation.org/jsonrpc`.
 
 ## Wallets
 
@@ -185,7 +199,7 @@ before its commands execute.
 Execution order is explicit `--execute` commands, the home `.koinosrc`, the
 current-directory `.koinosrc`, then explicit `--file` inputs. The same automatic
 startup path is read only once. Missing automatic files are allowed; missing
-explicit files are errors. `--no-rc` skips only the automatic startup files.
+explicit files are errors. `--no-rc`, `--network`, and `--rpc` skip only the automatic startup files.
 
 A parse error, command error, rejected transaction, or unreadable script stops
 execution and returns a nonzero process status. Later commands do not execute;

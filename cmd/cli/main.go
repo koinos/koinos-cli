@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -44,12 +45,13 @@ func run(args []string, homeDir string) int {
 	_ = godotenv.Load()
 
 	// Setup command line options
-	rpcAddress := flags.StringP(rpcOption, "r", rpcDefault, "RPC server URL")
+	rpcAddress := flags.StringP(rpcOption, "r", rpcDefault, "RPC server URL (skips automatic startup files)")
+	network := flags.String("network", "", "Select mainnet or testnet (skips automatic startup files)")
 	executeCmd := flags.StringSliceP(executeOption, "x", nil, "Command to execute")
 	fileCmd := flags.StringSliceP(fileOption, "f", nil, "File to execute")
 	versionCmd := flags.BoolP(versionOption, "v", false, "Display the version")
 	forceInteractive := flags.BoolP(forceInteractiveOption, "i", false, "Forces interactive mode after successfully executing commands and files")
-	forceTextPrompt := flags.BoolP(forceTextPromptOption, "t", false, "Forces text prompt in interactive mode, rather than unicode symbols")
+	forceTextPrompt := flags.BoolP(forceTextPromptOption, "t", false, "Compatibility option; the prompt now always uses plain text")
 	noRC := flags.Bool("no-rc", false, "Skip automatic home and current-directory .koinosrc files")
 
 	if err := flags.Parse(args); err != nil {
@@ -65,17 +67,33 @@ func run(args []string, homeDir string) int {
 		return 0
 	}
 
-	// Setup client
-	var client *cliutil.KoinosRPCClient
-	if *rpcAddress != "" {
-		client = cliutil.NewKoinosRPCClient(*rpcAddress)
+	if flags.Changed("network") && (!cli.IsNetwork(*network) || flags.Changed(rpcOption)) {
+		fmt.Fprintln(os.Stderr, "choose --network mainnet or --network testnet, or supply --rpc separately")
+		return 2
+	}
+	if flags.Changed(rpcOption) && *rpcAddress == "" {
+		fmt.Fprintln(os.Stderr, "--rpc requires a node URL")
+		return 2
 	}
 
 	// Construct the command parser
 	commands := cli.NewKoinosCommandSet()
 	parser := cli.NewCommandParser(commands)
 
-	cmdEnv := cli.NewExecutionEnvironment(client, parser)
+	cmdEnv := cli.NewExecutionEnvironment(nil, parser)
+	target := *rpcAddress
+	if *network != "" {
+		target = *network
+	}
+	if target != "" {
+		if err := cmdEnv.Connect(context.Background(), target); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		if !*noRC {
+			fmt.Fprintln(os.Stderr, "Explicit network selected; skipping automatic .koinosrc files. Use --file for network-specific startup commands.")
+		}
+	}
 
 	// If the user submitted commands, execute them
 	if *executeCmd != nil {
@@ -90,7 +108,7 @@ func run(args []string, homeDir string) int {
 
 	// Automatic startup files are optional. Explicit --file inputs are required.
 	files := []string{}
-	if !*noRC {
+	if !*noRC && target == "" {
 		files = append(files, filepath.Join(homeDir, rcFileName), rcFileName)
 	}
 	optionalFiles := len(files)

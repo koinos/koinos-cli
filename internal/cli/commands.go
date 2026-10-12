@@ -94,7 +94,8 @@ func NewKoinosCommandSet() *CommandSet {
 	cs := NewCommandSet()
 
 	cs.AddCommand(NewCommandDeclaration("address", "Show the currently opened wallet's address", false, NewAddressCommand))
-	cs.AddCommand(NewCommandDeclaration("connect", "Connect to an RPC endpoint", false, NewConnectCommand, *NewCommandArg("url", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("connect", "Verify and connect to mainnet, testnet, or an RPC URL", false, NewConnectCommand, *NewCommandArg("url", StringArg)))
+	cs.AddCommand(NewCommandDeclaration("status", "Show the network, wallet, and pending transaction operations", false, NewStatusCommand))
 	cs.AddCommand(NewCommandDeclaration("close", "Close the currently open wallet (lock also works)", false, NewCloseCommand))
 	cs.AddCommand(NewCommandDeclaration("lock", "Synonym for close", true, NewCloseCommand))
 	cs.AddCommand(NewCommandDeclaration("create", "Create and open a new wallet file", false, NewCreateCommand, *NewCommandArg("filename", FileArg), *NewOptionalCommandArg("password", StringArg)))
@@ -180,14 +181,12 @@ func NewConnectCommand(inv *CommandParseResult) Command {
 
 // Execute connects to an RPC endpoint
 func (c *ConnectCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
-	rpc := cliutil.NewKoinosRPCClient(c.URL)
-	ee.RPCClient = rpc
-
-	// TODO: Ensure connection (some sort of ping?)
-	// Issue #20
+	if err := ee.Connect(ctx, c.URL); err != nil {
+		return nil, err
+	}
 
 	result := NewExecutionResult()
-	result.AddMessage(fmt.Sprintf("Connected to endpoint %s", c.URL))
+	result.AddMessage(fmt.Sprintf("Connected to %s at %s (chain ID verified)", ee.NetworkLabel(), ee.RPCClient.Endpoint()))
 
 	return result, nil
 }

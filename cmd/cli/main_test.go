@@ -1,12 +1,50 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestExplicitRPCSkipsAutomaticNetworkConfiguration(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".koinosrc"), []byte("create should-not-exist.wallet test-password\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			ID json.RawMessage `json:"id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Error(err)
+			return
+		}
+		fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":{"chain_id":"EiAIKVvm6-V2qmsmUvPJy09vCCLbtn9lHFpwrJbcTIEWRQ=="}}`, request.ID)
+	}))
+	defer server.Close()
+	code, output := invokeCLI(t, dir, "--rpc", server.URL, "--execute", "list")
+	if code != 0 {
+		t.Fatalf("explicit RPC failed: %s", output)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "should-not-exist.wallet")); !os.IsNotExist(err) {
+		t.Fatal("explicit RPC ran implicit startup commands")
+	}
+}
+
+func TestNetworkSelectionRejectsConflictingOrUnknownOptions(t *testing.T) {
+	for _, args := range [][]string{{"--network", "wrong", "--execute", "list"}, {"--network", "testnet", "--rpc", "http://localhost", "--execute", "list"}} {
+		code, output := invokeCLI(t, t.TempDir(), args...)
+		if code != 2 || !strings.Contains(output, "network") {
+			t.Fatalf("invalid network selection: code=%d output=%s", code, output)
+		}
+	}
+}
 
 // Execute the real entrypoint in an isolated process and configuration directory.
 func TestCLIProcess(t *testing.T) {

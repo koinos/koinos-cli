@@ -78,16 +78,17 @@ type nonceInfo struct {
 
 // ExecutionEnvironment is a struct that holds the environment for command execution.
 type ExecutionEnvironment struct {
-	RPCClient *cliutil.KoinosRPCClient
-	Key       *util.KoinosKey
-	Parser    *CommandParser
-	Contracts Contracts
-	Session   *TransactionSession
-	nonceMap  map[string]*nonceInfo
-	nonceMode string
-	rcLimit   rcInfo
-	payer     string
-	chainID   string
+	RPCClient        *cliutil.KoinosRPCClient
+	Key              *util.KoinosKey
+	Parser           *CommandParser
+	Contracts        Contracts
+	Session          *TransactionSession
+	nonceMap         map[string]*nonceInfo
+	nonceMode        string
+	rcLimit          rcInfo
+	payer            string
+	chainID          string
+	connectedChainID []byte
 }
 
 // NewExecutionEnvironment creates a new ExecutionEnvironment object

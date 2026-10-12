@@ -2,8 +2,6 @@ package interactive
 
 import (
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/koinos/go-prompt"
 	"github.com/koinos/go-prompt/completer"
@@ -18,15 +16,8 @@ type KoinosPrompt struct {
 	gPrompt            *prompt.Prompt
 	fPath              *completer.FilePathCompleter
 	commandSuggestions []prompt.Suggest
-	unicodeSupport     bool
 
 	latestRevision int
-
-	onlineDisplay  string
-	offlineDisplay string
-	openDisplay    string
-	closeDisplay   string
-	sessionDisplay string
 }
 
 // NewKoinosPrompt creates a new interactive prompt object
@@ -34,25 +25,6 @@ func NewKoinosPrompt(parser *cli.CommandParser, execEnv *cli.ExecutionEnvironmen
 	kp := &KoinosPrompt{parser: parser, execEnv: execEnv, latestRevision: -1}
 	kp.gPrompt = prompt.New(kp.executor, kp.completer, prompt.OptionLivePrefix(kp.changeLivePrefix), prompt.OptionCompletionWordSeparator(completer.FilePathCompletionSeparator))
 	kp.fPath = &completer.FilePathCompleter{}
-
-	// Check for terminal unicode support
-	lang := strings.ToUpper(os.Getenv("LANG"))
-	kp.unicodeSupport = strings.Contains(lang, "UTF") && !forceText
-
-	// Setup status characters
-	if kp.unicodeSupport {
-		kp.onlineDisplay = ""
-		kp.offlineDisplay = "🚫 "
-		kp.closeDisplay = "🔐 "
-		kp.openDisplay = "🔓 "
-		kp.sessionDisplay = "📄 "
-	} else {
-		kp.onlineDisplay = "(online) "
-		kp.offlineDisplay = "(offline) "
-		kp.closeDisplay = "(locked) "
-		kp.openDisplay = "(unlocked) "
-		kp.sessionDisplay = "(session) "
-	}
 
 	return kp
 }
@@ -72,24 +44,7 @@ func (kp *KoinosPrompt) generateSuggestions() {
 }
 
 func (kp *KoinosPrompt) changeLivePrefix() (string, bool) {
-	// Calculate online status
-	onlineStatus := kp.offlineDisplay
-	if kp.execEnv.IsOnline() {
-		onlineStatus = kp.onlineDisplay
-	}
-
-	// Calculate wallet status
-	walletStatus := kp.closeDisplay
-	if kp.execEnv.IsWalletOpen() {
-		walletStatus = kp.openDisplay
-	}
-
-	sessionStatus := ""
-	if kp.execEnv.Session.IsValid() {
-		sessionStatus = kp.sessionDisplay
-	}
-
-	return fmt.Sprintf("%s%s%s> ", onlineStatus, walletStatus, sessionStatus), true
+	return kp.execEnv.PromptStatus(), true
 }
 
 func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {
@@ -122,5 +77,6 @@ func (kp *KoinosPrompt) executor(input string) {
 func (kp *KoinosPrompt) Run() {
 	fmt.Printf("Koinos CLI %s\n", cliutil.Version)
 	fmt.Println("Type \"list\" for a list of commands, \"help <command>\" for help on a specific command.")
+	fmt.Println("Type \"status\" to see the network, wallet, and pending operations.")
 	kp.gPrompt.Run()
 }
