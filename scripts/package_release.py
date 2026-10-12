@@ -14,7 +14,7 @@ import zipfile
 
 
 SUPPORT_FILES = (".koinosrc", ".koinosrc.testnet", "README.md", "LICENSE.md")
-TARGETS = {("linux", "amd64"), ("darwin", "amd64"), ("darwin", "arm64")}
+TARGETS = {("linux", "amd64"), ("darwin", "amd64"), ("darwin", "arm64"), ("windows", "amd64")}
 
 
 def validate_version(version):
@@ -24,7 +24,7 @@ def validate_version(version):
 
 
 def archive_name(version, target_os, arch):
-    platform = {"darwin": "macos", "linux": "linux"}[target_os]
+    platform = {"darwin": "macos", "linux": "linux", "windows": "windows"}[target_os]
     extension = "tar.gz" if target_os == "linux" else "zip"
     return f"koinos-cli.{version}.{platform}.{arch}.{extension}"
 
@@ -35,7 +35,7 @@ def package(root, binary, output, version, target_os, arch, commit, toolchain):
         raise ValueError("Unsupported release target")
     if not re.fullmatch(r"[0-9a-f]{40}", commit):
         raise ValueError("Source commit must be a full Git commit ID")
-    executable = "koinos-cli"
+    executable = "koinos-cli.exe" if target_os == "windows" else "koinos-cli"
     paths = [(binary, executable, 0o755)] + [(root / name, name, 0o644) for name in SUPPORT_FILES]
     entries = []
     for path, name, mode in paths:
@@ -80,7 +80,7 @@ def smoke_test(archive, version):
         else:
             with tarfile.open(archive) as bundle:
                 bundle.extractall(root, filter="data")
-        binary = root / "koinos-cli"
+        binary = root / "koinos-cli.exe" if (root / "koinos-cli.exe").exists() else root / "koinos-cli"
         result = subprocess.run([str(binary), "--version"], cwd=root, capture_output=True, text=True, check=True, timeout=30)
         if result.stdout.strip() != version:
             raise ValueError("Packaged executable has the wrong version")
@@ -94,7 +94,7 @@ def main():
     parser.add_argument("--binary", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--version", required=True)
-    parser.add_argument("--os", required=True, choices=("linux", "darwin"))
+    parser.add_argument("--os", required=True, choices=("linux", "darwin", "windows"))
     parser.add_argument("--arch", required=True, choices=("amd64", "arm64"))
     parser.add_argument("--commit", required=True)
     parser.add_argument("--smoke-test", action="store_true")

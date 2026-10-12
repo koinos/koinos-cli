@@ -27,9 +27,8 @@ The **Prepare release** GitHub Actions workflow builds native packages, runs the
 Go and packaging tests, and checks the version and offline startup of each
 extracted executable. Pull requests run the same checks using a test version and
 upload temporary workflow artifacts. They cannot create releases. Packages cover
-Linux x64, Intel Macs, and Apple Silicon Macs. Windows packaging is deferred until
-Windows-specific wallet file access controls and their tests are implemented;
-the existing Unix permission test is not skipped to produce Windows releases.
+Linux x64, Intel Macs, Apple Silicon Macs, and Windows x64. Windows builds run
+the native wallet access-control tests before packaging the executable.
 
 After the release changes are reviewed and merged, open **Actions → Prepare
 release → Run workflow**, select `master`, and enter an unused version such as

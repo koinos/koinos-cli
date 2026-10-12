@@ -37,10 +37,16 @@ jobs:
           - runner: macos-15
             goos: darwin
             goarch: arm64
+          - runner: windows-2025
+            goos: windows
+            goarch: amd64
     defaults:
       run:
         shell: bash
     steps:
+      - name: Preserve repository line endings on Windows
+        if: runner.os == 'Windows'
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -48,6 +54,9 @@ jobs:
         with:
           go-version: '1.27.2'
           cache: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
       - name: Validate release request and native platform
         env:
           EXPECTED_OS: ${{ matrix.goos }}
@@ -57,7 +66,7 @@ jobs:
             echo '::error::Prepare releases only from master.'
             exit 1
           fi
-          python3 -c 'from scripts.package_release import validate_version; import os; validate_version(os.environ["RELEASE_VERSION"])'
+          python -c 'from scripts.package_release import validate_version; import os; validate_version(os.environ["RELEASE_VERSION"])'
           test "$(go env GOOS)" = "$EXPECTED_OS"
           test "$(go env GOARCH)" = "$EXPECTED_ARCH"
       - name: Verify dependencies and run tests
@@ -65,15 +74,17 @@ jobs:
           go mod download
           go mod verify
           go test -count=1 ./...
-          python3 -m unittest discover -s scripts -p 'test_*.py' -v
+          python -m unittest discover -s scripts -p 'test_*.py' -v
       - name: Build, package, and test the extracted executable
         env:
           TARGET_OS: ${{ matrix.goos }}
           TARGET_ARCH: ${{ matrix.goarch }}
         run: |
           mkdir -p build/release
-          CGO_ENABLED=0 go build -trimpath -ldflags "-X github.com/koinos/koinos-cli/internal/cliutil.Version=$RELEASE_VERSION" -o build/release/koinos-cli ./cmd/cli
-          python3 scripts/package_release.py --binary build/release/koinos-cli --output build/packages --version "$RELEASE_VERSION" --os "$TARGET_OS" --arch "$TARGET_ARCH" --commit "$GITHUB_SHA" --smoke-test
+          binary=koinos-cli
+          if [[ "$TARGET_OS" == windows ]]; then binary=koinos-cli.exe; fi
+          CGO_ENABLED=0 go build -trimpath -ldflags "-X github.com/koinos/koinos-cli/internal/cliutil.Version=$RELEASE_VERSION" -o "build/release/$binary" ./cmd/cli
+          python scripts/package_release.py --binary "build/release/$binary" --output build/packages --version "$RELEASE_VERSION" --os "$TARGET_OS" --arch "$TARGET_ARCH" --commit "$GITHUB_SHA" --smoke-test
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-${{ matrix.goos }}-${{ matrix.goarch }}

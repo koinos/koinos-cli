@@ -28,7 +28,7 @@ class PackageReleaseTest(unittest.TestCase):
         for target_os, arch in sorted(TARGETS):
             with self.subTest(target_os=target_os, arch=arch):
                 archive = self.build(target_os, arch, f"{target_os}-{arch}")
-                executable = "koinos-cli"
+                executable = "koinos-cli.exe" if target_os == "windows" else "koinos-cli"
                 expected = set(SUPPORT_FILES) | {executable, "BUILD-INFO.txt"}
                 if archive.suffix == ".zip":
                     with zipfile.ZipFile(archive) as bundle:
@@ -54,6 +54,14 @@ class PackageReleaseTest(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 validate_version(value)
 
+    def test_windows_archive_contains_named_executable_and_configs(self):
+        archive = self.build("windows", "amd64")
+        self.assertEqual(archive.name, "koinos-cli.v2.1.0-rc.1.windows.amd64.zip")
+        with zipfile.ZipFile(archive) as bundle:
+            self.assertEqual(set(bundle.namelist()), set(SUPPORT_FILES) | {"koinos-cli.exe", "BUILD-INFO.txt"})
+            self.assertEqual(bundle.read("koinos-cli.exe"), b"binary fixture")
+            self.assertIn(b"Target: windows/amd64\n", bundle.read("BUILD-INFO.txt"))
+
     def test_accepts_release_and_prerelease_versions(self):
         for value in ("v2.1.0", "v3.0.0-rc.1", "v0.0.0-test"):
             validate_version(value)
@@ -73,7 +81,7 @@ class PackageReleaseTest(unittest.TestCase):
 
     def test_refuses_unsupported_platform_or_missing_source_commit(self):
         with self.assertRaises(ValueError):
-            self.build("windows", "amd64")
+            self.build("windows", "arm64")
         with self.assertRaises(ValueError):
             package(self.root, self.binary, self.root / "output", "v2.1.0", "linux", "amd64", "unknown", "go1.27.2")
 
