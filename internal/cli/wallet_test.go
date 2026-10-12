@@ -106,13 +106,7 @@ func TestCreatedWalletIsOwnerOnly(t *testing.T) {
 	if _, err := cmd.Execute(context.Background(), NewExecutionEnvironment(nil, nil)); err != nil {
 		t.Fatal(err)
 	}
-	st, err := os.Stat(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if st.Mode().Perm()&0077 != 0 {
-		t.Fatalf("wallet file permissions are %04o; readable outside owner", st.Mode().Perm())
-	}
+	assertWalletOwnerOnly(t, filename)
 }
 func TestRejectedPasswordLeavesNoWallet(t *testing.T) {
 	filename := filepath.Join(t.TempDir(), "test.wallet")
