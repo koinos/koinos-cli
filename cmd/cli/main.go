@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/koinos/koinos-cli/cmd/cli/interactive"
@@ -30,11 +28,6 @@ const (
 	rpcDefault = ""
 )
 
-// Other constants
-const (
-	rcFileName = ".koinosrc"
-)
-
 func main() {
 	os.Exit(run(os.Args[1:], util.GetHomeDir()))
 }
@@ -45,14 +38,14 @@ func run(args []string, homeDir string) int {
 	_ = godotenv.Load()
 
 	// Setup command line options
-	rpcAddress := flags.StringP(rpcOption, "r", rpcDefault, "RPC server URL (skips automatic startup files)")
-	network := flags.String("network", "", "Select mainnet or testnet (skips automatic startup files)")
+	rpcAddress := flags.StringP(rpcOption, "r", rpcDefault, "RPC server URL (takes precedence over automatic startup files)")
+	network := flags.String("network", "", "Select mainnet or testnet and load its startup files")
 	executeCmd := flags.StringSliceP(executeOption, "x", nil, "Command to execute")
 	fileCmd := flags.StringSliceP(fileOption, "f", nil, "File to execute")
 	versionCmd := flags.BoolP(versionOption, "v", false, "Display the version")
 	forceInteractive := flags.BoolP(forceInteractiveOption, "i", false, "Forces interactive mode after successfully executing commands and files")
 	forceTextPrompt := flags.BoolP(forceTextPromptOption, "t", false, "Compatibility option; the prompt now always uses plain text")
-	noRC := flags.Bool("no-rc", false, "Skip automatic home and current-directory .koinosrc files")
+	noRC := flags.Bool("no-rc", false, "Skip automatic home and current-directory startup files")
 
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
@@ -91,8 +84,13 @@ func run(args []string, homeDir string) int {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
-		if !*noRC {
-			fmt.Fprintln(os.Stderr, "Explicit network selected; skipping automatic .koinosrc files. Use --file for network-specific startup commands.")
+	}
+
+	// Register startup commands before parsing commands supplied with --execute.
+	if !*noRC {
+		if err := executeStartupFiles(homeDir, parser, cmdEnv, target != ""); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
 		}
 	}
 
@@ -107,60 +105,11 @@ func run(args []string, homeDir string) int {
 		}
 	}
 
-	// Automatic startup files are optional. Explicit --file inputs are required.
-	files := []string{}
-	if !*noRC && target == "" {
-		files = append(files, filepath.Join(homeDir, rcFileName), rcFileName)
-	}
-	optionalFiles := len(files)
-	var seenStartupFiles []os.FileInfo
-
-	if *fileCmd != nil {
-		files = append(files, *fileCmd...)
-	}
-
-	for index, file := range files {
-		if index < optionalFiles {
-			info, err := os.Stat(file)
-			if os.IsNotExist(err) {
-				continue
-			}
-			if err != nil {
-				fmt.Println(err)
-				return 1
-			}
-			duplicate := false
-			for _, previous := range seenStartupFiles {
-				if os.SameFile(info, previous) {
-					duplicate = true
-					break
-				}
-			}
-			if duplicate {
-				continue
-			}
-			seenStartupFiles = append(seenStartupFiles, info)
-		}
-
-		data, err := os.ReadFile(file)
-		if index < optionalFiles && os.IsNotExist(err) {
-			continue
-		}
-		if err != nil {
-			fmt.Println(err)
+	// Explicit --file inputs are required and retain their normal command behavior.
+	for _, file := range *fileCmd {
+		if err := executeCommandFile(file, parser, cmdEnv, false); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 			return 1
-		}
-
-		lines := strings.Split(string(data), "\n")
-		for lineNumber, line := range lines {
-			ir := cli.ParseAndInterpret(parser, cmdEnv, line)
-			for _, result := range ir.Results {
-				fmt.Println(result)
-			}
-			if ir.Err != nil {
-				fmt.Printf("Stopped at %s:%d\n", file, lineNumber+1)
-				return 1
-			}
 		}
 	}
 

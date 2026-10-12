@@ -44,13 +44,29 @@ exit
 `quit` also exits. `--network mainnet`, `--network testnet`, or `--rpc <url>` selects
 an initial endpoint and verifies its chain ID, with a bounded connection wait.
 Named networks reject an unexpected chain identity. `connect` also accepts these
-network names or a custom URL. The included
-`.koinosrc` connects to the public Koinos endpoint and registers KOIN, VHP, and
-system contracts. Explicit `--network` or `--rpc` selection skips both automatic
-startup files so mainnet-specific settings cannot override the selected network.
-Use `--file` to run an explicit configuration for that network, including its token
-and contract registrations. Without either network flag, automatic startup files
-still run as before; `--no-rc` disables them.
+network names or a custom URL. Startup files register extra commands such as
+`koin.balance_of`; they load before `--execute` commands and the interactive prompt.
+
+- With `--network testnet` (or `--rpc` pointing to the verified testnet), the CLI
+  reads `.koinosrc.testnet` in your home directory and current directory. The
+  included file registers testnet KOIN and VHP using their testnet addresses.
+- Otherwise, the CLI reads `.koinosrc` in those locations as before. The included
+  file connects to mainnet and registers KOIN, VHP, and system contracts.
+- An explicit `--network` or `--rpc` takes precedence over `connect` and
+  `disconnect` commands in automatic startup files; those commands are skipped
+  with a notice. Other startup commands still run. `--no-rc` disables automatic
+  startup files entirely.
+
+These files are loaded from disk, not built into the executable. If you run the
+binary outside this checkout, copy the appropriate startup file to your home
+directory or explicitly load your own config and enter the prompt:
+
+```sh
+./koinos-cli --no-rc --file /path/to/my-config -i
+```
+
+Explicit `--file` scripts run all their commands, including `connect`. Use contract
+addresses for the network you selected; mainnet addresses do not work on testnet.
 
 Changing connections during a transaction session is rejected. Switching to a
 different chain with registered contracts requires restarting the CLI for that
@@ -128,7 +144,8 @@ koin.transfer <recipient-address> 1.25
 
 These token amounts are decimal values. Transfers require an open wallet and
 check its current balance when online. Register a token once per CLI process;
-the included startup file already registers KOIN and VHP.
+the included mainnet and testnet startup files already register KOIN and VHP for
+their respective networks. The example address above is for mainnet.
 
 ## Smart contracts
 
@@ -202,10 +219,12 @@ and immediately use a new contract in a script, put registration and use on
 separate lines (or separate `--execute` options), because each line is parsed
 before its commands execute.
 
-Execution order is explicit `--execute` commands, the home `.koinosrc`, the
-current-directory `.koinosrc`, then explicit `--file` inputs. The same automatic
-startup path is read only once. Missing automatic files are allowed; missing
-explicit files are errors. `--no-rc`, `--network`, and `--rpc` skip only the automatic startup files.
+Execution order is the home startup file, the current-directory startup file,
+explicit `--execute` commands, then explicit `--file` inputs. The testnet startup
+filename is `.koinosrc.testnet` when testnet is selected with `--network` or verified
+through `--rpc`; otherwise it is `.koinosrc`. The same automatic startup file is
+read only once. Missing automatic files are allowed; missing explicit files are
+errors. `--no-rc` skips only the automatic startup files.
 
 A parse error, command error, rejected transaction, or unreadable script stops
 execution and returns a nonzero process status. Later commands do not execute;
