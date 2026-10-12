@@ -16,9 +16,21 @@ func TestFailedWalletWriteRemovesCreatedFile(t *testing.T) {
 	if os.Getenv("KOINOS_CLI_TEST_WRITE_FAILURE") == "1" {
 		// Simulate a full filesystem without changing the parent process's limits.
 		signal.Ignore(syscall.SIGXFSZ)
-		if err := syscall.Setrlimit(syscall.RLIMIT_FSIZE, &syscall.Rlimit{Cur: 0, Max: 0}); err != nil {
+		var originalLimit syscall.Rlimit
+		if err := syscall.Getrlimit(syscall.RLIMIT_FSIZE, &originalLimit); err != nil {
 			t.Fatal(err)
 		}
+		limited := originalLimit
+		limited.Cur = 0
+		if err := syscall.Setrlimit(syscall.RLIMIT_FSIZE, &limited); err != nil {
+			t.Fatal(err)
+		}
+		// Keep the hard limit intact so coverage output can be written on exit.
+		t.Cleanup(func() {
+			if err := syscall.Setrlimit(syscall.RLIMIT_FSIZE, &originalLimit); err != nil {
+				t.Errorf("restore file-size limit: %v", err)
+			}
+		})
 		filename := os.Getenv("KOINOS_CLI_TEST_WALLET_PATH")
 		if err := SaveWalletFile(filename, "test-password", bytes.Repeat([]byte{1}, 32)); err == nil {
 			t.Fatal("write unexpectedly succeeded")
