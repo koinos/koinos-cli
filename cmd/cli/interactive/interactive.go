@@ -2,6 +2,7 @@ package interactive
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/koinos/go-prompt"
 	"github.com/koinos/go-prompt/completer"
@@ -69,6 +70,23 @@ func (kp *KoinosPrompt) completer(d prompt.Document) []prompt.Suggest {
 }
 
 func (kp *KoinosPrompt) executor(input string) {
+	// go-prompt adds the input before invoking the executor. Remove wallet
+	// commands even if parsing fails; these may contain passwords or WIF keys.
+	for _, command := range strings.Split(input, ";") {
+		parsed, _ := kp.parser.Parse(strings.TrimSpace(command))
+		if len(parsed.CommandResults) == 0 {
+			continue
+		}
+		switch strings.ToLower(parsed.CommandResults[0].CommandName) {
+		case "create", "open", "unlock", "import":
+			history := kp.gPrompt.History
+			if n := len(history.Histories); n > 0 && history.Histories[n-1] == input {
+				history.Histories[n-1] = ""
+				history.Histories = history.Histories[:n-1]
+				history.Clear()
+			}
+		}
+	}
 	results := cli.ParseAndInterpret(kp.parser, kp.execEnv, input)
 	results.Print()
 }

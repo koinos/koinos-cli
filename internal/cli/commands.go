@@ -425,7 +425,7 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	}
 
 	// Get the password
-	pass, err := cliutil.GetPassword(c.Password)
+	pass, err := ee.WalletPassword(c.Password, true)
 	if err != nil {
 		return nil, err
 	}
@@ -482,7 +482,7 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	}
 
 	// Get the password
-	pass, err := cliutil.GetPassword(c.Password)
+	pass, err := ee.WalletPassword(c.Password, true)
 	if err != nil {
 		return nil, err
 	}
@@ -749,7 +749,7 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	defer file.Close()
 
 	// Get the password
-	pass, err := cliutil.GetPassword(c.Password)
+	pass, err := ee.WalletPassword(c.Password, false)
 	if err != nil {
 		return nil, err
 	}

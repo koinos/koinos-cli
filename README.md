@@ -76,8 +76,14 @@ close
 ```
 
 `create`, `open`, and `import` accept an optional final password argument. When it
-is omitted, they use `WALLET_PASS` from the environment or a local `.env` file.
-Avoid putting real passwords or private keys in shell history. `lock` and `unlock`
+is omitted, they use `WALLET_PASS` from the environment or a local `.env` file if
+set. Otherwise, a terminal prompts for the password without displaying it.
+Creating or importing a wallet asks for confirmation; opening asks once. Ctrl-C
+cancels password entry without creating a wallet file. Redirected input never
+prompts; scripts must supply a password argument or `WALLET_PASS`.
+
+Wallet create/open/import commands are omitted from the CLI's interactive history.
+Avoid putting real passwords or private keys in your shell history. `lock` and `unlock`
 are aliases for `close` and `open`.
 
 To import an existing Wallet Import Format (WIF) key:

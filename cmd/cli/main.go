@@ -81,6 +81,7 @@ func run(args []string, homeDir string) int {
 	parser := cli.NewCommandParser(commands)
 
 	cmdEnv := cli.NewExecutionEnvironment(nil, parser)
+	cmdEnv.PasswordPrompt = interactive.PasswordPrompt()
 	target := *rpcAddress
 	if *network != "" {
 		target = *network

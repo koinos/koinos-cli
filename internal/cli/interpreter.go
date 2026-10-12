@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -78,11 +79,13 @@ type nonceInfo struct {
 
 // ExecutionEnvironment is a struct that holds the environment for command execution.
 type ExecutionEnvironment struct {
-	RPCClient        *cliutil.KoinosRPCClient
-	Key              *util.KoinosKey
-	Parser           *CommandParser
-	Contracts        Contracts
-	Session          *TransactionSession
+	RPCClient *cliutil.KoinosRPCClient
+	Key       *util.KoinosKey
+	Parser    *CommandParser
+	Contracts Contracts
+	Session   *TransactionSession
+	// PasswordPrompt is provided only by a terminal frontend; scripts never read secrets from stdin.
+	PasswordPrompt   func(string) (string, error)
 	nonceMap         map[string]*nonceInfo
 	nonceMode        string
 	rcLimit          rcInfo
@@ -114,6 +117,35 @@ func (ee *ExecutionEnvironment) OpenWallet(key *util.KoinosKey) {
 // CloseWallet closes the wallet
 func (ee *ExecutionEnvironment) CloseWallet() {
 	ee.Key = nil
+}
+
+// WalletPassword preserves explicit/environment credentials for scripts and
+// prompts only when the frontend provides a terminal reader.
+func (ee *ExecutionEnvironment) WalletPassword(password *string, confirm bool) (string, error) {
+	if password != nil || os.Getenv("WALLET_PASS") != "" || ee.PasswordPrompt == nil {
+		return cliutil.GetPassword(password)
+	}
+	label := "Wallet password: "
+	if confirm {
+		label = "New wallet password: "
+	}
+	value, err := ee.PasswordPrompt(label)
+	if err != nil {
+		return "", fmt.Errorf("password entry cancelled")
+	}
+	if value == "" {
+		return "", fmt.Errorf("%w: password cannot be empty", cliutil.ErrBlankPassword)
+	}
+	if confirm {
+		repeated, err := ee.PasswordPrompt("Confirm wallet password: ")
+		if err != nil {
+			return "", fmt.Errorf("password entry cancelled")
+		}
+		if value != repeated {
+			return "", fmt.Errorf("passwords do not match; wallet was not created")
+		}
+	}
+	return value, nil
 }
 
 // IsSelfPaying returns a bool representing whether or not the user is self paying

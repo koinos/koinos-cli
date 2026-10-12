@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestExplicitRPCSkipsAutomaticNetworkConfiguration(t *testing.T) {
@@ -63,7 +65,9 @@ func TestCLIProcess(t *testing.T) {
 
 func invokeCLI(t *testing.T, dir string, args ...string) (int, string) {
 	t.Helper()
-	command := exec.Command(os.Args[0], append([]string{"-test.run=^TestCLIProcess$", "--"}, args...)...)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	command := exec.CommandContext(ctx, os.Args[0], append([]string{"-test.run=^TestCLIProcess$", "--"}, args...)...)
 	command.Dir = dir
 	command.Env = append(os.Environ(), "KOINOS_CLI_TEST_PROCESS=1", "KOINOS_CLI_TEST_CONFIG="+dir)
 	output, err := command.CombinedOutput()
@@ -75,6 +79,18 @@ func invokeCLI(t *testing.T, dir string, args ...string) (int, string) {
 	}
 	t.Fatal(err)
 	return -1, ""
+}
+
+func TestNonterminalWalletCreationDoesNotPromptOrCreateFile(t *testing.T) {
+	t.Setenv("WALLET_PASS", "")
+	dir := t.TempDir()
+	code, output := invokeCLI(t, dir, "--no-rc", "--execute", "create unattended.wallet")
+	if code != 1 || !strings.Contains(output, "WALLET_PASS") || strings.Contains(output, "New wallet password:") {
+		t.Fatalf("missing script credentials should fail without prompting: code=%d output=%s", code, output)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "unattended.wallet")); !os.IsNotExist(err) {
+		t.Fatal("missing script password left a wallet file")
+	}
 }
 
 func TestBatchFailureExitStatus(t *testing.T) {
