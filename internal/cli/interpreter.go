@@ -309,12 +309,17 @@ func (ee *ExecutionEnvironment) createInsufficientRCMessage(ctx context.Context,
 
 // GetSubmissionParams returns the submission parameters for a command
 func (ee *ExecutionEnvironment) GetSubmissionParams(ctx context.Context) (*cliutil.SubmissionParams, error) {
-	nonce, err := ee.GetNextNonce(ctx, true)
+	rcLimit, err := ee.GetRcLimit(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	rcLimit, err := ee.GetRcLimit(ctx)
+	chainID, err := ee.GetChainID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce, err := ee.GetNextNonce(ctx, true)
 	if err != nil {
 		return nil, err
 	}
@@ -322,6 +327,7 @@ func (ee *ExecutionEnvironment) GetSubmissionParams(ctx context.Context) (*cliut
 	return &cliutil.SubmissionParams{
 		Nonce:   nonce,
 		RCLimit: rcLimit,
+		ChainID: chainID,
 	}, nil
 }
 
@@ -443,6 +449,7 @@ func (arg *CommandArg) String() string {
 // InterpretResults is a struct that holds the results of a multi-command interpretation
 type InterpretResults struct {
 	Results []string
+	Err     error
 }
 
 // NewInterpretResults creates a new InterpretResults object
@@ -477,10 +484,12 @@ func (pr *ParseResults) Interpret(ee *ExecutionEnvironment) *InterpretResults {
 		cmd := inv.Instantiate()
 		result, err := cmd.Execute(context.Background(), ee)
 		if err != nil {
+			output.Err = err
 			output.AddResult(err.Error())
 			if result != nil {
 				output.AddResult(result.ErrorMessage...)
 			}
+			break
 		} else {
 			output.AddResult(result.Message...)
 		}
@@ -529,6 +538,7 @@ func ParseAndInterpret(parser *CommandParser, ee *ExecutionEnvironment, input st
 	result, err := parser.Parse(input)
 	if err != nil {
 		o := NewInterpretResults()
+		o.Err = err
 		o.AddResult(err.Error())
 		metrics := result.Metrics()
 		// Display help for the command if it is a valid command

@@ -425,12 +425,6 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 		return nil, err
 	}
 
-	// Create the wallet file
-	file, err := os.Create(c.Filename)
-	if err != nil {
-		return nil, err
-	}
-
 	// Get the password
 	pass, err := cliutil.GetPassword(c.Password)
 	if err != nil {
@@ -438,7 +432,7 @@ func (c *CreateCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	}
 
 	// Write the key to the wallet file
-	err = cliutil.CreateWalletFile(file, pass, key.PrivateBytes())
+	err = cliutil.SaveWalletFile(c.Filename, pass, key.PrivateBytes())
 	if err != nil {
 		return nil, err
 	}
@@ -488,12 +482,6 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 		return nil, err
 	}
 
-	// Create the wallet file
-	file, err := os.Create(c.Filename)
-	if err != nil {
-		return nil, err
-	}
-
 	// Get the password
 	pass, err := cliutil.GetPassword(c.Password)
 	if err != nil {
@@ -501,7 +489,7 @@ func (c *ImportCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (
 	}
 
 	// Write the key to the wallet file
-	err = cliutil.CreateWalletFile(file, pass, key.PrivateBytes())
+	err = cliutil.SaveWalletFile(c.Filename, pass, key.PrivateBytes())
 	if err != nil {
 		return nil, err
 	}
@@ -759,6 +747,7 @@ func (c *OpenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*E
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 
 	// Get the password
 	pass, err := cliutil.GetPassword(c.Password)

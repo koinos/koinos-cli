@@ -3,6 +3,7 @@ package cliutil
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	kjson "github.com/koinos/koinos-proto-golang/v2/encoding/json"
 	"github.com/koinos/koinos-proto-golang/v2/koinos/contract_meta_store"
@@ -217,8 +218,8 @@ func (c *KoinosRPCClient) SubmitTransactionOpsWithPayer(ctx context.Context, ops
 		chainID = subParams.ChainID
 	}
 
-	// If the nonce is not provided, get it from the chain
-	if nonce == 0 {
+	// A supplied parameter set is explicit, including zero values.
+	if subParams == nil {
 		nonce, err = c.GetAccountNonce(ctx, address)
 		if err != nil {
 			return nil, err
@@ -226,8 +227,7 @@ func (c *KoinosRPCClient) SubmitTransactionOpsWithPayer(ctx context.Context, ops
 		nonce++
 	}
 
-	// If the rc limit is not provided, get it from the chain
-	if rcLimit == 0 {
+	if subParams == nil {
 		rcLimit, err = c.GetAccountRc(ctx, address)
 		if err != nil {
 			return nil, err
@@ -262,6 +262,12 @@ func (c *KoinosRPCClient) SubmitTransaction(ctx context.Context, transaction *pr
 	err := c.Call(ctx, SubmitTransactionCall, &params, &cResp)
 	if err != nil {
 		return nil, err
+	}
+	if cResp.Receipt == nil {
+		return nil, fmt.Errorf("%w: transaction receipt is missing", ErrInvalidResponse)
+	}
+	if cResp.Receipt.Reverted {
+		return cResp.Receipt, fmt.Errorf("%s", TransactionReceiptToString(cResp.Receipt, len(transaction.GetOperations())))
 	}
 
 	return cResp.Receipt, nil
