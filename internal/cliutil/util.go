@@ -9,10 +9,9 @@ import (
 	util "github.com/koinos/koinos-util-golang/v2"
 )
 
-const (
-	// Version number (this should probably not live here)
-	Version = "v2.0.0"
-)
+// Version is set by release builds with -ldflags -X. Unversioned local builds
+// must not identify themselves as an older published release.
+var Version = "development"
 
 // Hardcoded Koin contract constants
 const (
