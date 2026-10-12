@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/koinos/koinos-cli/internal/cliutil"
 )
 
@@ -127,5 +129,84 @@ func TestConnectDoesNotSwitchDuringTransactionSession(t *testing.T) {
 	endpoint := chainEndpoint(t, base64.URLEncoding.EncodeToString([]byte("chain")))
 	if _, err := (&ConnectCommand{URL: endpoint}).Execute(context.Background(), ee); err == nil {
 		t.Fatal("changed connection during a transaction session")
+	}
+}
+
+func TestConnectInstallsStandardTokensForVerifiedChain(t *testing.T) {
+	for _, test := range []struct {
+		name, chainID, koin, vhp, koinSymbol, vhpSymbol string
+	}{
+		{"mainnet", "EiBZK_GGVP0H_fXVAM3j6EAuz3-B-l3ejxRSewi7qIBfSA==", "15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL", "18tWNU7E4yuQzz7hMVpceb9ixmaWLVyQsr", "KOIN", "VHP"},
+		{"testnet", "EiAIKVvm6-V2qmsmUvPJy09vCCLbtn9lHFpwrJbcTIEWRQ==", "1FaSvLjQJsCJKq5ybmGsMMQs8RQYyVv8ju", "17n12ktwN79sR6ia9DDgCfmw77EgpbTyBi", "tKOIN", "VHP"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ee := NewExecutionEnvironment(nil, NewCommandParser(NewKoinosCommandSet()))
+			endpoint := chainEndpoint(t, test.chainID)
+			if err := ee.Connect(context.Background(), endpoint); err != nil {
+				t.Fatal(err)
+			}
+			for _, coin := range []struct{ name, address, symbol string }{{"koin", test.koin, test.koinSymbol}, {"vhp", test.vhp, test.vhpSymbol}} {
+				parsed, err := ee.Parser.Parse(coin.name + ".balance_of")
+				if err != nil {
+					t.Fatalf("standard token command missing: %v", err)
+				}
+				balance := parsed.CommandResults[0].Instantiate().(*TokenBalanceCommand)
+				if base58.Encode(balance.ContractID) != coin.address || balance.Precision != 8 || balance.Symbol != coin.symbol {
+					t.Fatalf("%s uses wrong network address or amounts: %+v", coin.name, balance)
+				}
+				if result := ParseAndInterpret(ee.Parser, ee, "help "+coin.name+".transfer; help "+coin.name+".total_supply"); result.Err != nil {
+					t.Fatal(result.Err)
+				}
+			}
+			// Reconnecting and legacy configs must not duplicate help/completion entries.
+			before := ee.Parser.Commands.List(false)
+			if err := ee.Connect(context.Background(), endpoint); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(before, ee.Parser.Commands.List(false)) {
+				t.Fatal("reconnecting duplicated commands")
+			}
+		})
+	}
+}
+
+func TestUnknownChainDoesNotInstallStandardTokens(t *testing.T) {
+	ee := NewExecutionEnvironment(nil, NewCommandParser(NewKoinosCommandSet()))
+	if err := ee.Connect(context.Background(), chainEndpoint(t, "AQ==")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ee.Parser.Parse("koin.balance_of"); err == nil {
+		t.Fatal("assumed a KOIN address for an unknown chain")
+	}
+}
+
+func TestStandardTokenConflictLeavesConnectionAndCommandsUnchanged(t *testing.T) {
+	ee := NewExecutionEnvironment(nil, NewCommandParser(NewKoinosCommandSet()))
+	// The second built-in conflicts: the first must not be partially installed.
+	if result := ParseAndInterpret(ee.Parser, ee, "register_token vhp 15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL CUSTOM 8"); result.Err != nil {
+		t.Fatal(result.Err)
+	}
+	before := ee.Parser.Commands.List(false)
+	endpoint := chainEndpoint(t, "EiAIKVvm6-V2qmsmUvPJy09vCCLbtn9lHFpwrJbcTIEWRQ==")
+	if err := ee.Connect(context.Background(), endpoint); err == nil {
+		t.Fatal("connection replaced a conflicting token registration")
+	}
+	if ee.IsOnline() || len(ee.connectedChainID) != 0 || !reflect.DeepEqual(before, ee.Parser.Commands.List(false)) {
+		t.Fatal("failed registration partially changed the connection or commands")
+	}
+}
+
+func TestStandardTokensCannotFollowAChainSwitch(t *testing.T) {
+	ee := NewExecutionEnvironment(nil, NewCommandParser(NewKoinosCommandSet()))
+	if err := ee.Connect(context.Background(), chainEndpoint(t, "EiBZK_GGVP0H_fXVAM3j6EAuz3-B-l3ejxRSewi7qIBfSA==")); err != nil {
+		t.Fatal(err)
+	}
+	previous := ee.RPCClient
+	endpoint := chainEndpoint(t, "EiAIKVvm6-V2qmsmUvPJy09vCCLbtn9lHFpwrJbcTIEWRQ==")
+	if err := ee.Connect(context.Background(), endpoint); err == nil {
+		t.Fatal("switched networks with existing standard token addresses")
+	}
+	if ee.RPCClient != previous || ee.NetworkLabel() != "mainnet" {
+		t.Fatal("failed switch changed the active network")
 	}
 }

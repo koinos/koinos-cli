@@ -44,8 +44,14 @@ exit
 `quit` also exits. `--network mainnet`, `--network testnet`, or `--rpc <url>` selects
 an initial endpoint and verifies its chain ID, with a bounded connection wait.
 Named networks reject an unexpected chain identity. `connect` also accepts these
-network names or a custom URL. Startup files register extra commands such as
-`koin.balance_of`; they load before `--execute` commands and the interactive prompt.
+network names or a custom URL. Once connected to a verified mainnet or testnet,
+KOIN and VHP balance, supply, and transfer commands are available automatically,
+including with `--no-rc` or when running outside this checkout. A custom `--rpc`
+URL serving either known chain gets the same commands. Unknown chains require
+explicit token registration.
+
+Optional startup files add other tokens, contract functions, and personal settings.
+They load before `--execute` commands and the interactive prompt:
 
 - With `--network testnet` (or `--rpc` pointing to the verified testnet), the CLI
   reads `.koinosrc.testnet` in your home directory and current directory. The
@@ -57,9 +63,9 @@ network names or a custom URL. Startup files register extra commands such as
   with a notice. Other startup commands still run. `--no-rc` disables automatic
   startup files entirely.
 
-These files are loaded from disk, not built into the executable. If you run the
-binary outside this checkout, copy the appropriate startup file to your home
-directory or explicitly load your own config and enter the prompt:
+Custom startup files are loaded from disk. To use your customizations outside this
+checkout, copy the appropriate file to your home directory or explicitly load
+your own config and enter the prompt:
 
 ```sh
 ./koinos-cli --no-rc --file /path/to/my-config -i
@@ -69,8 +75,9 @@ Explicit `--file` scripts run all their commands, including `connect`. Use contr
 addresses for the network you selected; mainnet addresses do not work on testnet.
 
 Changing connections during a transaction session is rejected. Switching to a
-different chain with registered contracts requires restarting the CLI for that
-network, so old contract addresses cannot silently carry over.
+different chain with registered contracts (including built-in tokens) requires
+restarting the CLI for that network, so old contract addresses cannot silently
+carry over. Reconnecting to another node on the same chain keeps the registrations.
 
 For testnet, use the Koinos Foundation endpoint. This read-only example checks
 the chain ID without opening a wallet or submitting a transaction:
@@ -130,12 +137,10 @@ without saving an encrypted wallet.
 
 ## Tokens
 
-The `register_token` command adds balance, supply, and transfer commands. Symbol
-and precision can be supplied explicitly; otherwise they are queried from the
-node.
+KOIN and VHP commands are built in for verified mainnet and testnet connections;
+no config file is needed. They appear in `list`, `help`, and tab completion.
 
 ```text
-register_token koin 15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL
 koin.balance_of
 koin.balance_of <address>
 koin.total_supply
@@ -143,9 +148,22 @@ koin.transfer <recipient-address> 1.25
 ```
 
 These token amounts are decimal values. Transfers require an open wallet and
-check its current balance when online. Register a token once per CLI process;
-the included mainnet and testnet startup files already register KOIN and VHP for
-their respective networks. The example address above is for mainnet.
+check its current balance when online.
+
+The `register_token` command adds the same balance, supply, and transfer commands
+for another token, either interactively or in a config file. Symbol and precision
+can be supplied explicitly; otherwise they are queried from the node:
+
+```text
+register_token mytoken <contract-address>
+mytoken.balance_of <address>
+```
+
+Older configs that also register KOIN and VHP still work. Repeating a registration
+with the same name and address reuses the existing commands; any explicit symbol
+or precision must match. Conflicting registrations fail without replacing the
+original commands. To load additional ABI functions for an already registered
+token, use a separate contract name as shown below.
 
 ## Smart contracts
 

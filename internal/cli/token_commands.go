@@ -109,17 +109,50 @@ func NewRegisterTokenCommand(inv *CommandParseResult) Command {
 	return &RegisterTokenCommand{Name: *inv.Args["name"], Address: *inv.Args["address"], Symbol: inv.Args["symbol"], Precision: inv.Args["precision"]}
 }
 
+// alreadyRegistered accepts repeated, matching registrations without replacing
+// commands or fetching metadata again. Explicit settings must match the original.
+func (c *RegisterTokenCommand) alreadyRegistered(ee *ExecutionEnvironment) (bool, error) {
+	existing, found := ee.Contracts[c.Name]
+	if !found {
+		return false, nil
+	}
+	if existing.Token == nil {
+		return false, fmt.Errorf("%w: name %s is already used by a contract; choose a different name", cliutil.ErrContract, c.Name)
+	}
+	if existing.Address != c.Address {
+		return false, fmt.Errorf("%w: token %s is already registered at %s; check the network or choose a different name", cliutil.ErrContract, c.Name, existing.Address)
+	}
+	if c.Symbol != nil && *c.Symbol != existing.Token.Symbol {
+		return false, fmt.Errorf("%w: token %s is already registered with symbol %s", cliutil.ErrContract, c.Name, existing.Token.Symbol)
+	}
+	if c.Precision != nil {
+		precision, err := strconv.Atoi(*c.Precision)
+		if err != nil {
+			return false, err
+		}
+		if precision != existing.Token.Precision {
+			return false, fmt.Errorf("%w: token %s is already registered with precision %d", cliutil.ErrContract, c.Name, existing.Token.Precision)
+		}
+	}
+	return true, nil
+}
+
 // Execute registers token commands
 func (c *RegisterTokenCommand) Execute(ctx context.Context, ee *ExecutionEnvironment) (*ExecutionResult, error) {
+	registered, err := c.alreadyRegistered(ee)
+	if err != nil {
+		return nil, err
+	}
+	if registered {
+		result := NewExecutionResult()
+		result.AddMessage(fmt.Sprintf("Token '%s' at address %s already registered", c.Name, c.Address))
+		return result, nil
+	}
 	if (c.Symbol == nil || c.Precision == nil) && !ee.IsOnline() {
 		return nil, fmt.Errorf("%w: cannot retrieve symbol and precision", cliutil.ErrOffline)
 	}
 
-	if ee.Contracts.Contains(c.Name) {
-		return nil, fmt.Errorf("%w: token %s already exists", cliutil.ErrContract, c.Name)
-	}
-
-	_, err := ee.Parser.parseCommandName([]byte(c.Name))
+	_, err = ee.Parser.parseCommandName([]byte(c.Name))
 	if err != nil {
 		return nil, fmt.Errorf("%w: invalid characters in token name %s", cliutil.ErrContract, err)
 	}
@@ -175,6 +208,7 @@ func (c *RegisterTokenCommand) Execute(ctx context.Context, ee *ExecutionEnviron
 	if err != nil {
 		return nil, err
 	}
+	ee.Contracts[c.Name].Token = &TokenInfo{Symbol: *symbol, Precision: *precision}
 
 	er := NewExecutionResult()
 	er.AddMessage(fmt.Sprintf("Token '%s' at address %s registered", c.Name, c.Address))

@@ -287,3 +287,57 @@ func TestSameStartupFileRunsOnce(t *testing.T) {
 		t.Fatalf("same home/local startup file ran twice: %s", output)
 	}
 }
+
+func TestStandardTokenCommandsNeedNoStartupFile(t *testing.T) {
+	for _, chainID := range []string{
+		"EiBZK_GGVP0H_fXVAM3j6EAuz3-B-l3ejxRSewi7qIBfSA==",
+		"EiAIKVvm6-V2qmsmUvPJy09vCCLbtn9lHFpwrJbcTIEWRQ==",
+	} {
+		t.Run(chainID, func(t *testing.T) {
+			dir := t.TempDir()
+			server := startupChainServer(t, chainID)
+			defer server.Close()
+			code, output := invokeCLI(t, dir, "--no-rc", "--rpc", server.URL,
+				"--execute", "help koin.balance_of; help koin.transfer; help vhp.total_supply")
+			if code != 0 || !strings.Contains(output, "Usage: koin.balance_of") || !strings.Contains(output, "Usage: koin.transfer") || !strings.Contains(output, "Usage: vhp.total_supply") {
+				t.Fatalf("standard commands required a startup file: code=%d output=%s", code, output)
+			}
+		})
+	}
+}
+
+func TestConfigAddsCustomCommandsAlongsideStandardTokens(t *testing.T) {
+	for _, explicit := range []bool{false, true} {
+		t.Run(fmt.Sprintf("explicit=%t", explicit), func(t *testing.T) {
+			dir := t.TempDir()
+			// No arguments or return type means the contract's standard empty messages.
+			abi := `{"methods":{"ping":{"entry-point":"0x12345678","read-only":true}}}`
+			if err := os.WriteFile(filepath.Join(dir, "custom.abi"), []byte(abi), 0600); err != nil {
+				t.Fatal(err)
+			}
+			config := "register_token koin 1FaSvLjQJsCJKq5ybmGsMMQs8RQYyVv8ju\n" +
+				"register_token vhp 17n12ktwN79sR6ia9DDgCfmw77EgpbTyBi VHP 8\n" +
+				"register_token custom 15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL CUSTOM 4\n" +
+				"register custom_contract 15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL custom.abi\n" +
+				"help custom.balance_of; help custom_contract.ping; help koin.transfer; help vhp.balance_of\n"
+			if err := os.WriteFile(filepath.Join(dir, ".koinosrc.testnet"), []byte(config), 0600); err != nil {
+				t.Fatal(err)
+			}
+			server := startupChainServer(t, "EiAIKVvm6-V2qmsmUvPJy09vCCLbtn9lHFpwrJbcTIEWRQ==")
+			defer server.Close()
+			args := []string{"--rpc", server.URL, "--execute", "status"}
+			if explicit {
+				args = append(args, "--no-rc", "--file", ".koinosrc.testnet")
+			}
+			code, output := invokeCLI(t, dir, args...)
+			if code != 0 {
+				t.Fatalf("config extensions failed: code=%d output=%s", code, output)
+			}
+			for _, name := range []string{"custom.balance_of", "custom_contract.ping", "koin.transfer", "vhp.balance_of"} {
+				if !strings.Contains(output, "Usage: "+name) {
+					t.Fatalf("config command %s missing: %s", name, output)
+				}
+			}
+		})
+	}
+}
