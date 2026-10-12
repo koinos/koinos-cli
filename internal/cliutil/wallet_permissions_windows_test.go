@@ -68,3 +68,56 @@ func TestSaveWalletWindowsDoesNotInheritSharedAccess(t *testing.T) {
 		t.Fatalf("creator cannot reopen their wallet: %v", err)
 	}
 }
+
+func TestSaveWalletWindowsRejectsAlternateDataStreams(t *testing.T) {
+	filename := filepath.Join(t.TempDir(), "existing.wallet")
+	original := []byte("existing wallet contents")
+	if err := os.WriteFile(filename, original, 0600); err != nil {
+		t.Fatal(err)
+	}
+	stream := filename + ":hidden"
+	if err := SaveWalletFile(stream, "disposable-password", bytes.Repeat([]byte{7}, 32)); err == nil {
+		t.Fatal("created a wallet inside an existing file's alternate data stream")
+	}
+	if _, err := os.Stat(stream); !os.IsNotExist(err) {
+		t.Fatalf("rejected wallet left an alternate data stream: %v", err)
+	}
+	got, err := os.ReadFile(filename)
+	if err != nil || !bytes.Equal(got, original) {
+		t.Fatalf("rejected wallet changed the existing file: %v", err)
+	}
+}
+
+func TestWindowsWalletRejectsUnverifiedAccessRules(t *testing.T) {
+	user, err := windows.GetCurrentProcessToken().GetTokenUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sid := user.User.Sid.String()
+	for _, tc := range []struct {
+		name string
+		sddl string
+		ok   bool
+	}{
+		{"private owner", "O:" + sid + "D:P(A;;FA;;;" + sid + ")", true},
+		{"inherited access", "O:" + sid + "D:(A;;FA;;;" + sid + ")", false},
+		{"missing owner", "D:P(A;;FA;;;" + sid + ")", false},
+		{"different owner", "O:WDD:P(A;;FA;;;" + sid + ")", false},
+		{"everyone access", "O:" + sid + "D:P(A;;FA;;;WD)", false},
+		{"extra grantee", "O:" + sid + "D:P(A;;FA;;;" + sid + ")(A;;FR;;;WD)", false},
+		{"empty access list", "O:" + sid + "D:P", false},
+		{"deny rule", "O:" + sid + "D:P(D;;FA;;;" + sid + ")", false},
+		{"inherit only rule", "O:" + sid + "D:P(A;IO;FA;;;" + sid + ")", false},
+		{"read only owner", "O:" + sid + "D:P(A;;FR;;;" + sid + ")", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			security, err := windows.SecurityDescriptorFromString(tc.sddl)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := verifyWalletSecurity(security, user.User.Sid); (err == nil) != tc.ok {
+				t.Fatalf("accepted=%v, want %v: %v", err == nil, tc.ok, err)
+			}
+		})
+	}
+}

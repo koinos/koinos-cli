@@ -6,7 +6,7 @@ run commands from a shell, or execute a command file.
 ## Build and test
 
 Use Go 1.26 or newer. Automated checks run on the supported Go 1.26 and 1.27
-release lines, on Linux and macOS. Use the latest security patch of either line.
+release lines, on Linux, macOS, and Windows. Use the latest security patch of either line.
 
 ```sh
 go build -o koinos-cli ./cmd/cli
@@ -106,6 +106,15 @@ the chain ID without opening a wallet or submitting a transaction:
 The testnet profile uses `https://testnet.koinosfoundation.org/jsonrpc`.
 
 ## Wallets
+
+New wallets are created exclusively and do not replace existing files. On Unix,
+their file permissions permit only the owner to read or write. On Windows, a
+protected access-control list grants access only to the creating user, without
+inheriting the containing folder's permissions. The CLI verifies those rules
+before writing wallet data. Windows wallet creation requires a filesystem with
+persistent access controls, such as NTFS; it refuses filesystems such as FAT and
+alternate data streams. Existing wallet files are not rewritten or repermissioned
+when opened.
 
 ```text
 create my.wallet

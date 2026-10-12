@@ -58,7 +58,7 @@ func SaveWalletFile(filename, passphrase string, privateKey []byte) (err error) 
 	if passphrase == "" {
 		return ErrEmptyPassphrase
 	}
-	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	file, err := createWalletFile(filename)
 	if err != nil {
 		if os.IsExist(err) {
 			return fmt.Errorf("%w: %s", ErrWalletExists, filename)
