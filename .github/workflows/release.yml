@@ -74,17 +74,43 @@ jobs:
           mkdir -p build/release
           CGO_ENABLED=0 go build -trimpath -ldflags "-X github.com/koinos/koinos-cli/internal/cliutil.Version=$RELEASE_VERSION" -o build/release/koinos-cli ./cmd/cli
           python3 scripts/package_release.py --binary build/release/koinos-cli --output build/packages --version "$RELEASE_VERSION" --os "$TARGET_OS" --arch "$TARGET_ARCH" --commit "$GITHUB_SHA" --smoke-test
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-${{ matrix.goos }}-${{ matrix.goarch }}
           path: build/packages/*
           if-no-files-found: error
           retention-days: 14
 
+  verify:
+    name: Verify downloaded packages
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*
+          path: packages
+          merge-multiple: true
+      - name: Check downloaded checksums and source commits
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, "scripts")
+          from draft_release import verify_packages
+          _, checksums = verify_packages(Path("packages"), os.environ["RELEASE_VERSION"], os.environ["GITHUB_SHA"])
+          print(checksums)
+          PY
+
   draft:
     name: Prepare unpublished draft
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
-    needs: build
+    needs: verify
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
@@ -94,7 +120,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: release-*
           path: packages
