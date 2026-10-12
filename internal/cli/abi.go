@@ -116,12 +116,19 @@ type ABIMethod struct {
 	ReadOnly    bool   `json:"read-only"`
 }
 
+// TokenInfo records the settings used to construct standard token commands.
+type TokenInfo struct {
+	Symbol    string
+	Precision int
+}
+
 // ContractInfo represents the information about a contract
 type ContractInfo struct {
 	Name     string
 	Address  string // []byte?
 	ABI      *ABI
 	Registry *protoregistry.Files
+	Token    *TokenInfo
 }
 
 // Contracts is a map of contract names to ContractInfo

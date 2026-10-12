@@ -1,10 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"path"
-	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/koinos/koinos-cli/cmd/cli/interactive"
@@ -14,7 +13,7 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
-// Commpand line parameter names
+// Command line parameter names
 const (
 	rpcOption              = "rpc"
 	executeOption          = "execute"
@@ -29,90 +28,101 @@ const (
 	rpcDefault = ""
 )
 
-// Other constants
-const (
-	rcFileName = ".koinosrc"
-)
-
 func main() {
+	os.Exit(run(os.Args[1:], util.GetHomeDir()))
+}
+
+func run(args []string, homeDir string) int {
+	flags := flag.NewFlagSet("koinos-cli", flag.ContinueOnError)
 	// Optionally load .env file
 	_ = godotenv.Load()
 
 	// Setup command line options
-	rpcAddress := flag.StringP(rpcOption, "r", rpcDefault, "RPC server URL")
-	executeCmd := flag.StringSliceP(executeOption, "x", nil, "Command to execute")
-	fileCmd := flag.StringSliceP(fileOption, "f", nil, "File to execute")
-	versionCmd := flag.BoolP(versionOption, "v", false, "Display the version")
-	forceInteractive := flag.BoolP(forceInteractiveOption, "i", false, "Forces interactive mode. Useful for forcing a prompt when using the excute option")
-	forceTextPrompt := flag.BoolP(forceTextPromptOption, "t", false, "Forces text prompt in interactive mode, rather than unicode symbols")
+	rpcAddress := flags.StringP(rpcOption, "r", rpcDefault, "RPC server URL (takes precedence over automatic startup files)")
+	network := flags.String("network", "", "Select mainnet or testnet; review optional startup files interactively")
+	executeCmd := flags.StringSliceP(executeOption, "x", nil, "Command to execute")
+	fileCmd := flags.StringSliceP(fileOption, "f", nil, "File to execute")
+	versionCmd := flags.BoolP(versionOption, "v", false, "Display the version")
+	forceInteractive := flags.BoolP(forceInteractiveOption, "i", false, "Forces interactive mode after successfully executing commands and files")
+	forceTextPrompt := flags.BoolP(forceTextPromptOption, "t", false, "Compatibility option; the prompt now always uses plain text")
+	noRC := flags.Bool("no-rc", false, "Skip automatic home and current-directory startup files")
 
-	flag.Parse()
+	if err := flags.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			return 0
+		}
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
 
 	if *versionCmd {
 		fmt.Println(cliutil.Version)
-		os.Exit(0)
+		return 0
 	}
 
-	// Setup client
-	var client *cliutil.KoinosRPCClient
-	if *rpcAddress != "" {
-		client = cliutil.NewKoinosRPCClient(*rpcAddress)
+	if flags.Changed("network") && (!cli.IsNetwork(*network) || flags.Changed(rpcOption)) {
+		fmt.Fprintln(os.Stderr, "choose --network mainnet or --network testnet, or supply --rpc separately")
+		return 2
+	}
+	if flags.Changed(rpcOption) && *rpcAddress == "" {
+		fmt.Fprintln(os.Stderr, "--rpc requires a node URL")
+		return 2
 	}
 
 	// Construct the command parser
 	commands := cli.NewKoinosCommandSet()
 	parser := cli.NewCommandParser(commands)
 
-	cmdEnv := cli.NewExecutionEnvironment(client, parser)
+	cmdEnv := cli.NewExecutionEnvironment(nil, parser)
+	cmdEnv.PasswordPrompt = interactive.PasswordPrompt()
+	target := *rpcAddress
+	if *network != "" {
+		target = *network
+	}
+	if target != "" {
+		if err := cmdEnv.Connect(context.Background(), target); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+	}
+
+	interactiveMode := *forceInteractive || (*executeCmd == nil && *fileCmd == nil)
+	// Automatic files need terminal review before any of their commands run.
+	if !*noRC {
+		var review func(string, []byte) (bool, error)
+		if interactiveMode {
+			review = interactive.StartupFilePrompt()
+		}
+		if err := executeStartupFiles(homeDir, parser, cmdEnv, target != "", review); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+	}
 
 	// If the user submitted commands, execute them
 	if *executeCmd != nil {
 		for _, cmd := range *executeCmd {
 			results := cli.ParseAndInterpret(parser, cmdEnv, cmd)
 			results.Print()
+			if results.Err != nil {
+				return 1
+			}
 		}
 	}
 
-	// Create list of files to execute, intialize with rc files
-	files := []string{path.Join(util.GetHomeDir(), rcFileName), rcFileName}
-
-	if *fileCmd != nil {
-		files = append(files, *fileCmd...)
-	}
-
-	for _, file := range files {
-		// Make sure file exists, silently skip if not
-		if _, err := os.Stat(file); os.IsNotExist(err) {
-			continue
-		}
-
-		data, err := os.ReadFile(file)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		results := make([]string, 0)
-
-		lines := strings.Split(string(data), "\n")
-		for _, line := range lines {
-			ir := cli.ParseAndInterpret(parser, cmdEnv, line)
-			results = append(results, ir.Results...)
-		}
-
-		for _, result := range results {
-			fmt.Println(result)
-		}
-
-		if len(results) > 0 {
-			fmt.Println()
+	// Explicit --file inputs are required and retain their normal command behavior.
+	for _, file := range *fileCmd {
+		if err := executeCommandFile(file, parser, cmdEnv, false); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
 		}
 	}
 
 	// Run interactive mode if no commands given, or if forced
-	if *forceInteractive || (*executeCmd == nil && *fileCmd == nil) {
+	if interactiveMode {
 		// Enter interactive mode
 		p := interactive.NewKoinosPrompt(parser, cmdEnv, *forceTextPrompt)
 		p.Run()
 	}
+	return 0
 }

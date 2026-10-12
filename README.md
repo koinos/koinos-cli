@@ -1,190 +1,269 @@
-# Using the Koinos CLI
+# Koinos CLI
 
-The Koinos Command Line Interface (CLI) is a comprehensive command line tool for interacting with the Koinos Blockchain.
+A command-line wallet and smart-contract client for Koinos. Use it interactively,
+run commands from a shell, or execute a command file.
 
-## Installing and starting the CLI
+## Build and test
 
-The latest release can be downloaded from [GitHub](https://github.com/koinos/koinos-cli).
+Use Go 1.26 or newer. Automated checks run on the supported Go 1.26 and 1.27
+release lines, on Linux and macOS. Use the latest security patch of either line.
 
-Start the CLI with the binary included in the archive.
-
-## Building from source
-
-These are optional build instructions if you prefer to build from source or if you need to build for systems where the provided binary is not compatible.
-
-You need a sufficiently up-to-date version of the Go programming language to build this project. On Ubuntu 22.04 or later, the version installed by `apt install golang` suffices. On other operating systems or older versions of Ubuntu, you may need to download Go from the [official website](https://go.dev/doc/install).
-
-Once installed, you can build the project with the following command:
-
-```
+```sh
 go build -o koinos-cli ./cmd/cli
+go test ./...
+go test -race ./...
+go vet ./...
 ```
 
-The executable will be in the same directory and can be run with the command `./koinos-cli`
+The Koinos utility library still depends on the legacy Bitcoin cryptography
+package. Koinos protobuf encoding also requires the pinned protobuf fork's custom
+field encoders. These compatibility constraints prevent blindly upgrading those
+modules or removing the replacement in `go.mod`. Test serialized transactions,
+signatures, contract arguments, and wallet fixtures when changing them.
 
-## Basic usage
+## Interactive use
 
-When running the wallet, it will start in interactive mode. Press tab or type `list` to see a list of possible commands.
-
-`help <command-name>` will show a help message for the given command.
-
-Some commands require a node RPC endpoint. This can be specified either when starting the CLI with `--rpc` command line switch, or with the `connect` command from within the CLI. Both take an endpoint url.
-
-Here is an example of launching from the command line with an RPC:
-
-```console
-$ koinos-cli --rpc https://api.koinos.io/
+```sh
+./koinos-cli
 ```
 
-And here is an example of the connect command:
-```
-🚫 🔐 > connect https://api.koinos.io/
-Connected to endpoint https://api.koinos.io/
-```
+Type `list` to see available commands and `help <command>` for arguments. Tab
+completion includes registered contract commands and file paths. The prompt shows
+the last verified network, an abbreviated wallet address when unlocked, and the
+number of pending operations. Type `status` for the full wallet address, endpoint,
+and chain identity. A successful connection check is not a continuous health check.
+The prompt always uses plain text; `--force-text-prompt` remains accepted for compatibility.
 
-There is a public RPC server that may be used for testing at this address: `https://api.koinos.io/`
-
-If there is a red symbol to the left of the prompt, it indicates that you are not connected to an RPC endpoint.
-
-`exit` or `quit` will quit the wallet.
-
-## Wallet creation & management
-
-The lock symbol to the left of the prompt indicates whether or not you have a wallet open. Some commands require an open wallet.
-
-To create a new wallet, use the command `create <filename> <password>`. The new wallet will then be created in the given file, and automatically opened.
-
-Example:
-```
-🔐 > create my.wallet password1234
-Created and opened new wallet: my.wallet
-Address: 1Nj4VvJhJBurG5XrQHixSB4K5WZbQM1GTW
+```text
+connect mainnet
+status
+disconnect
+exit
 ```
 
-To open a previously created wallet, use the command `open <filename> <password>`.
+`quit` also exits. `--network mainnet`, `--network testnet`, or `--rpc <url>` selects
+an initial endpoint and verifies its chain ID, with a bounded connection wait.
+Named networks reject an unexpected chain identity. `connect` also accepts these
+network names or a custom URL. Once connected to a verified mainnet or testnet,
+KOIN and VHP balance, supply, and transfer commands are available automatically,
+including with `--no-rc` or when running outside this checkout. A custom `--rpc`
+URL serving either known chain gets the same commands. Unknown chains require
+explicit token registration.
 
-Example:
-```
-🔐 > open my.wallet password1234
-Opened wallet: my.wallet
-```
+For an older mainnet config, remove its `register_token koin` and
+`register_token vhp` lines to use the built-in defaults, or update them to match
+the included `.koinosrc`. The mainnet KOIN and VHP contracts have moved; a stale
+registration conflicts with the current defaults and stops config execution.
 
-To import an existing Wallet Import Format (WIF) private key, use the commands `import <wif> <filename> <password>`.
+Optional startup files add other tokens, contract functions, and personal settings.
+Interactive startup shows each file's full path and contents, then asks
+`Load this startup file? [y/N]:`. Only `y` or `yes` loads it; Enter skips it. Ctrl-C
+cancels startup. Each file requires its own approval on every launch, and the CLI
+executes the exact contents shown, even if the file changes during review. Control
+and non-ASCII characters are escaped in the preview so they cannot hide commands.
+Approved files run before `--execute` commands and the interactive prompt:
 
-Example:
-```
-🔓 > import 5KPJcpkw7GBtxjNrzroYgVwjR8CnTwbPrybuwfb8ff1Hw4GcqB5 imported.wallet password1234
-Created and opened new wallet: imported.wallet
-Address: 15XjYr9DkyrxaY2mgjRiRLpYww8cHquW4U
-```
+- With `--network testnet` (or `--rpc` pointing to the verified testnet), the CLI
+  offers to load `.koinosrc.testnet` in your home directory and current directory. The
+  included file registers testnet KOIN and VHP using their testnet addresses.
+- Otherwise, the CLI offers to load `.koinosrc` in those locations. The included
+  file connects to mainnet and registers KOIN, VHP, and system contracts.
+- An explicit `--network` or `--rpc` takes precedence over `connect` and
+  `disconnect` commands in automatic startup files; those commands are skipped
+  with a notice. Other approved startup commands still run. `--no-rc` skips startup
+  file discovery and review entirely. Skipping a config keeps built-in token commands.
 
-To close the open wallet, simply use the `close` command.
+Batch runs cannot approve discovered files. Interactive review requires terminal
+input and terminal output on standard error. If review is unavailable and an
+automatic startup file is present, the CLI stops before running its commands or any
+`--execute`/`--file` inputs. Use `--no-rc` to skip configs, or explicitly choose a
+file as shown below. Preview text goes to the terminal on standard error.
 
-Any of the commands which take a password may be called with it omitted. In this case it will use the value in the `WALLET_PASS` environment variable / .env file.
+Custom startup files are loaded from disk. To use your customizations outside this
+checkout, copy the appropriate file to your home directory or explicitly load
+your own config and enter the prompt:
 
-## Other useful commands
-
-To check the balance of a given public address, use the command `balance <address>`.
-
-To transfer KOIN from the currently open wallet, use the command `transfer <amount> <address>`.
-
-## Smart contract management
-
-> _**Note:** Smart contract management will change in the future to be much easier to work with._
-
-To upload a smart contract, use the command `upload <filename>`. The file given should be a compiled wasm smart contract. The contract id will be the public address of the currently open wallet.
-
-Example:
-```
-🔓 > upload token.wasm
-Contract uploaded with address 15XjYr9DkyrxaY2mgjRiRLpYww8cHquW4U
-Submitted transaction with ID 0x12202687e8f3ccf8175e7b63a24862ee15b5481ce484ee128eeccba60b68ec69d2ae
-```
-
-To interact with a smart contract, first register its ABI file with the command `register <name> <address> abi-filename>` using the contract's address and a name of your choosing.
-
-Example:
-```
-🔓 > register koin 15im92XgZiV39tcKMhMGtDYhJjXPMjUu8r abi/koin.abi
-Contract 'koin' at address 15im92XgZiV39tcKMhMGtDYhJjXPMjUu8r registered
+```sh
+./koinos-cli --no-rc --file /path/to/my-config -i
 ```
 
-Its methods will then be added to the list of available commands in the CLI.
+Explicit `--file` inputs are deliberate script execution and do not prompt for
+review. They run all their commands, including `connect`. Use contract
+addresses for the network you selected; mainnet addresses do not work on testnet.
 
-Example:
+Changing connections during a transaction session is rejected. Switching to a
+different chain with registered contracts (including built-in tokens) requires
+restarting the CLI for that network, so old contract addresses cannot silently
+carry over. Reconnecting to another node on the same chain keeps the registrations.
 
-```
-🔓 > list
-...
-koin.balance_of   - Checks the balance at an address
-koin.decimals     - Return the token's decimal precision
-koin.mint         - Mints the token
-koin.name         - Returns the token's name
-koin.symbol       - Returns the token's symbol
-koin.total_supply - Mints the token's total supply
-koin.transfer     - Transfers the token
-...
+For testnet, use the Koinos Foundation endpoint. This read-only example checks
+the chain ID without opening a wallet or submitting a transaction:
 
-🔓 > help koin.balance_of
-Checks the balance at an address
-Usage: koin.balance_of <owner:address>
-
-🔓 > koin.balance_of 1H7NoCkYiVciGLGA92LyAR2VvFLNN38qyM
-value:31870000000000
-
-🔓 > help koin.transfer
-Transfers the token
-Usage: koin.transfer <from:address> <to:address> <value:uint>
-
-🔓 > koin.transfer 1H7NoCkYiVciGLGA92LyAR2VvFLNN38qyM 13daTg586CnrVjKRjGwBtBWH6eda99A7bw 100000000
-Calling koin.transfer with arguments 'from:"1H7NoCkYiVciGLGA92LyAR2VvFLNN38qyM"  to:"13daTg586CnrVjKRjGwBtBWH6eda99A7bw"  value:100000000'
-Submitted transaction with id 1220efc02549b2c1e24b685b2f3193f05bbc4197dc44984ead6409555fad3f338fa8
-
-🔓 > koin.balance_of 13daTg586CnrVjKRjGwBtBWH6eda99A7bw
-value:100000000
+```sh
+./koinos-cli --no-rc --network testnet --execute 'status'
 ```
 
-## Transaction sessions
+The testnet profile uses `https://testnet.koinosfoundation.org/jsonrpc`.
 
-Sometimes it is important to ensure multiple operations are included in the same block in a specific order. To accomplish this with the CLI, you use a session.
+## Wallets
 
-To begin a session, use the command `session begin`. A paper icon will appear to the left of the prompt while a session is active.
-
-Any command that interacts with the chain will now be added to the current session.
-
-To view the current session, use `session view`.
-
-To cancel the current session, use `session cancel`.
-
-When you are done adding commands to the session, `session submit` will send the attached commands as a single transaction to the blockchain.
-
-Example:
-```
-🔓 > session begin
-Began transaction session
-
-🔓 📄 > transfer 1.0 1BLUi4ogqptnyBnSuKFyWMxEyVJzxiZWhM
-Transferring 1 KOIN to 1BLUi4ogqptnyBnSuKFyWMxEyVJzxiZWhM
-Adding operation to transaction session
-
-🔓 📄 > upload token.wasm
-Contract uploaded with address 15XjYr9DkyrxaY2mgjRiRLpYww8cHquW4U
-Submitted transaction with ID 0x12202687e8f3ccf8175e7b63a24862ee15b5481ce484ee128eeccba60b68ec69d2ae
-
-🔓 📄 > transfer 25.0 15Pb7o5GFBB56njFNvU2fAfa9Mm7rmsJH1
-Transferring 25 KOIN to 15Pb7o5GFBB56njFNvU2fAfa9Mm7rmsJH1
-Adding operation to transaction session
-
-🔓 📄 > session view
-Transaction Session (2 operations):
-0: Transfer 1 KOIN to 1BLUi4ogqptnyBnSuKFyWMxEyVJzxiZWhM
-1: Upload contract with address 15XjYr9DkyrxaY2mgjRiRLpYww8cHquW4U
-2: Transfer 25 KOIN to 15Pb7o5GFBB56njFNvU2fAfa9Mm7rmsJH1
-
-🔓 📄 > session submit
-Submitted transaction with ID 0x12202a7e68e58223a143106cb293e44c491132c4c6b075b9cc6657ededc7ebd142b2 (3 operations)
+```text
+create my.wallet
+open my.wallet
+address
+public
+close
 ```
 
-## Non-interactive mode
+`create`, `open`, and `import` accept an optional final password argument. When it
+is omitted, they use `WALLET_PASS` from the environment or a local `.env` file if
+set. Otherwise, a terminal prompts for the password without displaying it.
+Creating or importing a wallet asks for confirmation; opening asks once. Ctrl-C
+cancels password entry without creating a wallet file. Redirected input never
+prompts; scripts must supply a password argument or `WALLET_PASS`.
 
-Commands can be executed without using interactive mode. The `--execute` command-line parameter takes a semicolon separated list of commands, executes them, then returns to the terminal.
+Wallet create/open/import commands are omitted from the CLI's interactive history.
+Avoid putting real passwords or private keys in your shell history. `lock` and `unlock`
+are aliases for `close` and `open`.
+
+To import an existing Wallet Import Format (WIF) key:
+
+```text
+import <private-key-in-WIF> imported.wallet
+```
+
+New files are created with owner-only permissions and never replace an existing
+file or symlink. Invalid passwords are rejected before creation, and failed writes
+are cleaned up. Wallets must be open before signing or preparing write operations.
+
+### Wallet format compatibility
+
+New wallets use a random salt and Argon2id to derive their encryption key, then
+DARE v2 authenticated encryption. The binary layout is `KOINOSW`, version byte
+`0x01`, a 32-byte salt, then the encrypted private key. Version 1 fixes Argon2id to
+three passes, 64 MiB of memory, four lanes, and a 32-byte derived key. File contents
+cannot request larger password-derivation costs.
+
+Existing wallets using the older SHA-256 password derivation still open. Opening
+a wallet does not rewrite it or upgrade its password protection. New-format
+wallets require this updated CLI and cannot be opened by older releases. Keep
+existing backups when explicitly re-importing a key into a new wallet file.
+
+`private` displays the open wallet's private key. `generate` displays a new key
+without saving an encrypted wallet.
+
+## Tokens
+
+KOIN and VHP commands are built in for verified mainnet and testnet connections;
+no config file is needed. They appear in `list`, `help`, and tab completion.
+
+```text
+koin.balance_of
+koin.balance_of <address>
+koin.total_supply
+koin.transfer <recipient-address> 1.25
+```
+
+These token amounts are decimal values. Transfers require an open wallet and
+check its current balance when online.
+
+The `register_token` command adds the same balance, supply, and transfer commands
+for another token, either interactively or in a config file. Symbol and precision
+can be supplied explicitly; otherwise they are queried from the node:
+
+```text
+register_token mytoken <contract-address>
+mytoken.balance_of <address>
+```
+
+Older configs that also register KOIN and VHP still work. Repeating a registration
+with the same name and address reuses the existing commands; any explicit symbol
+or precision must match. Conflicting registrations fail without replacing the
+original commands. To load additional ABI functions for an already registered
+token, use a separate contract name as shown below.
+
+## Smart contracts
+
+Upload compiled WebAssembly using the open wallet's address as the contract ID:
+
+```text
+upload contract.wasm contract.abi
+```
+
+Register a contract's application binary interface (ABI) from a file, or omit the
+file to fetch it from the node:
+
+```text
+register mycontract <contract-address> contract.abi
+help mycontract.some_method
+```
+
+The ABI generates commands with typed arguments. Read-only methods query the node;
+write methods create signed transaction operations. ABI integer amounts are raw
+integer units, unlike the decimal amounts accepted by `register_token` transfers.
+The lower-level `call`, `read`, `set_system_call`, and `set_system_contract`
+commands are also available; consult their command help.
+
+## Transaction settings and sessions
+
+```text
+payer me
+nonce auto
+chain_id auto
+rclimit 10%
+account_rc
+account_nonce
+```
+
+`payer` can select another account. `nonce` and `chain_id` can be set explicitly,
+or left automatic. `rclimit` accepts an absolute mana amount or a percentage;
+explicit zero is preserved and is not expanded to the available allowance.
+
+A session batches write operations into a single transaction:
+
+```text
+session begin
+koin.transfer <recipient-address> 1.25
+session view
+session submit
+```
+
+`session cancel` discards pending operations. Read-only commands execute immediately
+and are not added to the session. A submission error retains the pending session.
+Successful submission is not a guarantee of irreversible inclusion in the chain.
+
+Offline sessions require an open wallet, an explicit nonce, an explicit base64
+chain ID, and an absolute resource limit. Token registration requires symbol and
+precision while offline; contract registration requires a local ABI file.
+`session submit` then prints the signed transaction as JSON and base64 without
+broadcasting it. `sign_transaction` adds a signature to a base64 transaction;
+`submit_transaction` broadcasts one when connected.
+
+## Scripts and exit status
+
+For commands that do not require automatic startup configuration:
+
+```sh
+./koinos-cli --no-rc --execute 'list'
+./koinos-cli --no-rc --file commands.txt
+```
+
+`--execute` accepts semicolon-separated commands and can be repeated. Command
+files contain one command line per line; blank lines are accepted. To register
+and immediately use a new contract in a script, put registration and use on
+separate lines (or separate `--execute` options), because each line is parsed
+before its commands execute.
+
+Interactive execution order is the approved home startup file, the approved current-directory startup file,
+explicit `--execute` commands, then explicit `--file` inputs. The testnet startup
+filename is `.koinosrc.testnet` when testnet is selected with `--network` or verified
+through `--rpc`; otherwise it is `.koinosrc`. The same automatic startup file is
+reviewed and run only once. Missing automatic files are allowed; missing explicit
+files are errors. Batch runs require `--no-rc` when a startup file is present;
+this skips only automatic files, not explicitly named `--file` inputs.
+
+A parse error, command error, rejected transaction, or unreadable script stops
+execution and returns a nonzero process status. Later commands do not execute;
+earlier completed operations are not rolled back. Successful batches return zero.
+Interactive command errors return to the prompt. `--force-interactive` enters the
+prompt after successful startup and batch execution.

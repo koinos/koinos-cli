@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -83,11 +84,14 @@ type ExecutionEnvironment struct {
 	Parser    *CommandParser
 	Contracts Contracts
 	Session   *TransactionSession
-	nonceMap  map[string]*nonceInfo
-	nonceMode string
-	rcLimit   rcInfo
-	payer     string
-	chainID   string
+	// PasswordPrompt is provided only by a terminal frontend; scripts never read secrets from stdin.
+	PasswordPrompt   func(string) (string, error)
+	nonceMap         map[string]*nonceInfo
+	nonceMode        string
+	rcLimit          rcInfo
+	payer            string
+	chainID          string
+	connectedChainID []byte
 }
 
 // NewExecutionEnvironment creates a new ExecutionEnvironment object
@@ -113,6 +117,35 @@ func (ee *ExecutionEnvironment) OpenWallet(key *util.KoinosKey) {
 // CloseWallet closes the wallet
 func (ee *ExecutionEnvironment) CloseWallet() {
 	ee.Key = nil
+}
+
+// WalletPassword preserves explicit/environment credentials for scripts and
+// prompts only when the frontend provides a terminal reader.
+func (ee *ExecutionEnvironment) WalletPassword(password *string, confirm bool) (string, error) {
+	if password != nil || os.Getenv("WALLET_PASS") != "" || ee.PasswordPrompt == nil {
+		return cliutil.GetPassword(password)
+	}
+	label := "Wallet password: "
+	if confirm {
+		label = "New wallet password: "
+	}
+	value, err := ee.PasswordPrompt(label)
+	if err != nil {
+		return "", fmt.Errorf("password entry cancelled")
+	}
+	if value == "" {
+		return "", fmt.Errorf("%w: password cannot be empty", cliutil.ErrBlankPassword)
+	}
+	if confirm {
+		repeated, err := ee.PasswordPrompt("Confirm wallet password: ")
+		if err != nil {
+			return "", fmt.Errorf("password entry cancelled")
+		}
+		if value != repeated {
+			return "", fmt.Errorf("passwords do not match; wallet was not created")
+		}
+	}
+	return value, nil
 }
 
 // IsSelfPaying returns a bool representing whether or not the user is self paying
@@ -309,12 +342,17 @@ func (ee *ExecutionEnvironment) createInsufficientRCMessage(ctx context.Context,
 
 // GetSubmissionParams returns the submission parameters for a command
 func (ee *ExecutionEnvironment) GetSubmissionParams(ctx context.Context) (*cliutil.SubmissionParams, error) {
-	nonce, err := ee.GetNextNonce(ctx, true)
+	rcLimit, err := ee.GetRcLimit(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	rcLimit, err := ee.GetRcLimit(ctx)
+	chainID, err := ee.GetChainID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce, err := ee.GetNextNonce(ctx, true)
 	if err != nil {
 		return nil, err
 	}
@@ -322,6 +360,7 @@ func (ee *ExecutionEnvironment) GetSubmissionParams(ctx context.Context) (*cliut
 	return &cliutil.SubmissionParams{
 		Nonce:   nonce,
 		RCLimit: rcLimit,
+		ChainID: chainID,
 	}, nil
 }
 
@@ -443,6 +482,7 @@ func (arg *CommandArg) String() string {
 // InterpretResults is a struct that holds the results of a multi-command interpretation
 type InterpretResults struct {
 	Results []string
+	Err     error
 }
 
 // NewInterpretResults creates a new InterpretResults object
@@ -477,10 +517,12 @@ func (pr *ParseResults) Interpret(ee *ExecutionEnvironment) *InterpretResults {
 		cmd := inv.Instantiate()
 		result, err := cmd.Execute(context.Background(), ee)
 		if err != nil {
+			output.Err = err
 			output.AddResult(err.Error())
 			if result != nil {
 				output.AddResult(result.ErrorMessage...)
 			}
+			break
 		} else {
 			output.AddResult(result.Message...)
 		}
@@ -529,6 +571,7 @@ func ParseAndInterpret(parser *CommandParser, ee *ExecutionEnvironment, input st
 	result, err := parser.Parse(input)
 	if err != nil {
 		o := NewInterpretResults()
+		o.Err = err
 		o.AddResult(err.Error())
 		metrics := result.Metrics()
 		// Display help for the command if it is a valid command

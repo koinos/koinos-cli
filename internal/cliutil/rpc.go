@@ -3,6 +3,8 @@ package cliutil
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/url"
 
 	kjson "github.com/koinos/koinos-proto-golang/v2/encoding/json"
 	"github.com/koinos/koinos-proto-golang/v2/koinos/contract_meta_store"
@@ -47,13 +49,24 @@ func (e KoinosRPCError) Error() string {
 
 // KoinosRPCClient is a wrapper around the jsonrpc client
 type KoinosRPCClient struct {
-	client jsonrpc.RPCClient
+	client   jsonrpc.RPCClient
+	endpoint string
 }
 
 // NewKoinosRPCClient creates a new koinos rpc client
 func NewKoinosRPCClient(url string) *KoinosRPCClient {
 	client := jsonrpc.NewClient(url)
-	return &KoinosRPCClient{client: client}
+	return &KoinosRPCClient{client: client, endpoint: url}
+}
+
+// Endpoint is safe to display: credentials, query tokens, and fragments are omitted.
+func (c *KoinosRPCClient) Endpoint() string {
+	u, err := url.Parse(c.endpoint)
+	if err != nil {
+		return "(invalid endpoint)"
+	}
+	u.User, u.RawQuery, u.Fragment = nil, "", ""
+	return u.String()
 }
 
 // Call wraps the rpc client call and handles some of the boilerplate
@@ -217,8 +230,8 @@ func (c *KoinosRPCClient) SubmitTransactionOpsWithPayer(ctx context.Context, ops
 		chainID = subParams.ChainID
 	}
 
-	// If the nonce is not provided, get it from the chain
-	if nonce == 0 {
+	// A supplied parameter set is explicit, including zero values.
+	if subParams == nil {
 		nonce, err = c.GetAccountNonce(ctx, address)
 		if err != nil {
 			return nil, err
@@ -226,8 +239,7 @@ func (c *KoinosRPCClient) SubmitTransactionOpsWithPayer(ctx context.Context, ops
 		nonce++
 	}
 
-	// If the rc limit is not provided, get it from the chain
-	if rcLimit == 0 {
+	if subParams == nil {
 		rcLimit, err = c.GetAccountRc(ctx, address)
 		if err != nil {
 			return nil, err
@@ -262,6 +274,12 @@ func (c *KoinosRPCClient) SubmitTransaction(ctx context.Context, transaction *pr
 	err := c.Call(ctx, SubmitTransactionCall, &params, &cResp)
 	if err != nil {
 		return nil, err
+	}
+	if cResp.Receipt == nil {
+		return nil, fmt.Errorf("%w: transaction receipt is missing", ErrInvalidResponse)
+	}
+	if cResp.Receipt.Reverted {
+		return cResp.Receipt, fmt.Errorf("%s", TransactionReceiptToString(cResp.Receipt, len(transaction.GetOperations())))
 	}
 
 	return cResp.Receipt, nil
