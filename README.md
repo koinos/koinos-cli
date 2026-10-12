@@ -111,10 +111,10 @@ New wallets are created exclusively and do not replace existing files. On Unix,
 their file permissions permit only the owner to read or write. On Windows, a
 protected access-control list grants access only to the creating user, without
 inheriting the containing folder's permissions. The CLI verifies those rules
-before writing wallet data. Windows wallet creation requires a filesystem with
-persistent access controls, such as NTFS; it refuses filesystems such as FAT and
-alternate data streams. Existing wallet files are not rewritten or repermissioned
-when opened.
+before writing wallet data. Windows wallet creation requires a local filesystem
+with persistent access controls, such as NTFS. Filesystems such as FAT, alternate
+data streams, and network shares whose filesystem protection cannot be verified
+are refused. Existing wallet files are not rewritten or repermissioned when opened.
 
 ```text
 create my.wallet
