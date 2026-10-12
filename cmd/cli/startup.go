@@ -9,7 +9,7 @@ import (
 	"github.com/koinos/koinos-cli/internal/cli"
 )
 
-func executeStartupFiles(homeDir string, parser *cli.CommandParser, env *cli.ExecutionEnvironment, keepConnection bool) error {
+func executeStartupFiles(homeDir string, parser *cli.CommandParser, env *cli.ExecutionEnvironment, keepConnection bool, review func(string, []byte) (bool, error)) error {
 	name := ".koinosrc"
 	if keepConnection && env.NetworkLabel() == "testnet" {
 		// The legacy startup file contains mainnet contract addresses.
@@ -17,6 +17,10 @@ func executeStartupFiles(homeDir string, parser *cli.CommandParser, env *cli.Exe
 	}
 	var seen []os.FileInfo
 	for _, file := range []string{filepath.Join(homeDir, name), name} {
+		file, err := filepath.Abs(file)
+		if err != nil {
+			return err
+		}
 		info, err := os.Stat(file)
 		if os.IsNotExist(err) {
 			continue
@@ -35,7 +39,26 @@ func executeStartupFiles(homeDir string, parser *cli.CommandParser, env *cli.Exe
 			continue
 		}
 		seen = append(seen, info)
-		if err := executeCommandFile(file, parser, env, keepConnection); err != nil {
+		if review == nil {
+			return fmt.Errorf("automatic startup file %q requires interactive review; use --no-rc to skip configs, or --no-rc --file %q to run this file explicitly", file, file)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("startup file %q must be a regular file", file)
+		}
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return err
+		}
+		approved, err := review(file, data)
+		if err != nil {
+			return fmt.Errorf("startup file review cancelled: %w", err)
+		}
+		if !approved {
+			fmt.Fprintf(os.Stderr, "Skipped startup file %q\n", file)
+			continue
+		}
+		// Execute the reviewed bytes, even if the file changes while prompting.
+		if err := executeCommandData(file, data, parser, env, keepConnection); err != nil {
 			return err
 		}
 	}
@@ -47,6 +70,10 @@ func executeCommandFile(file string, parser *cli.CommandParser, env *cli.Executi
 	if err != nil {
 		return err
 	}
+	return executeCommandData(file, data, parser, env, keepConnection)
+}
+
+func executeCommandData(file string, data []byte, parser *cli.CommandParser, env *cli.ExecutionEnvironment, keepConnection bool) error {
 	for lineNumber, line := range strings.Split(string(data), "\n") {
 		parsed, err := parser.Parse(line)
 		var result *cli.InterpretResults

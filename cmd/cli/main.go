@@ -39,7 +39,7 @@ func run(args []string, homeDir string) int {
 
 	// Setup command line options
 	rpcAddress := flags.StringP(rpcOption, "r", rpcDefault, "RPC server URL (takes precedence over automatic startup files)")
-	network := flags.String("network", "", "Select mainnet or testnet and load its startup files")
+	network := flags.String("network", "", "Select mainnet or testnet; review optional startup files interactively")
 	executeCmd := flags.StringSliceP(executeOption, "x", nil, "Command to execute")
 	fileCmd := flags.StringSliceP(fileOption, "f", nil, "File to execute")
 	versionCmd := flags.BoolP(versionOption, "v", false, "Display the version")
@@ -86,9 +86,14 @@ func run(args []string, homeDir string) int {
 		}
 	}
 
-	// Register startup commands before parsing commands supplied with --execute.
+	interactiveMode := *forceInteractive || (*executeCmd == nil && *fileCmd == nil)
+	// Automatic files need terminal review before any of their commands run.
 	if !*noRC {
-		if err := executeStartupFiles(homeDir, parser, cmdEnv, target != ""); err != nil {
+		var review func(string, []byte) (bool, error)
+		if interactiveMode {
+			review = interactive.StartupFilePrompt()
+		}
+		if err := executeStartupFiles(homeDir, parser, cmdEnv, target != "", review); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
@@ -114,7 +119,7 @@ func run(args []string, homeDir string) int {
 	}
 
 	// Run interactive mode if no commands given, or if forced
-	if *forceInteractive || (*executeCmd == nil && *fileCmd == nil) {
+	if interactiveMode {
 		// Enter interactive mode
 		p := interactive.NewKoinosPrompt(parser, cmdEnv, *forceTextPrompt)
 		p.Run()

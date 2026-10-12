@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func TestExplicitRPCLoadsCommandsWithoutOverridingConnection(t *testing.T) {
+func TestExplicitRPCRequiresReviewForAutomaticConfiguration(t *testing.T) {
 	for _, test := range []struct {
 		name, chainID, config string
 	}{
@@ -37,8 +37,8 @@ func TestExplicitRPCLoadsCommandsWithoutOverridingConnection(t *testing.T) {
 			server := startupChainServer(t, test.chainID)
 			defer server.Close()
 			code, output := invokeCLI(t, dir, "--rpc", server.URL, "--execute", "help example.balance_of; status")
-			if code != 0 || !strings.Contains(output, "Usage: example.balance_of") || !strings.Contains(output, "Endpoint: "+server.URL) || !strings.Contains(output, "Network: "+test.name) {
-				t.Fatalf("startup did not restore commands and preserve the selected node: code=%d output=%s", code, output)
+			if code != 1 || !strings.Contains(output, "requires interactive review") || !strings.Contains(output, test.config) {
+				t.Fatalf("automatic config did not require review: code=%d output=%s", code, output)
 			}
 		})
 	}
@@ -60,18 +60,6 @@ func startupChainServer(t *testing.T, chainID string) *httptest.Server {
 		}
 		fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":{"chain_id":%q}}`, request.ID, chainID)
 	}))
-}
-
-func TestLegacyStartupRegistersCommandsBeforeExecute(t *testing.T) {
-	dir := t.TempDir()
-	config := "register_token example 15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL EXAMPLE 8\n"
-	if err := os.WriteFile(filepath.Join(dir, ".koinosrc"), []byte(config), 0600); err != nil {
-		t.Fatal(err)
-	}
-	code, output := invokeCLI(t, dir, "--execute", "help example.balance_of")
-	if code != 0 || !strings.Contains(output, "Usage: example.balance_of") {
-		t.Fatalf("startup commands unavailable to --execute: code=%d output=%s", code, output)
-	}
 }
 
 func TestNoRCWithExplicitRPCSkipsStartup(t *testing.T) {
@@ -103,20 +91,6 @@ func TestExplicitFileStillRunsConnectionCommands(t *testing.T) {
 	}
 }
 
-func TestStartupFailureStopsExecuteCommands(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".koinosrc"), []byte("address\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	code, output := invokeCLI(t, dir, "--execute", "create should-not-exist.wallet test-password")
-	if code != 1 || !strings.Contains(output, ".koinosrc:1") {
-		t.Fatalf("startup error did not stop execution: code=%d output=%s", code, output)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "should-not-exist.wallet")); !os.IsNotExist(err) {
-		t.Fatal("--execute ran after startup failure")
-	}
-}
-
 func TestMalformedStartupLineStopsBeforeEarlierCommands(t *testing.T) {
 	dir := t.TempDir()
 	config := "create should-not-exist.wallet test-password; unknown_command\n"
@@ -125,7 +99,7 @@ func TestMalformedStartupLineStopsBeforeEarlierCommands(t *testing.T) {
 	}
 	server := startupChainServer(t, "AQ==")
 	defer server.Close()
-	code, output := invokeCLI(t, dir, "--rpc", server.URL, "--execute", "status")
+	code, output := invokeCLI(t, dir, "--no-rc", "--rpc", server.URL, "--file", ".koinosrc")
 	if code != 1 || !strings.Contains(output, ".koinosrc:1") {
 		t.Fatalf("malformed startup line did not stop execution: code=%d output=%s", code, output)
 	}
@@ -160,10 +134,16 @@ func TestCLIProcess(t *testing.T) {
 
 func invokeCLI(t *testing.T, dir string, args ...string) (int, string) {
 	t.Helper()
+	return invokeCLIWithInput(t, dir, "", args...)
+}
+
+func invokeCLIWithInput(t *testing.T, dir, input string, args ...string) (int, string) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	command := exec.CommandContext(ctx, os.Args[0], append([]string{"-test.run=^TestCLIProcess$", "--"}, args...)...)
 	command.Dir = dir
+	command.Stdin = strings.NewReader(input)
 	command.Env = append(os.Environ(), "KOINOS_CLI_TEST_PROCESS=1", "KOINOS_CLI_TEST_CONFIG="+dir)
 	output, err := command.CombinedOutput()
 	if err == nil {
@@ -244,7 +224,7 @@ func TestStartupCommandFailureStopsExplicitScript(t *testing.T) {
 	if err := os.WriteFile(script, []byte("create should-not-exist.wallet test-password\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	code, output := invokeCLI(t, dir, "--file", script)
+	code, output := invokeCLI(t, dir, "--no-rc", "--file", ".koinosrc", "--file", script)
 	if code == 0 {
 		t.Fatalf("startup failure exited successfully: %s", output)
 	}
@@ -273,21 +253,6 @@ func TestInvalidFlagsExplainFailure(t *testing.T) {
 	}
 }
 
-func TestSameStartupFileRunsOnce(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".koinosrc"), []byte("create once.wallet test-password\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	script := filepath.Join(dir, "commands")
-	if err := os.WriteFile(script, []byte("address\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	code, output := invokeCLI(t, dir, "--file", script)
-	if code != 0 {
-		t.Fatalf("same home/local startup file ran twice: %s", output)
-	}
-}
-
 func TestStandardTokenCommandsNeedNoStartupFile(t *testing.T) {
 	for _, chainID := range []string{
 		"EiBZK_GGVP0H_fXVAM3j6EAuz3-B-l3ejxRSewi7qIBfSA==",
@@ -307,8 +272,8 @@ func TestStandardTokenCommandsNeedNoStartupFile(t *testing.T) {
 }
 
 func TestConfigAddsCustomCommandsAlongsideStandardTokens(t *testing.T) {
-	for _, explicit := range []bool{false, true} {
-		t.Run(fmt.Sprintf("explicit=%t", explicit), func(t *testing.T) {
+	for _, configName := range []string{".koinosrc.testnet", "custom.config"} {
+		t.Run(configName, func(t *testing.T) {
 			dir := t.TempDir()
 			// No arguments or return type means the contract's standard empty messages.
 			abi := `{"methods":{"ping":{"entry-point":"0x12345678","read-only":true}}}`
@@ -320,15 +285,12 @@ func TestConfigAddsCustomCommandsAlongsideStandardTokens(t *testing.T) {
 				"register_token custom 15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL CUSTOM 4\n" +
 				"register custom_contract 15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL custom.abi\n" +
 				"help custom.balance_of; help custom_contract.ping; help koin.transfer; help vhp.balance_of\n"
-			if err := os.WriteFile(filepath.Join(dir, ".koinosrc.testnet"), []byte(config), 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, configName), []byte(config), 0600); err != nil {
 				t.Fatal(err)
 			}
 			server := startupChainServer(t, "EiAIKVvm6-V2qmsmUvPJy09vCCLbtn9lHFpwrJbcTIEWRQ==")
 			defer server.Close()
-			args := []string{"--rpc", server.URL, "--execute", "status"}
-			if explicit {
-				args = append(args, "--no-rc", "--file", ".koinosrc.testnet")
-			}
+			args := []string{"--no-rc", "--rpc", server.URL, "--file", configName}
 			code, output := invokeCLI(t, dir, args...)
 			if code != 0 {
 				t.Fatalf("config extensions failed: code=%d output=%s", code, output)
@@ -339,5 +301,35 @@ func TestConfigAddsCustomCommandsAlongsideStandardTokens(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestUnreviewedStartupStopsBatchBeforeAnyCommands(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".koinosrc"), []byte("create automatic.wallet test-password\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	code, output := invokeCLI(t, dir, "--execute", "create explicit.wallet test-password")
+	if code != 1 || !strings.Contains(output, "requires interactive review") || !strings.Contains(output, "--no-rc") {
+		t.Fatalf("unreviewed startup was not blocked: code=%d output=%s", code, output)
+	}
+	for _, name := range []string{"automatic.wallet", "explicit.wallet"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); !os.IsNotExist(err) {
+			t.Fatalf("unreviewed startup ran a command: %s", name)
+		}
+	}
+}
+
+func TestPipedYesCannotApproveAutomaticStartup(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".koinosrc"), []byte("create automatic.wallet test-password\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	code, output := invokeCLIWithInput(t, dir, "yes\n", "--force-interactive", "--execute", "list")
+	if code != 1 || !strings.Contains(output, "requires interactive review") {
+		t.Fatalf("piped input bypassed terminal review: code=%d output=%s", code, output)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "automatic.wallet")); !os.IsNotExist(err) {
+		t.Fatal("piped input approved an automatic config")
 	}
 }

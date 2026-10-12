@@ -51,17 +51,28 @@ URL serving either known chain gets the same commands. Unknown chains require
 explicit token registration.
 
 Optional startup files add other tokens, contract functions, and personal settings.
-They load before `--execute` commands and the interactive prompt:
+Interactive startup shows each file's full path and contents, then asks
+`Load this startup file? [y/N]:`. Only `y` or `yes` loads it; Enter skips it. Ctrl-C
+cancels startup. Each file requires its own approval on every launch, and the CLI
+executes the exact contents shown, even if the file changes during review. Control
+and non-ASCII characters are escaped in the preview so they cannot hide commands.
+Approved files run before `--execute` commands and the interactive prompt:
 
 - With `--network testnet` (or `--rpc` pointing to the verified testnet), the CLI
-  reads `.koinosrc.testnet` in your home directory and current directory. The
+  offers to load `.koinosrc.testnet` in your home directory and current directory. The
   included file registers testnet KOIN and VHP using their testnet addresses.
-- Otherwise, the CLI reads `.koinosrc` in those locations as before. The included
+- Otherwise, the CLI offers to load `.koinosrc` in those locations. The included
   file connects to mainnet and registers KOIN, VHP, and system contracts.
 - An explicit `--network` or `--rpc` takes precedence over `connect` and
   `disconnect` commands in automatic startup files; those commands are skipped
-  with a notice. Other startup commands still run. `--no-rc` disables automatic
-  startup files entirely.
+  with a notice. Other approved startup commands still run. `--no-rc` skips startup
+  file discovery and review entirely. Skipping a config keeps built-in token commands.
+
+Batch runs cannot approve discovered files. Interactive review requires terminal
+input and terminal output on standard error. If review is unavailable and an
+automatic startup file is present, the CLI stops before running its commands or any
+`--execute`/`--file` inputs. Use `--no-rc` to skip configs, or explicitly choose a
+file as shown below. Preview text goes to the terminal on standard error.
 
 Custom startup files are loaded from disk. To use your customizations outside this
 checkout, copy the appropriate file to your home directory or explicitly load
@@ -71,7 +82,8 @@ your own config and enter the prompt:
 ./koinos-cli --no-rc --file /path/to/my-config -i
 ```
 
-Explicit `--file` scripts run all their commands, including `connect`. Use contract
+Explicit `--file` inputs are deliberate script execution and do not prompt for
+review. They run all their commands, including `connect`. Use contract
 addresses for the network you selected; mainnet addresses do not work on testnet.
 
 Changing connections during a transaction session is rejected. Switching to a
@@ -83,7 +95,7 @@ For testnet, use the Koinos Foundation endpoint. This read-only example checks
 the chain ID without opening a wallet or submitting a transaction:
 
 ```sh
-./koinos-cli --network testnet --execute 'status'
+./koinos-cli --no-rc --network testnet --execute 'status'
 ```
 
 The testnet profile uses `https://testnet.koinosfoundation.org/jsonrpc`.
@@ -237,12 +249,13 @@ and immediately use a new contract in a script, put registration and use on
 separate lines (or separate `--execute` options), because each line is parsed
 before its commands execute.
 
-Execution order is the home startup file, the current-directory startup file,
+Interactive execution order is the approved home startup file, the approved current-directory startup file,
 explicit `--execute` commands, then explicit `--file` inputs. The testnet startup
 filename is `.koinosrc.testnet` when testnet is selected with `--network` or verified
 through `--rpc`; otherwise it is `.koinosrc`. The same automatic startup file is
-read only once. Missing automatic files are allowed; missing explicit files are
-errors. `--no-rc` skips only the automatic startup files.
+reviewed and run only once. Missing automatic files are allowed; missing explicit
+files are errors. Batch runs require `--no-rc` when a startup file is present;
+this skips only automatic files, not explicitly named `--file` inputs.
 
 A parse error, command error, rejected transaction, or unreadable script stops
 execution and returns a nonzero process status. Later commands do not execute;
