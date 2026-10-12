@@ -50,6 +50,11 @@ including with `--no-rc` or when running outside this checkout. A custom `--rpc`
 URL serving either known chain gets the same commands. Unknown chains require
 explicit token registration.
 
+For an older mainnet config, remove its `register_token koin` and
+`register_token vhp` lines to use the built-in defaults, or update them to match
+the included `.koinosrc`. The mainnet KOIN and VHP contracts have moved; a stale
+registration conflicts with the current defaults and stops config execution.
+
 Optional startup files add other tokens, contract functions, and personal settings.
 Interactive startup shows each file's full path and contents, then asks
 `Load this startup file? [y/N]:`. Only `y` or `yes` loads it; Enter skips it. Ctrl-C

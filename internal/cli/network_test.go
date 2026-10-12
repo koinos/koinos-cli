@@ -136,7 +136,7 @@ func TestConnectInstallsStandardTokensForVerifiedChain(t *testing.T) {
 	for _, test := range []struct {
 		name, chainID, koin, vhp, koinSymbol, vhpSymbol string
 	}{
-		{"mainnet", "EiBZK_GGVP0H_fXVAM3j6EAuz3-B-l3ejxRSewi7qIBfSA==", "15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL", "18tWNU7E4yuQzz7hMVpceb9ixmaWLVyQsr", "KOIN", "VHP"},
+		{"mainnet", "EiBZK_GGVP0H_fXVAM3j6EAuz3-B-l3ejxRSewi7qIBfSA==", "19GYjDBVXU7keLbYvMLazsGQn3GTWHjHkK", "12Y5vW6gk8GceH53YfRkRre2Rrcsgw7Naq", "KOIN", "VHP"},
 		{"testnet", "EiAIKVvm6-V2qmsmUvPJy09vCCLbtn9lHFpwrJbcTIEWRQ==", "1FaSvLjQJsCJKq5ybmGsMMQs8RQYyVv8ju", "17n12ktwN79sR6ia9DDgCfmw77EgpbTyBi", "tKOIN", "VHP"},
 	} {
 		t.Run(test.name, func(t *testing.T) {

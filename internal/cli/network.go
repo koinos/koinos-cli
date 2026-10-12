@@ -26,8 +26,8 @@ var networks = map[string]struct {
 	tokens            []standardToken
 }{
 	"mainnet": {"https://api.koinos.io/", "EiBZK_GGVP0H_fXVAM3j6EAuz3-B-l3ejxRSewi7qIBfSA==", []standardToken{
-		{"koin", "15DJN4a8SgrbGhhGksSBASiSYjGnMU8dGL", "KOIN", 8},
-		{"vhp", "18tWNU7E4yuQzz7hMVpceb9ixmaWLVyQsr", "VHP", 8},
+		{"koin", cliutil.KoinContractID, "KOIN", 8},
+		{"vhp", "12Y5vW6gk8GceH53YfRkRre2Rrcsgw7Naq", "VHP", 8},
 	}},
 	"testnet": {"https://testnet.koinosfoundation.org/jsonrpc", "EiAIKVvm6-V2qmsmUvPJy09vCCLbtn9lHFpwrJbcTIEWRQ==", []standardToken{
 		{"koin", "1FaSvLjQJsCJKq5ybmGsMMQs8RQYyVv8ju", "tKOIN", 8},
