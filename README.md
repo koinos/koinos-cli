@@ -21,6 +21,44 @@ field encoders. These compatibility constraints prevent blindly upgrading those
 modules or removing the replacement in `go.mod`. Test serialized transactions,
 signatures, contract arguments, and wallet fixtures when changing them.
 
+## Preparing a release
+
+The **Prepare release** GitHub Actions workflow builds native packages, runs the
+Go and packaging tests, and checks the version and offline startup of each
+extracted executable. Pull requests run the same checks using a test version and
+upload temporary workflow artifacts. They cannot create releases. Packages cover
+Linux x64, Intel Macs, Apple Silicon Macs, and Windows x64. Windows builds run
+the native wallet access-control tests before packaging the executable.
+
+After the release changes are reviewed and merged, open **Actions → Prepare
+release → Run workflow**, select `master`, and enter an unused version such as
+`v2.1.0` or `v2.1.0-rc.1`. The version is embedded in each binary at build time;
+ordinary local builds identify themselves as `development`.
+
+Only a manually requested run from `master` can prepare a GitHub release. Every
+platform must pass before the workflow creates an **unpublished draft** tied to
+that run's exact source commit. It first creates a visible version tag at that
+commit, then uploads the draft. Existing tags and releases are never replaced.
+Candidate versions are automatically marked as pre-releases. Review the draft
+notes, download and test the archives, then publish manually.
+
+If draft creation or uploading fails after the tag is reserved, the tag and a
+partial draft may remain. A rerun refuses that version. Inspect the failed run
+and its artifacts before manually recovering or choosing another version; the
+workflow never deletes or moves tags to recover automatically.
+
+Packages contain the executable, `.koinosrc`, `.koinosrc.testnet`, this README,
+the license, and `BUILD-INFO.txt` with the source commit, version, target, and Go
+toolchain. `SHA256SUMS` covers every archive. These checksums detect changed
+downloads; they are not a guarantee that a build is trustworthy. Packages are
+not developer-signed or notarized, so operating-system download warnings may
+require additional user approval.
+
+Build jobs have read-only repository access, no signing credentials, no shared
+build cache, and no release-publishing permission. A separate job can only
+prepare the draft after all builds pass. The workflow does not publish releases
+or send announcements.
+
 ## Interactive use
 
 ```sh

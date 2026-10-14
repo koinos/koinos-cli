@@ -1,0 +1,144 @@
+name: Prepare release
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'New release version (for example v2.1.0 or v2.1.0-rc.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_VERSION: ${{ inputs.version || 'v0.0.0-test' }}
+
+jobs:
+  build:
+    name: Build and test ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            goos: linux
+            goarch: amd64
+          - runner: macos-15-intel
+            goos: darwin
+            goarch: amd64
+          - runner: macos-15
+            goos: darwin
+            goarch: arm64
+          - runner: windows-2025
+            goos: windows
+            goarch: amd64
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Preserve repository line endings on Windows
+        if: runner.os == 'Windows'
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.2'
+          cache: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+      - name: Validate release request and native platform
+        env:
+          EXPECTED_OS: ${{ matrix.goos }}
+          EXPECTED_ARCH: ${{ matrix.goarch }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" != refs/heads/master ]]; then
+            echo '::error::Prepare releases only from master.'
+            exit 1
+          fi
+          python -c 'from scripts.package_release import validate_version; import os; validate_version(os.environ["RELEASE_VERSION"])'
+          test "$(go env GOOS)" = "$EXPECTED_OS"
+          test "$(go env GOARCH)" = "$EXPECTED_ARCH"
+      - name: Verify dependencies and run tests
+        run: |
+          go mod download
+          go mod verify
+          go test -count=1 ./...
+          python -m unittest discover -s scripts -p 'test_*.py' -v
+      - name: Build, package, and test the extracted executable
+        env:
+          TARGET_OS: ${{ matrix.goos }}
+          TARGET_ARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p build/release
+          binary=koinos-cli
+          if [[ "$TARGET_OS" == windows ]]; then binary=koinos-cli.exe; fi
+          CGO_ENABLED=0 go build -trimpath -ldflags "-X github.com/koinos/koinos-cli/internal/cliutil.Version=$RELEASE_VERSION" -o "build/release/$binary" ./cmd/cli
+          python scripts/package_release.py --binary "build/release/$binary" --output build/packages --version "$RELEASE_VERSION" --os "$TARGET_OS" --arch "$TARGET_ARCH" --commit "$GITHUB_SHA" --smoke-test
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: build/packages/*
+          if-no-files-found: error
+          retention-days: 14
+
+  verify:
+    name: Verify downloaded packages
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*
+          path: packages
+          merge-multiple: true
+      - name: Check downloaded checksums and source commits
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, "scripts")
+          from draft_release import verify_packages
+          _, checksums = verify_packages(Path("packages"), os.environ["RELEASE_VERSION"], os.environ["GITHUB_SHA"])
+          print(checksums)
+          PY
+
+  draft:
+    name: Prepare unpublished draft
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
+    needs: verify
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*
+          path: packages
+          merge-multiple: true
+      - name: Verify packages and prepare draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/draft_release.py --packages packages --version "$RELEASE_VERSION" --commit "$GITHUB_SHA" --repository "$GITHUB_REPOSITORY"
